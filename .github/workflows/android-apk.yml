@@ -96,7 +96,7 @@ jobs:
     needs: build
     # Pinned: the emulator action documents ubuntu-24.04 + KVM; ubuntu-latest is moving to 26.
     runs-on: ubuntu-24.04
-    timeout-minutes: 150
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
 
@@ -126,17 +126,64 @@ jobs:
       - name: Install Maestro
         run: curl -fsSL "https://get.maestro.mobile.dev" | bash
 
-      - name: Run on emulator
+      # Boot from a cached snapshot when possible (cold boots on 2-core runners are flaky).
+      # Recipe from the android-emulator-runner README.
+      - name: AVD cache
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-30-default-x86_64-v1
+
+      - name: Create AVD and snapshot for caching
+        if: steps.avd-cache.outputs.cache-hit != 'true'
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 34
+          api-level: 30
           arch: x86_64
-          target: google_apis
-          ram-size: 4096M
-          disk-size: 8G
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-boot-anim -camera-back none
+          target: default
+          cores: 2
+          ram-size: 2048M
+          disk-size: 6G
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          disable-animations: false
+          emulator-boot-timeout: 1500
+          script: echo "Generated AVD snapshot for caching."
+
+      - name: Run on emulator
+        id: run1
+        continue-on-error: true
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          arch: x86_64
+          target: default
+          cores: 2
+          ram-size: 2048M
+          disk-size: 6G
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -no-boot-anim -camera-back none -camera-front none
           disable-animations: true
           emulator-boot-timeout: 1200
+          script: bash tests/e2e/run-on-emulator.sh
+
+      - name: Run on emulator (retry)
+        if: steps.run1.outcome == 'failure'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          arch: x86_64
+          target: default
+          cores: 2
+          ram-size: 2048M
+          disk-size: 6G
+          force-avd-creation: false
+          emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -no-boot-anim -camera-back none -camera-front none
+          disable-animations: true
+          emulator-boot-timeout: 1500
           script: bash tests/e2e/run-on-emulator.sh
 
       - name: Publish e2e results
