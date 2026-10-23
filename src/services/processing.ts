@@ -3,7 +3,8 @@
  */
 import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
-import { Directory, File } from 'expo-file-system';
+import { Directory, File, FileMode } from 'expo-file-system';
+import { displayName } from '../playlist/filter';
 import VoiceEncoder from '../../modules/voice-encoder/src/VoiceEncoderModule';
 import { aacBitrate, MIME, saveTarget, type SaveTarget } from '../edit/saveFormat';
 import { mixToMono, waveformPeaks } from '../dsp/buffers';
@@ -71,7 +72,7 @@ export async function importAsset(asset: { uri: string; name: string; size?: num
  * played and decoded from there. Only the app's own data (bookmarks, speech sections, any enhanced
  * copy or transcript the user makes) is stored in the app.
  */
-export async function linkExternal(item: { uri: string; name: string; size?: number }): Promise<Recording> {
+export async function linkExternal(item: { uri: string; name: string; size?: number; folderUri?: string; subfolder?: string }): Promise<Recording> {
   const ext = assertSupported(item.name);
   ensureDirs();
   const id = newId();
@@ -92,6 +93,8 @@ export async function linkExternal(item: { uri: string; name: string; size?: num
     status: 'analyzing',
     sourceUri: item.uri,
     external: true,
+    sourceFolderUri: item.folderUri,
+    sourceSubfolder: item.subfolder,
   };
 }
 
@@ -305,14 +308,100 @@ async function writeSaved(rec: Recording, r: EditRender, dir: Directory, baseNam
 
 /** Save: the recording's audio is replaced by the edit. The previous audio and enhanced copy are deleted. */
 export async function saveEditReplace(rec: Recording, r: EditRender): Promise<Partial<Recording>> {
-  // play-list files are never changed in their folder; the screen offers Save as instead
-  if (rec.external) throw new Error('external_readonly');
+  if (rec.external && rec.sourceUri) return saveEditToFolder(rec, r);
   const saved = await writeSaved(rec, r, recordingDir(rec.id), `audio-${Date.now()}`);
   const old = fileIn(rec.id, rec.originalFileName);
   if (old.exists && old.name !== saved.fileName) old.delete();
   deleteEnhanced(rec);
   return {
     originalFileName: saved.fileName,
+    format: saved.format,
+    mimeType: saved.mimeType,
+    sizeBytes: saved.sizeBytes,
+    durationSec: r.durationSec,
+    channels: r.channels,
+    sampleRate: r.sampleRate,
+    bookmarks: carryBookmarks(rec, r),
+    enhanced: undefined,
+    transcript: undefined,
+    segments: undefined,
+    waveform: undefined,
+    lastPositionSec: 0,
+    lastPlayedSource: 'original',
+    status: 'analyzing',
+    error: undefined,
+  };
+}
+
+/** What Save does to a play-list file: overwrite it, or write a new file when its type cannot be written. */
+export function folderSavePlan(rec: Recording): { overwrite: boolean; file: string; newFile: string } {
+  const target = editSaveTarget(rec);
+  const file = rec.originalFileName;
+  const base = file.replace(/\.[^.]+$/, '');
+  const overwrite = target.ext === extOf(file);
+  return { overwrite, file, newFile: overwrite ? file : `${base}.${target.ext}` };
+}
+
+/** Writes all of `src` into `destUri`, truncating it first. */
+async function writeOver(destUri: string, data: Uint8Array) {
+  const h = new File(destUri).open(FileMode.Truncate);
+  try {
+    await h.writeBytes(data);
+  } finally {
+    h.close();
+  }
+}
+
+/** Finds the play-list subfolder (e.g. "2025/Calls") inside the picked folder. */
+function findSubfolder(folderUri: string, subfolder: string): Directory | null {
+  let dir = new Directory(folderUri);
+  for (const part of subfolder.split('/').filter(Boolean)) {
+    const next = dir.list().find((e): e is Directory => e instanceof Directory && displayName(e.uri) === part);
+    if (!next) return null;
+    dir = next;
+  }
+  return dir;
+}
+
+/**
+ * Save for a play-list file: the file in its folder is replaced by the edit. When the phone can
+ * write the same type (M4A, MP4, WAV, and AAC on Android) the file is overwritten in place; the
+ * previous contents are kept in memory and written back if the write fails. Otherwise (MP3, FLAC,
+ * OGG, Opus) the edit is written next to it as M4A and the old file is deleted after that succeeds.
+ */
+async function saveEditToFolder(rec: Recording, r: EditRender): Promise<Partial<Recording>> {
+  const plan = folderSavePlan(rec);
+  const saved = await writeSaved(rec, r, tempDir(), `save-${Date.now()}`);
+  const tmp = new File(tempDir(), saved.fileName);
+  let sourceUri = rec.sourceUri!;
+  let fileName = rec.originalFileName;
+  try {
+    const data = await tmp.bytes();
+    if (plan.overwrite && extOf(saved.fileName) === extOf(rec.originalFileName)) {
+      const backup = await new File(sourceUri).bytes();
+      try {
+        await writeOver(sourceUri, data);
+      } catch (e) {
+        try { await writeOver(sourceUri, backup); } catch { /* reported below */ }
+        throw e;
+      }
+    } else {
+      const dir = rec.sourceFolderUri ? findSubfolder(rec.sourceFolderUri, rec.sourceSubfolder ?? '') : null;
+      if (!dir) throw new Error('folder_unavailable');
+      const name = `${rec.originalFileName.replace(/\.[^.]+$/, '')}.${extOf(saved.fileName)}`;
+      const created = dir.createFile(name, saved.mimeType);
+      await writeOver(created.uri, data);
+      new File(sourceUri).delete();
+      sourceUri = created.uri;
+      fileName = displayName(created.uri);
+    }
+  } finally {
+    if (tmp.exists) tmp.delete();
+  }
+  deleteEnhanced(rec);
+  return {
+    sourceUri,
+    originalFileName: fileName,
     format: saved.format,
     mimeType: saved.mimeType,
     sizeBytes: saved.sizeBytes,

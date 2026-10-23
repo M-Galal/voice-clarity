@@ -491,9 +491,44 @@ appId: com.example.voiceclarity
 - tapOn:
     id: "play-pause"
 - takeScreenshot: 55_playlist_next
-- back
+# Save on a folder file: an MP3 cannot be written, so it becomes english_stereo.m4a in the folder
+- scrollUntilVisible:
+    element:
+      id: "edit-audio"
+- tapOn:
+    id: "edit-audio"
+- scrollUntilVisible:
+    element:
+      id: "edit-speed-1.25"
+- tapOn:
+    id: "edit-speed-1.25"
+- scrollUntilVisible:
+    element:
+      id: "edit-save"
+- tapOn:
+    id: "edit-save"
+- assertVisible: ".*saved in the same folder as “english_stereo.m4a”.*"
+- takeScreenshot: 56_folder_save_confirm
+- tapOn: "Replace"
+- extendedWaitUntil:
+    visible: "M4A"
+    timeout: 120000
+- extendedWaitUntil:
+    visible: ".*[1-9] speech sections.*"
+    timeout: 120000
 - assertVisible:
-    id: "pl-count"
+    id: "in-folder"
+- takeScreenshot: 57_folder_saved_player
+- back
+- extendedWaitUntil:
+    visible: "3 of 3 audio files match"
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "pl-item-english_stereo.m4a"
+- assertNotVisible:
+    id: "pl-item-english_stereo.mp3"
+- takeScreenshot: 58_folder_after_save
 - back
 
 # ---- Arabic interface ----

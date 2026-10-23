@@ -40,6 +40,9 @@ export interface Recording {
   sourceUri?: string;
   /** True when the audio is played and read from `sourceUri` in place (not copied into the app). */
   external?: boolean;
+  /** Play-list folder and subfolder path of `sourceUri`, used when Save has to write a new file. */
+  sourceFolderUri?: string;
+  sourceSubfolder?: string;
   lastPositionSec: number;
   lastPlayedSource: 'original' | 'enhanced';
   bookmarks: Bookmark[];

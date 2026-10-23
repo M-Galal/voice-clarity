@@ -145,7 +145,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       else if (e instanceof Error && e.message === 'model_missing') msg = t('model_missing');
       else if (e instanceof Error && e.message === 'sharing_unavailable') msg = t('err_share');
       else if (e instanceof FolderUnavailableError) msg = t('pl_folder_unavailable');
-      else if (e instanceof Error && e.message === 'external_readonly') msg = t('edit_external_readonly');
+      else if (e instanceof Error && e.message === 'folder_unavailable') msg = t('pl_folder_unavailable');
       else if (e instanceof Error && /decode|codec|format/i.test(e.message)) msg = t('err_decode');
       else msg = t('err_generic', { msg: e instanceof Error ? e.message : String(e) });
       Alert.alert(t('err_title'), msg);
@@ -230,7 +230,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       try {
         let rec = libRef.current.find((r) => r.sourceUri === item.uri && (!item.size || r.sizeBytes === item.size));
         if (!rec) {
-          rec = await linkExternal({ uri: item.uri, name: item.name, size: item.size });
+          rec = await linkExternal({ uri: item.uri, name: item.name, size: item.size, folderUri: settings.playlist.folderUri, subfolder: item.subfolder });
           const added = rec;
           setLib((l) => [added, ...l]);
           void runAnalysis(added); // the player opens right away; speech sections appear when ready
@@ -243,7 +243,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setQueueOpening(null);
       }
     },
-    [runAnalysis, setLib, showError],
+    [runAnalysis, setLib, showError, settings.playlist.folderUri],
   );
 
   const resetAll = useCallback((lib: Recording[]) => { setLib(() => lib); setStack([{ name: 'library' }]); }, [setLib]);

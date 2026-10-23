@@ -4,7 +4,7 @@ import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useKeepAwake } from 'expo-keep-awake';
 import { editedDuration, MAX_SPEED, MIN_SPEED, normalizeSpec, type EditSpec } from '../dsp/edit';
 import {
-  audioUri, discardPreview, editSaveTarget, renderEdit, saveEditAsNew, saveEditReplace, type CancelToken, type EditRender,
+  audioUri, discardPreview, editSaveTarget, folderSavePlan, renderEdit, saveEditAsNew, saveEditReplace, type CancelToken, type EditRender,
 } from '../services/processing';
 import { useApp } from '../state/AppContext';
 import { nextVersionName } from '../edit/saveFormat';
@@ -130,8 +130,16 @@ function Editor({ rec }: { rec: Recording }) {
     setTimeout(() => player.play(), 150);
   };
 
+  const saveBody = () => {
+    if (!rec.external) return t('save_replace_body', { name: rec.name });
+    const plan = folderSavePlan(rec);
+    return plan.overwrite
+      ? t('save_folder_body', { file: plan.file })
+      : t('save_folder_new_type_body', { file: plan.file, newFile: plan.newFile, orig: rec.format });
+  };
+
   const save = () =>
-    Alert.alert(t('save_replace_title'), t('save_replace_body', { name: rec.name }), [
+    Alert.alert(t('save_replace_title'), saveBody(), [
       { text: t('cancel'), style: 'cancel' },
       {
         text: t('replace'),
@@ -268,7 +276,6 @@ function Editor({ rec }: { rec: Recording }) {
               : t('edit_saves_as', { ext: target.ext.toUpperCase() })}
           </Txt>
           {rec.durationSec > 20 * 60 ? <Txt size="sm" muted>{t('edit_long_note')}</Txt> : null}
-          {rec.external ? <Txt size="sm" muted testID="edit-external-note">{t('edit_external_readonly')}</Txt> : null}
           {busy ? (
             <>
               <ProgressBar value={saving ? 1 : progress ?? 0} label={saving ? t('saving') : t('rendering')} />
@@ -278,7 +285,7 @@ function Editor({ rec }: { rec: Recording }) {
             <>
               <Button kind="secondary" testID="edit-preview" label={t('preview')} icon="▶" onPress={preview} disabled={!changed || tooShort} />
               <Row>
-                <Button testID="edit-save" label={t('save')} onPress={save} disabled={!changed || tooShort || !!rec.external} accessibilityHint={rec.external ? t('edit_external_readonly') : undefined} style={{ flex: 1 }} />
+                <Button testID="edit-save" label={t('save')} onPress={save} disabled={!changed || tooShort} style={{ flex: 1 }} />
                 <Button testID="edit-save-as" kind="secondary" label={t('save_as')} onPress={() => setAskName(true)} disabled={!changed || tooShort} style={{ flex: 1 }} />
               </Row>
             </>
