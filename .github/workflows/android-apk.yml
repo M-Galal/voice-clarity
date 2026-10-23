@@ -21,19 +21,19 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
 
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 17
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
 
       - name: Install dependencies
         run: npm ci
@@ -55,7 +55,7 @@ jobs:
         # arm64-v8a covers current phones, x86_64 covers the Android emulator.
         run: |
           set -o pipefail
-          ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a,x86_64 --no-daemon 2>&1 | tee ../build-results/gradle.txt
+          ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a,x86_64 --no-daemon --warning-mode all 2>&1 | tee ../build-results/gradle.txt
 
       - name: Rename APK
         run: |
@@ -63,7 +63,7 @@ jobs:
           cp android/app/build/outputs/apk/release/app-release.apk "out/voice-clarity-${GITHUB_SHA::7}.apk"
           ls -la out > build-results/apk.txt
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: voice-clarity-apk
           path: out/*.apk
@@ -71,7 +71,7 @@ jobs:
 
       # A pre-release per build gives a direct .apk link you can open on the phone.
       - name: Publish test build
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: build-${{ github.run_number }}
           name: Test build ${{ github.run_number }} (${{ github.sha }})
@@ -88,7 +88,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p build-results
-          if [ -f build-results/gradle.txt ]; then tail -n 400 build-results/gradle.txt > build-results/gradle-tail.txt; grep -nE "^e: |error:|FAILURE|What went wrong" -A5 build-results/gradle.txt > build-results/gradle-errors.txt || true; rm build-results/gradle.txt; fi
+          if [ -f build-results/gradle.txt ]; then tail -n 400 build-results/gradle.txt > build-results/gradle-tail.txt; grep -nE "^e: |error:|FAILURE|What went wrong" -A5 build-results/gradle.txt > build-results/gradle-errors.txt || true; grep -niE "deprecat" build-results/gradle.txt > build-results/deprecations.txt || true; grep -nE "voice-encoder|voiceclarity" build-results/gradle.txt | grep -iE "^[0-9]+:(w|e): |warning" > build-results/own-code-warnings.txt || true; rm build-results/gradle.txt; fi
           echo "${{ job.status }}" > build-results/STATUS
           bash tests/e2e/publish-results.sh build-results ci-results-build
 
@@ -98,7 +98,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Enable KVM
         run: |
@@ -106,12 +106,12 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 17
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: voice-clarity-apk
           path: apk
@@ -129,7 +129,7 @@ jobs:
       # Boot from a cached snapshot when possible (cold boots on 2-core runners are flaky).
       # Recipe from the android-emulator-runner README.
       - name: AVD cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         id: avd-cache
         with:
           path: |
@@ -139,7 +139,7 @@ jobs:
 
       - name: Create AVD and snapshot for caching
         if: steps.avd-cache.outputs.cache-hit != 'true'
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@v2.38.0
         with:
           api-level: 30
           arch: x86_64
@@ -156,7 +156,7 @@ jobs:
       - name: Run on emulator
         id: run1
         continue-on-error: true
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@v2.38.0
         with:
           api-level: 30
           arch: x86_64
@@ -172,7 +172,7 @@ jobs:
 
       - name: Run on emulator (retry)
         if: steps.run1.outcome == 'failure'
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@v2.38.0
         with:
           api-level: 30
           arch: x86_64
@@ -199,9 +199,9 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -236,6 +236,7 @@ jobs:
           if [ -f ios-results/xcodebuild.txt ]; then
             grep -nE "error:|BUILD (SUCCEEDED|FAILED)|\*\* " ios-results/xcodebuild.txt > ios-results/summary.txt || true
             grep -nE "warning:.*VoiceEncoder|VoiceEncoder.*(error|warning)" ios-results/xcodebuild.txt >> ios-results/summary.txt || true
+            grep -niE "deprecat" ios-results/xcodebuild.txt | sort -u > ios-results/deprecations.txt || true
             tail -n 300 ios-results/xcodebuild.txt > ios-results/xcodebuild-tail.txt
             rm ios-results/xcodebuild.txt
           fi

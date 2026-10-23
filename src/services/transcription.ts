@@ -103,18 +103,23 @@ export async function startTranscription(
   const src = fileIn(rec.id, useEnhanced ? rec.enhanced!.fileName : rec.originalFileName);
 
   // whisper.cpp works on 16 kHz mono; write it as a 16-bit WAV it can read directly.
-  const decoded = await decodeFile(src.uri, 16000);
-  let mono = mixToMono(decoded.channels);
-  if (decoded.sampleRate !== 16000) mono = resample(mono, decoded.sampleRate, 16000);
-  await yieldToUi();
-  const wav = new File(tempDir(), `${rec.id}-asr.wav`);
-  await writeWav(wav, mono, 16000);
-
-  const segs = useEnhanced ? rec.enhanced!.segments : rec.segments ?? [];
-  const noiseFloor = rec.noiseFloorDb ?? -60;
-  const weak = lowQualityRanges(segmentMargins(mono, 16000, segs, noiseFloor));
-  const duration = mono.length / 16000;
-  mono = new Float32Array(0);
+  // Decoded samples live only inside prepare(), so they can be freed while whisper runs.
+  const prepare = async () => {
+    const decoded = await decodeFile(src.uri, 16000);
+    let mono = mixToMono(decoded.channels);
+    if (decoded.sampleRate !== 16000) mono = resample(mono, decoded.sampleRate, 16000);
+    await yieldToUi();
+    const file = new File(tempDir(), `${rec.id}-asr.wav`);
+    await writeWav(file, mono, 16000);
+    const segs = useEnhanced ? rec.enhanced!.segments : rec.segments ?? [];
+    const noiseFloor = rec.noiseFloorDb ?? -60;
+    return {
+      wav: file,
+      weak: lowQualityRanges(segmentMargins(mono, 16000, segs, noiseFloor)),
+      duration: mono.length / 16000,
+    };
+  };
+  const { wav, weak, duration } = await prepare();
 
   const context = await getContext(model);
   const { stop, promise } = context.transcribe(wav.uri, {

@@ -173,7 +173,7 @@ export async function shareTranscript(rec: Recording, t: Transcript, format: 'tx
   if (f.exists) f.delete();
   f.create();
   // UTF-8 BOM helps some desktop editors pick the right encoding for Arabic text
-  await f.write(format === 'json' ? body : `﻿${body}`);
+  await f.write(format === 'json' ? body : `\uFEFF${body}`);
   if (!(await Sharing.isAvailableAsync())) throw new Error('sharing_unavailable');
   await Sharing.shareAsync(f.uri, { mimeType: mime, dialogTitle: rec.name });
 }

@@ -40,7 +40,7 @@ export function shortSkip(sec: number): string {
 export function parseSkip(text: string): number | null {
   const t = text.trim().toLowerCase().replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(',', '.');
   if (!t) return null;
-  let sec: number | null = null;
+  let sec: number;
   if (/^\d+(:\d{1,2}){1,2}$/.test(t)) {
     sec = t.split(':').reduce((acc, p) => acc * 60 + Number(p), 0);
   } else {

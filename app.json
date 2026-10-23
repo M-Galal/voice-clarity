@@ -55,7 +55,8 @@
           "androidPermissions": []
         }
       ],
-      "expo-document-picker"
+      "expo-document-picker",
+      "./plugins/withMainActivityDelegate"
     ]
   }
 }
