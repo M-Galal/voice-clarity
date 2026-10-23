@@ -6,6 +6,7 @@ import { UnsupportedFormatError } from '../services/audio';
 import {
   DEFAULT_APP_SETTINGS, clearTemp, deleteRecordingFiles, loadLibrary, loadSettings, saveLibrary, saveSettings,
 } from '../services/storage';
+import { File } from 'expo-file-system';
 import type { AppSettings, Recording } from '../types';
 import type { PlaylistItem } from '../playlist/filter';
 import { FolderUnavailableError } from '../services/playlist';
@@ -46,6 +47,8 @@ interface Ctx {
   reanalyse: (id: string) => Promise<void>;
   addRecording: (rec: Recording) => Promise<void>;
   deleteRecording: (id: string) => void;
+  /** Deletes a play-list file from its folder, with any app data kept for it. Returns true when deleted. */
+  deleteFolderFile: (uri: string) => Promise<boolean>;
   showError: (e: unknown) => void;
   resetAll: (lib: Recording[]) => void;
 }
@@ -246,6 +249,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [runAnalysis, setLib, showError, settings.playlist.folderUri],
   );
 
+  const deleteFolderFile = useCallback(
+    async (uri: string) => {
+      try {
+        const f = new File(uri);
+        if (f.exists) f.delete();
+      } catch (e) {
+        showError(e);
+        return false;
+      }
+      const gone = libRef.current.filter((r) => r.external && r.sourceUri === uri);
+      for (const r of gone) { try { deleteRecordingFiles(r.id); } catch { /* already gone */ } }
+      if (gone.length) setLib((l) => l.filter((r) => !(r.external && r.sourceUri === uri)));
+      if (queueRef.current?.some((q) => q.uri === uri)) {
+        queueRef.current = queueRef.current.filter((q) => q.uri !== uri);
+        setQueue(queueRef.current);
+      }
+      return true;
+    },
+    [setLib, showError],
+  );
+
   const resetAll = useCallback((lib: Recording[]) => { setLib(() => lib); setStack([{ name: 'library' }]); }, [setLib]);
 
   const dark = settings.theme === 'dark' || (settings.theme === 'system' && scheme === 'dark');
@@ -272,10 +296,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       reanalyse,
       addRecording,
       deleteRecording,
+      deleteFolderFile,
       showError,
       resetAll,
     }),
-    [ready, library, settings, stack, queue, queueOpening, playFromQueue, t, dark, updateSettings, updateRecording, getRecording, importFromPicker, reanalyse, addRecording, deleteRecording, showError, resetAll],
+    [ready, library, settings, stack, queue, queueOpening, playFromQueue, t, dark, updateSettings, updateRecording, getRecording, importFromPicker, reanalyse, addRecording, deleteRecording, deleteFolderFile, showError, resetAll],
   );
 
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;

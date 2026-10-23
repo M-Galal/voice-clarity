@@ -529,6 +529,21 @@ appId: com.example.voiceclarity
 - assertNotVisible:
     id: "pl-item-english_stereo.mp3"
 - takeScreenshot: 58_folder_after_save
+# delete a file from the folder from its play-list row
+- scrollUntilVisible:
+    element:
+      id: "pl-del-whisper_mix.m4a"
+- tapOn:
+    id: "pl-del-whisper_mix.m4a"
+- assertVisible: ".*Delete “whisper_mix.m4a” from the folder.*"
+- takeScreenshot: 59_folder_delete_confirm
+- tapOn:
+    id: "android:id/button1"
+- extendedWaitUntil:
+    visible: "2 of 2 audio files match"
+    timeout: 20000
+- assertNotVisible:
+    id: "pl-item-whisper_mix.m4a"
 - back
 
 # ---- Arabic interface ----

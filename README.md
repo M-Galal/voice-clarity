@@ -42,7 +42,7 @@ Player: file details (duration, format, size, status, with Retry after an error)
 
 Edit: choose the original or enhanced version, a trim mode (no trimming, keep the selection, remove the selection), start and end set from the playhead with ±0.1 s nudges, "Play selection", a speed slider from 0.1× to 5× in 0.05 steps with 0.5–3× shortcuts, the resulting length, Preview (switch between the current audio and the preview), Save and Save as. The waveform dims what will be dropped in keep mode and shades the removed part in cut mode.
 
-Play list: the chosen folder shown as a path (for example "Internal storage/Music/Calls"), Choose/Change folder, include subfolders, a file-name filter (text found anywhere in the name, or patterns with `*` and `?` such as `call_*.m4a`; several separated by `;`), an extension filter (for example `m4a, mp3`; empty means every supported type), order (name with natural number order, newest first, oldest first), "play the next file", Skip silence, the match count, Play all, Refresh, and the file list with size, date, subfolder and a tick for files already in the library.
+Play list: the chosen folder shown as a path (for example "Internal storage/Music/Calls"), Choose/Change folder, include subfolders, a file-name filter (text found anywhere in the name, or patterns with `*` and `?` such as `call_*.m4a`; several separated by `;`), an extension filter (for example `m4a, mp3`; empty means every supported type), order (name with natural number order, newest first, oldest first), "play the next file", Skip silence, the match count, Play all, Refresh, and the file list with size, date, subfolder, a tick for files the app has data for, and a delete button (also on long-press) that deletes the file from the folder after a confirmation.
 
 Enhance: strength preset (Light, Balanced, Strong, Advanced), noise suppression and hum removal switches, advanced sliders, the loudness section with an explanation of LUFS, peak and gain, processing quality, the option to shorten pauses in the exported file, a summary card of the settings that will be used, and "Delete enhanced copy" when one exists. While running, the screen shows a progress bar and a cancel button and keeps the screen awake. The review screen is described in flow 3.
 
@@ -210,6 +210,7 @@ Play list
 - Extension and name filters (substring or `*`/`?` patterns, `;` for several) narrow the list as you type and are remembered.
 - Tapping a file plays it with "File n of m"; next/previous file work; the next file starts when one ends if that option is on; Skip silence applies to every file.
 - Playing a file does not copy it: the player shows "Plays from folder", speech sections are found, and the app's storage does not grow by the file's size.
+- Deleting a folder file (trash button on its play-list row, long-press, or Delete in the player then "Delete file") asks first, deletes the file from the folder and the app's data for it; "Remove from app" in the player keeps the file.
 - Save on a folder file overwrites it in place (same type) or writes `<name>.m4a` next to it and removes the old file (MP3, FLAC, OGG, Opus); the play list then shows the new file. Save as adds a new recording.
 
 Secure Folder (Samsung)

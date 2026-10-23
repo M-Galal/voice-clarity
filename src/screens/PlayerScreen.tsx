@@ -146,10 +146,23 @@ function Player({ rec, queueIndex, autoplay }: { rec: Recording; queueIndex?: nu
     const prevBookmark = () => { const p = here(); const b = [...bookmarks].reverse().find((x) => x.time < p - 1); if (b) seek(b.time); };
 
     const confirmDelete = () =>
-      Alert.alert(t('delete_recording'), t(rec.external ? 'delete_external_confirm' : 'delete_confirm', { name: rec.name }), [
-        { text: t('cancel'), style: 'cancel' },
-        { text: t('delete'), style: 'destructive', onPress: () => { player.pause(); app.deleteRecording(rec.id); } },
-      ]);
+      rec.external && rec.sourceUri
+        ? Alert.alert(t('delete_recording'), t('delete_external_choice', { file: rec.originalFileName }), [
+            { text: t('cancel'), style: 'cancel' },
+            { text: t('remove_from_app'), onPress: () => { player.pause(); app.deleteRecording(rec.id); } },
+            {
+              text: t('delete_file'),
+              style: 'destructive',
+              onPress: async () => {
+                player.pause();
+                if (await app.deleteFolderFile(rec.sourceUri!)) goBack();
+              },
+            },
+          ])
+        : Alert.alert(t('delete_recording'), t('delete_confirm', { name: rec.name }), [
+            { text: t('cancel'), style: 'cancel' },
+            { text: t('delete'), style: 'destructive', onPress: () => { player.pause(); app.deleteRecording(rec.id); } },
+          ]);
 
     const sendToSecureFolder = (which: 'original' | 'enhanced') =>
       Alert.alert(t('secure_folder'), t('secure_folder_steps'), [

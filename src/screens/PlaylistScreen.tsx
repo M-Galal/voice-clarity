@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, TextInput, View } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, Alert, FlatList, Pressable, TextInput, View } from 'react-native';
 import { applyFilter, folderLabel, parseExtensions, type PlaylistItem } from '../playlist/filter';
 import { SUPPORTED_EXTENSIONS } from '../services/audio';
 import { pickFolder, scanFolder } from '../services/playlist';
 import { formatBytes, useApp } from '../state/AppContext';
 import type { PlaylistSettings } from '../types';
-import { Button, Card, Choice, Header, Row, Toggle, Txt, Warning } from '../ui/components';
+import { Button, Card, Choice, Header, IconButton, Row, Toggle, Txt, Warning } from '../ui/components';
 import { radius, space, TOUCH } from '../ui/theme';
 
 interface ScanResult {
@@ -15,7 +15,7 @@ interface ScanResult {
 }
 
 export function PlaylistScreen() {
-  const { t, goBack, settings, updateSettings, colors, fs, library, playFromQueue, queueOpening, showError } = useApp();
+  const { t, goBack, settings, updateSettings, colors, fs, library, playFromQueue, queueOpening, showError, deleteFolderFile } = useApp();
   const pl = settings.playlist;
   const setPl = (patch: Partial<PlaylistSettings>) => updateSettings({ playlist: { ...pl, ...patch } });
 
@@ -50,6 +50,21 @@ export function PlaylistScreen() {
   );
   const unknownExt = extensions.filter((e) => !(SUPPORTED_EXTENSIONS as readonly string[]).includes(e));
   const inLibrary = useMemo(() => new Set(library.map((r) => r.sourceUri).filter(Boolean)), [library]);
+
+  const confirmDelete = (item: PlaylistItem) =>
+    Alert.alert(t('delete_file'), t('pl_delete_confirm', { file: item.name }), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('delete_file'),
+        style: 'destructive',
+        onPress: async () => {
+          if (await deleteFolderFile(item.uri)) {
+            AccessibilityInfo.announceForAccessibility(t('pl_deleted', { file: item.name }));
+            setNonce((n) => n + 1);
+          }
+        },
+      },
+    ]);
 
   const choose = async () => {
     try {
@@ -159,6 +174,9 @@ export function PlaylistScreen() {
               accessibilityLabel={`${item.name}. ${meta}`}
               disabled={queueOpening !== null}
               onPress={() => playFromQueue(files, index, { autoplay: true })}
+              onLongPress={() => confirmDelete(item)}
+              accessibilityActions={[{ name: 'delete', label: t('pl_delete', { file: item.name }) }]}
+              onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'delete') confirmDelete(item); }}
               style={({ pressed }) => ({
                 minHeight: TOUCH, padding: space.md, borderRadius: radius, borderWidth: 1, borderColor: colors.border,
                 backgroundColor: colors.surface, opacity: pressed ? 0.85 : 1, gap: 2,
@@ -167,6 +185,7 @@ export function PlaylistScreen() {
               <Row>
                 <Txt bold numberOfLines={2} style={{ flex: 1, writingDirection: 'auto' }}>{item.name}</Txt>
                 {opening ? <ActivityIndicator color={colors.primary} /> : inLibrary.has(item.uri) ? <Txt size="sm" style={{ color: colors.ok }}>✓</Txt> : null}
+                <IconButton testID={`pl-del-${item.name}`} icon="🗑" label={t('pl_delete', { file: item.name })} onPress={() => confirmDelete(item)} disabled={queueOpening !== null} />
               </Row>
               <Txt size="sm" muted>{opening ? t('pl_opening') : meta}</Txt>
             </Pressable>
