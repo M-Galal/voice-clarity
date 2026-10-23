@@ -565,6 +565,29 @@ appId: com.example.voiceclarity
     id: "pl-item-whisper_mix.m4a"
 - back
 
+# ---- Theme: the header button cycles Match system -> Light -> Dark ----
+- tapOn:
+    id: "theme-toggle"
+- assertVisible:
+    id: "theme-toggle"
+    text: "Appearance: Light"
+- takeScreenshot: 60_library_light
+- tapOn:
+    id: "theme-toggle"
+- assertVisible:
+    id: "theme-toggle"
+    text: "Appearance: Dark"
+- takeScreenshot: 61_library_dark
+- tapOn:
+    id: "rec-whisper_mix"
+- takeScreenshot: 62_player_dark
+- back
+- tapOn:
+    id: "theme-toggle"
+- assertVisible:
+    id: "theme-toggle"
+    text: "Appearance: Match system"
+
 # ---- Arabic interface ----
 - tapOn:
     id: "open-settings"

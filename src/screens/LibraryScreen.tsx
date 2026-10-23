@@ -2,14 +2,26 @@ import { FlatList, Pressable, Text, View } from 'react-native';
 import { clock } from '../transcript/format';
 import { formatBytes, useApp } from '../state/AppContext';
 import type { Recording } from '../types';
-import { Button, Header, IconButton, Txt } from '../ui/components';
+import { Button, Header, IconButton, Row, Txt } from '../ui/components';
 import { radius, space, TOUCH } from '../ui/theme';
 
 export function LibraryScreen() {
-  const { t, library, importFromPicker, navigate, colors } = useApp();
+  const { t, library, importFromPicker, navigate, colors, settings, updateSettings } = useApp();
+  // one tap cycles Match system → Light → Dark
+  const nextTheme = { system: 'light', light: 'dark', dark: 'system' } as const;
+  const themeIcon = { system: '◐', light: '☀︎', dark: '☾' }[settings.theme];
+  const themeName = t(settings.theme === 'system' ? 'theme_system' : settings.theme === 'light' ? 'theme_light' : 'theme_dark');
   return (
     <View style={{ flex: 1 }}>
-      <Header title={t('library')} right={<IconButton testID="open-settings" icon="⚙︎" label={t('settings')} onPress={() => navigate({ name: 'settings' })} />} />
+      <Header
+        title={t('library')}
+        right={
+          <Row>
+            <IconButton testID="theme-toggle" icon={themeIcon} label={`${t('appearance')}: ${themeName}`} onPress={() => updateSettings({ theme: nextTheme[settings.theme] })} />
+            <IconButton testID="open-settings" icon="⚙︎" label={t('settings')} onPress={() => navigate({ name: 'settings' })} />
+          </Row>
+        }
+      />
       <View style={{ padding: space.lg, gap: space.xs }}>
         <Button testID="import" label={t('import')} icon="＋" onPress={importFromPicker} />
         <Button testID="open-playlist" kind="secondary" label={t('pl_open')} icon="📁" onPress={() => navigate({ name: 'playlist' })} />

@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, I18nManager, useColorScheme } from 'react-native';
+import { Alert, Appearance, I18nManager, useColorScheme } from 'react-native';
 import { STRINGS, type StringKey } from '../i18n/strings';
 import { analyse, importAsset, linkExternal, LowStorageError, pickRecordings } from '../services/processing';
 import { UnsupportedFormatError } from '../services/audio';
@@ -271,6 +271,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const resetAll = useCallback((lib: Recording[]) => { setLib(() => lib); setStack([{ name: 'library' }]); }, [setLib]);
+
+  // Native parts (alerts, keyboard, pickers, dialogs) follow the app's theme too, not only the screens.
+  // 'unspecified' goes back to following the phone (Android: MODE_NIGHT_FOLLOW_SYSTEM).
+  useEffect(() => {
+    if (!ready) return;
+    Appearance.setColorScheme(settings.theme === 'system' ? 'unspecified' : settings.theme);
+  }, [ready, settings.theme]);
 
   const dark = settings.theme === 'dark' || (settings.theme === 'system' && scheme === 'dark');
   const value = useMemo<Ctx>(

@@ -30,7 +30,7 @@ export function SettingsScreen() {
 
         <Section title={t('appearance')}>
           <Choice testID="ui-lang" label={t('ui_language')} value={settings.uiLanguage} onChange={(v) => updateSettings({ uiLanguage: v })} options={[{ value: 'en', label: 'English' }, { value: 'ar', label: 'العربية' }]} />
-          <Choice value={settings.theme} onChange={(v) => updateSettings({ theme: v })} options={[{ value: 'system', label: t('theme_system') }, { value: 'light', label: t('theme_light') }, { value: 'dark', label: t('theme_dark') }]} />
+          <Choice testID="theme" value={settings.theme} onChange={(v) => updateSettings({ theme: v })} options={[{ value: 'system', label: t('theme_system') }, { value: 'light', label: t('theme_light') }, { value: 'dark', label: t('theme_dark') }]} />
           <LabeledSlider label={t('text_size')} value={settings.textScale} min={0.85} max={1.6} step={0.05} onChange={(v) => updateSettings({ textScale: v })} format={(v) => `${Math.round(v * 100)} %`} />
         </Section>
 

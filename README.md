@@ -36,7 +36,7 @@ Supported input formats are M4A (AAC), MP4 audio, AAC, MP3, WAV, FLAC, OGG and O
 
 ## Screens
 
-Recordings: import button, "Play list from a folder" button, list with name, duration, format, size, processing status and badges for "Enhanced copy" and "Transcript". Settings is in the header.
+Recordings: theme button in the header (one tap cycles Match system, Light, Dark), import button, "Play list from a folder" button, list with name, duration, format, size, processing status and badges for "Enhanced copy" and "Transcript". Settings is in the header.
 
 Player: file details (duration, format, size, status, with Retry after an error), Original/Enhanced switch, waveform with speech shading, red bookmark ticks and a playhead (tap to seek; screen readers get ±5 s swipe actions), previous/next file and "File n of m" when playing from a play list, transport controls (previous speech, back, play/pause, forward, next speech; the jump sizes are set in Settings), bookmark controls, speed (0.1× to 5×, slider plus 0.5–5× shortcuts), skip-silence toggle, buttons for Auto Enhance, Enhance, Transcript and Export, a bookmark list with edit and delete, and the list of speech sections.
 
@@ -48,7 +48,7 @@ Enhance: strength preset (Light, Balanced, Strong, Advanced), noise suppression 
 
 Transcript: language, model (with in-place download), source audio, optional context words, notes on dialects and speakers. After transcription: detected language, a count of passages to check, Arabic-aware search, the segment list with right-to-left rendering for Arabic lines, a mini player, copy, export format, export, re-transcribe and delete.
 
-Settings: privacy statement, app language (English or Arabic, which switches the layout to right-to-left after a restart), theme (system, light, dark), text size (85 to 160 %, on top of the OS font size), skip-silence gap, speech-detection threshold, Auto Enhance steps, model downloads and deletion, and "Delete all recordings and data".
+Settings: privacy statement, app language (English or Arabic, which switches the layout to right-to-left after a restart), theme (Match system, Light, Dark; the choice also applies to system alerts, the keyboard and dialogs through React Native's `Appearance.setColorScheme`, and to the window background through expo-system-ui), text size (85 to 160 %, on top of the OS font size), skip-silence gap, speech-detection threshold, Auto Enhance steps, model downloads and deletion, and "Delete all recordings and data".
 
 ## Audio processing
 

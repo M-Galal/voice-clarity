@@ -1,9 +1,11 @@
 import { useEffect } from 'react';
 import { ActivityIndicator, Alert, BackHandler, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import * as SystemUI from 'expo-system-ui';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { setAudioModeAsync } from 'expo-audio';
 import { AppProvider, useApp } from './src/state/AppContext';
+import { DARK } from './src/ui/theme';
 import { LibraryScreen } from './src/screens/LibraryScreen';
 import { PlayerScreen } from './src/screens/PlayerScreen';
 import { EnhanceScreen } from './src/screens/EnhanceScreen';
@@ -20,6 +22,11 @@ function Router() {
     // pauses other apps' audio. Phone calls and other interruptions pause us (system default).
     setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: true, interruptionMode: 'doNotMix' }).catch(() => {});
   }, []);
+
+  // window background behind the screens (keyboard gaps, screen transitions) matches the theme
+  useEffect(() => {
+    SystemUI.setBackgroundColorAsync(colors.bg).catch(() => {});
+  }, [colors.bg]);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -43,7 +50,7 @@ function Router() {
       </View>
     );
   }
-  const dark = colors.bg !== '#F6F7F9';
+  const dark = colors === DARK;
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top', 'bottom', 'left', 'right']}>
       <StatusBar style={dark ? 'light' : 'dark'} />
