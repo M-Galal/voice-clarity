@@ -6,7 +6,7 @@ import { audioUri, shareAudio, shareTranscript } from '../services/processing';
 import { formatBytes, useApp } from '../state/AppContext';
 import { clock } from '../transcript/format';
 import type { Bookmark, Recording } from '../types';
-import { Button, Card, Choice, Header, IconButton, KeyValue, Row, Section, Toggle, Txt } from '../ui/components';
+import { Button, Card, Choice, Dialog, Header, IconButton, KeyValue, Row, Section, Toggle, Txt } from '../ui/components';
 import { radius, space, TOUCH } from '../ui/theme';
 import { Waveform } from '../ui/Waveform';
 import { statusText } from './LibraryScreen';
@@ -69,7 +69,15 @@ function Player({ rec }: { rec: Recording }) {
       if (target !== null) player.seekTo(Math.max(0, target - 0.15));
     }, [position, settings.skipSilence]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const seek = (time: number) => player.seekTo(Math.max(0, Math.min(duration, time)));
+    // Relative jumps (±10 s, next/previous) start from the last requested position for a moment
+    // after a seek, because the reported position lags by up to one status update.
+    const lastSeek = useRef({ to: 0, at: 0 });
+    const here = () => (Date.now() - lastSeek.current.at < 600 ? lastSeek.current.to : position);
+    const seek = (time: number) => {
+      const to = Math.max(0, Math.min(duration, time));
+      lastSeek.current = { to, at: Date.now() };
+      player.seekTo(to);
+    };
     const toggle = () => {
       if (status.playing) player.pause();
       else {
@@ -93,15 +101,15 @@ function Player({ rec }: { rec: Recording }) {
     };
 
     const addBookmark = () => {
-      const b: Bookmark = { id: newId(), time: Math.round(position * 10) / 10, label: t('bookmark_n', { n: rec.bookmarks.length + 1 }), createdAt: new Date().toISOString() };
+      const b: Bookmark = { id: newId(), time: Math.round(here() * 10) / 10, label: t('bookmark_n', { n: rec.bookmarks.length + 1 }), createdAt: new Date().toISOString() };
       updateRecording(rec.id, (r) => ({ bookmarks: [...r.bookmarks, b] }));
       const msg = t('bookmark_added', { label: b.label, time: clock(b.time) });
       setNotice(msg);
       AccessibilityInfo.announceForAccessibility(msg);
       setTimeout(() => setNotice(null), 2500);
     };
-    const nextBookmark = () => { const b = bookmarks.find((x) => x.time > position + 0.3); if (b) seek(b.time); };
-    const prevBookmark = () => { const b = [...bookmarks].reverse().find((x) => x.time < position - 1); if (b) seek(b.time); };
+    const nextBookmark = () => { const p = here(); const b = bookmarks.find((x) => x.time > p + 0.3); if (b) seek(b.time); };
+    const prevBookmark = () => { const p = here(); const b = [...bookmarks].reverse().find((x) => x.time < p - 1); if (b) seek(b.time); };
 
     const confirmDelete = () =>
       Alert.alert(t('delete_recording'), t('delete_confirm', { name: rec.name }), [
@@ -151,12 +159,12 @@ function Player({ rec }: { rec: Recording }) {
           </Row>
           {status.error ? <Txt style={{ color: colors.danger }}>{status.error}</Txt> : null}
 
-          <Row style={{ justifyContent: 'space-between', direction: 'ltr' }}>
-            <IconButton testID="prev-speech" icon="⏮" label={t('prev_speech')} onPress={() => { const s = previousSegmentStart(segments, position); if (s !== null) seek(s); }} disabled={!segments.length} />
-            <IconButton testID="back-10" icon="↺" label={t('back_10')} onPress={() => seek(position - 10)} />
+          <Row style={{ justifyContent: 'space-between', direction: 'ltr', gap: 0 }}>
+            <IconButton testID="prev-speech" icon="⏮" label={t('prev_speech')} onPress={() => { const s = previousSegmentStart(segments, here()); if (s !== null) seek(s); }} disabled={!segments.length} />
+            <IconButton testID="back-10" icon="↺" label={t('back_10')} onPress={() => seek(here() - 10)} />
             <IconButton testID="play-pause" big icon={status.playing ? '❚❚' : '▶'} label={status.playing ? t('pause') : t('play')} onPress={toggle} disabled={!status.isLoaded} />
-            <IconButton testID="fwd-10" icon="↻" label={t('fwd_10')} onPress={() => seek(position + 10)} />
-            <IconButton testID="next-speech" icon="⏭" label={t('next_speech')} onPress={() => { const s = nextSegmentStart(segments, position); if (s !== null) seek(s); }} disabled={!segments.length} />
+            <IconButton testID="fwd-10" icon="↻" label={t('fwd_10')} onPress={() => seek(here() + 10)} />
+            <IconButton testID="next-speech" icon="⏭" label={t('next_speech')} onPress={() => { const s = nextSegmentStart(segments, here()); if (s !== null) seek(s); }} disabled={!segments.length} />
           </Row>
           <Row style={{ justifyContent: 'center', direction: 'ltr' }}>
             <IconButton testID="prev-bookmark" icon="◀︎⚑" label={t('prev_bookmark')} onPress={prevBookmark} disabled={!bookmarks.length || !bookmarksVisible} />
@@ -262,21 +270,18 @@ function BookmarkEditor({ bookmark, onClose, onSave, duration }: { bookmark: Boo
   const parsed = parseClock(time);
   const valid = label.trim().length > 0 && parsed !== null && parsed >= 0 && parsed <= duration;
   const input = { borderWidth: 1, borderColor: colors.border, borderRadius: radius, padding: space.md, color: colors.text, fontSize: fs.md, minHeight: TOUCH, textAlign: 'auto' as const };
+  const submit = () => { if (valid && parsed !== null) onSave({ ...bookmark, label: label.trim(), time: parsed }); };
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <View style={{ flex: 1, justifyContent: 'center', padding: space.xl, backgroundColor: 'rgba(0,0,0,0.4)' }}>
-        <Card>
-          <Txt size="lg" bold>{t('edit')}</Txt>
-          <Txt size="sm" muted>{t('bookmark_label')}</Txt>
-          <TextInput testID="bm-label" value={label} onChangeText={setLabel} style={input} accessibilityLabel={t('bookmark_label')} />
-          <Txt size="sm" muted>{t('bookmark_time')}</Txt>
-          <TextInput value={time} onChangeText={setTime} style={[input, { writingDirection: 'ltr' }]} keyboardType="numbers-and-punctuation" accessibilityLabel={t('bookmark_time')} />
-          <Row>
-            <Button kind="ghost" label={t('cancel')} onPress={onClose} style={{ flex: 1 }} />
-            <Button testID="bm-save" label={t('save')} disabled={!valid} onPress={() => parsed !== null && onSave({ ...bookmark, label: label.trim(), time: parsed })} style={{ flex: 1 }} />
-          </Row>
-        </Card>
-      </View>
-    </Modal>
+    <Dialog onClose={onClose}>
+      <Txt size="lg" bold>{t('edit')}</Txt>
+      <Txt size="sm" muted>{t('bookmark_label')}</Txt>
+      <TextInput testID="bm-label" value={label} onChangeText={setLabel} style={input} accessibilityLabel={t('bookmark_label')} returnKeyType="done" onSubmitEditing={submit} />
+      <Txt size="sm" muted>{t('bookmark_time')}</Txt>
+      <TextInput testID="bm-time" value={time} onChangeText={setTime} style={[input, { writingDirection: 'ltr' }]} keyboardType="numbers-and-punctuation" accessibilityLabel={t('bookmark_time')} returnKeyType="done" onSubmitEditing={submit} />
+      <Row>
+        <Button kind="ghost" label={t('cancel')} onPress={onClose} style={{ flex: 1 }} />
+        <Button testID="bm-save" label={t('save')} disabled={!valid} onPress={submit} style={{ flex: 1 }} />
+      </Row>
+    </Dialog>
   );
 }

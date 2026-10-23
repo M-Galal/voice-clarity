@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { FlatList, Pressable, ScrollView, TextInput, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useKeepAwake } from 'expo-keep-awake';
@@ -8,7 +8,7 @@ import { downloadModel, isModelReady, MODELS, startTranscription, type Transcrib
 import { useApp } from '../state/AppContext';
 import { clock, isMostlyArabic, searchTranscript, toTxt, type TranscriptSegment } from '../transcript/format';
 import type { Recording } from '../types';
-import { Button, Card, Choice, Header, IconButton, ProgressBar, Row, Section, Toggle, Txt, Warning } from '../ui/components';
+import { Button, Card, Choice, Dialog, Header, IconButton, ProgressBar, Row, Section, Toggle, Txt, Warning } from '../ui/components';
 import { radius, space, TOUCH } from '../ui/theme';
 
 export const LANGS = ['auto', 'ar', 'en', 'fr', 'ur', 'hi'] as const;
@@ -224,9 +224,7 @@ function EditModal({ seg, onClose, onSave }: { seg: TranscriptSegment; onClose: 
   const [text, setText] = useState(seg.text);
   const rtl = isMostlyArabic(text);
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <View style={{ flex: 1, justifyContent: 'center', padding: space.xl, backgroundColor: 'rgba(0,0,0,0.4)' }}>
-        <Card>
+    <Dialog onClose={onClose}>
           <Txt bold>{`${t('edit')} · ${clock(seg.start)}`}</Txt>
           <TextInput
             value={text}
@@ -238,10 +236,8 @@ function EditModal({ seg, onClose, onSave }: { seg: TranscriptSegment; onClose: 
           />
           <Row>
             <Button kind="ghost" label={t('cancel')} onPress={onClose} style={{ flex: 1 }} />
-            <Button label={t('save')} onPress={() => onSave(text.trim())} style={{ flex: 1 }} />
+            <Button testID="seg-save" label={t('save')} onPress={() => onSave(text.trim())} style={{ flex: 1 }} />
           </Row>
-        </Card>
-      </View>
-    </Modal>
+    </Dialog>
   );
 }

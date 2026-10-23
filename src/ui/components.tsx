@@ -1,6 +1,7 @@
 import React from 'react';
 import {
-  AccessibilityActionEvent, ActivityIndicator, Pressable, StyleSheet, Switch, Text, TextStyle, View, ViewStyle,
+  AccessibilityActionEvent, ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet,
+  Switch, Text, TextStyle, View, ViewStyle,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { useApp } from '../state/AppContext';
@@ -82,7 +83,8 @@ export function Button({
 /** Round icon button with a spoken label. */
 export function IconButton({ icon, label, onPress, big, disabled, testID }: { icon: string; label: string; onPress: () => void; big?: boolean; disabled?: boolean; testID?: string }) {
   const { colors, fs } = useApp();
-  const size = big ? 72 : TOUCH + 4;
+  // 48 dp (minimum touch target) and 64 dp for the main button: five of them fit a 320 dp screen
+  const size = big ? 64 : TOUCH;
   return (
     <Pressable
       testID={testID}
@@ -270,5 +272,24 @@ export function KeyValue({ k, v }: { k: string; v: string }) {
       <Txt muted style={{ flex: 1 }}>{k}</Txt>
       <Txt bold>{v}</Txt>
     </Row>
+  );
+}
+
+/**
+ * Centred dialog that stays usable with the keyboard open: it moves up with the keyboard and
+ * scrolls, so its buttons can always be reached.
+ */
+export function Dialog({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: space.xl }}
+        >
+          <Card>{children}</Card>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }

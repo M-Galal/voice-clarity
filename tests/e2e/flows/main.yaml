@@ -33,13 +33,13 @@ appId: com.example.voiceclarity
 # ---- Playback ----
 - tapOn:
     id: "play-pause"
+# the elapsed-time label leaves 0:00 once playback is running
 - extendedWaitUntil:
-    visible: "0:0[3-9]"
-    timeout: 20000
-    optional: true
-- takeScreenshot: 06_playing
+    notVisible: "0:00"
+    timeout: 15000
 - tapOn:
     id: "play-pause"
+- takeScreenshot: 06_played_then_paused
 - tapOn:
     id: "next-speech"
 - tapOn:
@@ -47,6 +47,8 @@ appId: com.example.voiceclarity
 - tapOn:
     id: "back-10"
 - takeScreenshot: 07_after_seek
+# next speech starts at ~5.8 s; +10 then -10 must land back there, not at the end
+- assertVisible: "0:0[5-6]"
 
 # ---- Bookmarks ----
 - tapOn:

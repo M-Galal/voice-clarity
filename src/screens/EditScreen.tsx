@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Modal, ScrollView, TextInput, View } from 'react-native';
+import { Alert, ScrollView, TextInput, View } from 'react-native';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useKeepAwake } from 'expo-keep-awake';
 import { editedDuration, MAX_SPEED, MIN_SPEED, normalizeSpec, type EditSpec } from '../dsp/edit';
@@ -10,7 +10,7 @@ import { useApp } from '../state/AppContext';
 import { nextVersionName } from '../edit/saveFormat';
 import { clock, clockTenths } from '../transcript/format';
 import type { Recording } from '../types';
-import { Button, Card, Choice, Header, IconButton, LabeledSlider, ProgressBar, Row, Section, Txt, Warning } from '../ui/components';
+import { Button, Card, Choice, Dialog, Header, IconButton, LabeledSlider, ProgressBar, Row, Section, Txt, Warning } from '../ui/components';
 import { radius, space, TOUCH } from '../ui/theme';
 import { Waveform } from '../ui/Waveform';
 
@@ -48,6 +48,15 @@ function Editor({ rec }: { rec: Recording }) {
   const sourceDuration = (source === 'enhanced' ? rec.enhanced?.report.outputDurationSec : rec.durationSec) ?? rec.durationSec;
   const duration = listening === 'preview' && render ? render.durationSec : st.duration || sourceDuration;
   const position = st.currentTime;
+
+  // same lag guard as the player: relative jumps and "set start/end" use the requested position
+  const lastSeek = useRef({ to: 0, at: 0 });
+  const here = () => (Date.now() - lastSeek.current.at < 600 ? lastSeek.current.to : position);
+  const seekTo = (v: number) => {
+    const to = Math.max(0, Math.min(duration, v));
+    lastSeek.current = { to, at: Date.now() };
+    player.seekTo(to);
+  };
 
   const spec = normalizeSpec({ mode, start, end, speed }, sourceDuration);
   const key = JSON.stringify({ ...spec, source });
@@ -163,7 +172,7 @@ function Editor({ rec }: { rec: Recording }) {
 
   const playSelection = () => {
     if (listening !== 'current') switchListening('current');
-    player.seekTo(spec.start);
+    seekTo(spec.start);
     selectionPlay.current = true;
     player.play();
   };
@@ -196,14 +205,14 @@ function Editor({ rec }: { rec: Recording }) {
           position={position}
           segments={segments}
           bookmarks={[]}
-          onSeek={(v) => player.seekTo(v)}
+          onSeek={seekTo}
           selection={listening === 'current' ? { start: spec.start, end: spec.end } : undefined}
           selectionMode={mode}
         />
         <Row style={{ justifyContent: 'center', direction: 'ltr' }}>
-          <IconButton testID="edit-back-10" icon="↺" label={t('back_10')} onPress={() => player.seekTo(Math.max(0, position - 10))} />
+          <IconButton testID="edit-back-10" icon="↺" label={t('back_10')} onPress={() => seekTo(here() - 10)} />
           <IconButton testID="edit-play" big icon={st.playing ? '❚❚' : '▶'} label={st.playing ? t('pause') : t('play')} onPress={() => { selectionPlay.current = false; if (st.playing) player.pause(); else player.play(); }} />
-          <IconButton testID="edit-fwd-10" icon="↻" label={t('fwd_10')} onPress={() => player.seekTo(position + 10)} />
+          <IconButton testID="edit-fwd-10" icon="↻" label={t('fwd_10')} onPress={() => seekTo(here() + 10)} />
         </Row>
         <Txt size="sm" muted style={{ textAlign: 'center', writingDirection: 'ltr' }}>{`${clockTenths(position)} / ${clockTenths(duration)}`}</Txt>
 
@@ -220,7 +229,7 @@ function Editor({ rec }: { rec: Recording }) {
                   </Row>
                   <Row wrap>
                     <Button compact kind="secondary" testID={`set-${which}`} label={t(which === 'start' ? 'set_start_here' : 'set_end_here')}
-                      onPress={() => (which === 'start' ? setStart(Math.min(position, end)) : setEnd(Math.max(position, start)))} disabled={listening !== 'current'} />
+                      onPress={() => { const p = here(); if (which === 'start') setStart(Math.min(p, end)); else setEnd(Math.max(p, start)); }} disabled={listening !== 'current'} />
                     <Button compact kind="ghost" testID={`${which}-minus`} label={t('nudge_back')} onPress={() => nudge(which, -0.1)} />
                     <Button compact kind="ghost" testID={`${which}-plus`} label={t('nudge_fwd')} onPress={() => nudge(which, 0.1)} />
                   </Row>
@@ -270,15 +279,15 @@ function Editor({ rec }: { rec: Recording }) {
       </ScrollView>
 
       {askName ? (
-        <Modal visible transparent animationType="fade" onRequestClose={() => setAskName(false)}>
-          <View style={{ flex: 1, justifyContent: 'center', padding: space.xl, backgroundColor: 'rgba(0,0,0,0.4)' }}>
-            <Card>
+        <Dialog onClose={() => setAskName(false)}>
               <Txt bold>{t('save_as_name')}</Txt>
               <TextInput
                 testID="save-as-name"
                 value={newName}
                 onChangeText={setNewName}
                 autoFocus
+                returnKeyType="done"
+                onSubmitEditing={() => newName.trim() && saveAs()}
                 accessibilityLabel={t('save_as_name')}
                 style={{ borderWidth: 1, borderColor: colors.border, borderRadius: radius, padding: space.md, color: colors.text, fontSize: fs.md, minHeight: TOUCH, textAlign: 'auto' }}
               />
@@ -286,9 +295,7 @@ function Editor({ rec }: { rec: Recording }) {
                 <Button kind="ghost" label={t('cancel')} onPress={() => setAskName(false)} style={{ flex: 1 }} />
                 <Button testID="save-as-confirm" label={t('save')} onPress={saveAs} disabled={!newName.trim()} style={{ flex: 1 }} />
               </Row>
-            </Card>
-          </View>
-        </Modal>
+        </Dialog>
       ) : null}
       <KeepAwakeWhile active={busy} />
     </View>
