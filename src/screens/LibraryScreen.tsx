@@ -38,7 +38,7 @@ export function statusText(rec: Recording, t: ReturnType<typeof useApp>['t']) {
 
 function RecordingRow({ rec, onOpen, colorsBg, border }: { rec: Recording; onOpen: () => void; colorsBg: string; border: string }) {
   const { t, colors } = useApp();
-  const badges = [rec.enhanced ? t('has_enhanced') : null, rec.transcript ? t('has_transcript') : null].filter(Boolean).join(' · ');
+  const badges = [rec.external ? t('in_folder') : null, rec.enhanced ? t('has_enhanced') : null, rec.transcript ? t('has_transcript') : null].filter(Boolean).join(' · ');
   const summary = `${rec.name}. ${t('duration')} ${clock(rec.durationSec)}. ${rec.format}. ${formatBytes(rec.sizeBytes)}. ${statusText(rec, t)}. ${badges}`;
   return (
     <Pressable

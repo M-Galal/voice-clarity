@@ -469,6 +469,12 @@ appId: com.example.voiceclarity
 - extendedWaitUntil:
     visible: "File 1 of 3"
     timeout: 30000
+# played in place from the folder, and speech is found without copying the file
+- assertVisible:
+    id: "in-folder"
+- extendedWaitUntil:
+    visible: "[1-9][0-9]* speech sections?"
+    timeout: 30000
 # it starts playing on its own
 - extendedWaitUntil:
     notVisible:

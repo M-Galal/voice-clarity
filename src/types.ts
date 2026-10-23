@@ -36,8 +36,10 @@ export interface Recording {
   sampleRate?: number;
   channels?: number;
   importedAt: string;
-  /** Where a play-list file was copied from, so it is not imported twice. */
+  /** The play-list file this recording belongs to. */
   sourceUri?: string;
+  /** True when the audio is played and read from `sourceUri` in place (not copied into the app). */
+  external?: boolean;
   lastPositionSec: number;
   lastPlayedSource: 'original' | 'enhanced';
   bookmarks: Bookmark[];

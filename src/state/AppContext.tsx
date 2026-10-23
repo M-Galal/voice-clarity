@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, I18nManager, useColorScheme } from 'react-native';
 import { STRINGS, type StringKey } from '../i18n/strings';
-import { analyse, importAsset, LowStorageError, pickRecordings } from '../services/processing';
+import { analyse, importAsset, linkExternal, LowStorageError, pickRecordings } from '../services/processing';
 import { UnsupportedFormatError } from '../services/audio';
 import {
   DEFAULT_APP_SETTINGS, clearTemp, deleteRecordingFiles, loadLibrary, loadSettings, saveLibrary, saveSettings,
@@ -145,6 +145,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       else if (e instanceof Error && e.message === 'model_missing') msg = t('model_missing');
       else if (e instanceof Error && e.message === 'sharing_unavailable') msg = t('err_share');
       else if (e instanceof FolderUnavailableError) msg = t('pl_folder_unavailable');
+      else if (e instanceof Error && e.message === 'external_readonly') msg = t('edit_external_readonly');
       else if (e instanceof Error && /decode|codec|format/i.test(e.message)) msg = t('err_decode');
       else msg = t('err_generic', { msg: e instanceof Error ? e.message : String(e) });
       Alert.alert(t('err_title'), msg);
@@ -229,7 +230,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       try {
         let rec = libRef.current.find((r) => r.sourceUri === item.uri && (!item.size || r.sizeBytes === item.size));
         if (!rec) {
-          rec = { ...(await importAsset({ uri: item.uri, name: item.name, size: item.size })), sourceUri: item.uri };
+          rec = await linkExternal({ uri: item.uri, name: item.name, size: item.size });
           const added = rec;
           setLib((l) => [added, ...l]);
           void runAnalysis(added); // the player opens right away; speech sections appear when ready

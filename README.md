@@ -31,7 +31,7 @@ Supported input formats are M4A (AAC), MP4 audio, AAC, MP3, WAV, FLAC, OGG and O
 4. Transcribe. The user picks a language (or automatic detection), a speech model and whether to use the enhanced copy, then starts. Each line has timestamps; tapping a line plays it, long-pressing edits it.
 5. Edit. Trim the recording to a selection or remove a selection, and change its speed (0.1× to 5×, pitch kept). Preview the result, then Save (replaces this recording, after a confirmation) or Save as (adds a new recording named `<name>-v<n>` by default, and leaves this one alone). The edit keeps the original's file type where the phone can encode it.
 6. Export. Original file, enhanced WAV, and transcript as TXT, SRT, VTT or JSON go out through the system share sheet.
-7. Play list from a folder. The user picks a folder once in the system folder picker; the app lists the audio files in it (optionally with subfolders), filtered by file name and extension and sorted by name or date. Tapping a file plays it; "Play all" starts at the top. Next/previous file buttons appear in the player, the next file starts when one ends (can be switched off), and Skip silence applies to every file. A file is copied into the library the first time it is played, so speech detection, enhancement and transcripts work; the files in the folder are not changed.
+7. Play list from a folder. The user picks a folder once in the system folder picker; the app lists the audio files in it (optionally with subfolders), filtered by file name and extension and sorted by name or date. Tapping a file plays it; "Play all" starts at the top. Next/previous file buttons appear in the player, the next file starts when one ends (can be switched off), and Skip silence applies to every file. Files play from the folder where they are; nothing is copied into the app and the files are never changed. For speech detection (and Skip silence) the file is read into memory and decoded there. The library keeps only the app's own data for each file: position, bookmarks, speech sections, and any enhanced copy or transcript the user makes. Editing a folder file offers Save as only.
 8. Send to Secure Folder (Samsung phones). In the Export sheet, "Send to Secure Folder" explains the steps and opens the share menu with the original or enhanced file. The user picks Secure Folder, unlocks it and chooses the app to keep the file in.
 
 ## Screens
@@ -165,7 +165,7 @@ tests/                       Node tests for dsp, transcript and contrast
 
 Playback speed above 2×: expo-audio limits the rate to 2× in its own code. The underlying players support more (Media3's `DefaultAudioSink` accepts 0.1×–8×; Apple documents the `timeDomain` time-pitch algorithm, which is meant for voice, for 1/32× to 32×), so `patches/expo-audio+58.0.10.patch` raises that limit and the app uses 0.1×–5× with the `timeDomain` algorithm on iOS. The patch is applied by `patch-package` after every `npm install`; re-check it when upgrading expo-audio.
 
-Play-list folders: on Android the folder comes from the system folder picker (`ACTION_OPEN_DOCUMENT_TREE`, through expo-file-system's `Directory.pickDirectoryAsync`). expo-file-system takes the persistable read grant, so the folder stays readable after a restart; Android drops the grant if the folder is moved or deleted, and the screen then asks for the folder again. Android 11 and later do not let apps pick the top level of internal storage or an SD card, or the Download folder itself, so a folder inside them is needed ([Android: access documents and other files](https://developer.android.com/training/data-storage/shared/documents-files)). Typing a raw path is not offered because apps cannot read arbitrary storage paths on Android 11+ without the "all files access" permission. On iOS the Files folder picker is used.
+Play-list folders: on Android the folder comes from the system folder picker (`ACTION_OPEN_DOCUMENT_TREE`, through expo-file-system's `Directory.pickDirectoryAsync`). Files are played from their `content://` URIs (expo-audio uses Media3's `DefaultDataSource` for local sources) and decoded from memory (react-native-audio-api's `decodeAudioData` accepts an `ArrayBuffer`). expo-file-system takes the persistable read grant, so the folder stays readable after a restart; Android drops the grant if the folder is moved or deleted, and the screen then asks for the folder again. Android 11 and later do not let apps pick the top level of internal storage or an SD card, or the Download folder itself, so a folder inside them is needed ([Android: access documents and other files](https://developer.android.com/training/data-storage/shared/documents-files)). Typing a raw path is not offered because apps cannot read arbitrary storage paths on Android 11+ without the "all files access" permission. On iOS the Files folder picker is used.
 
 Secure Folder: Samsung documents three ways to put files into Secure Folder: "Add files" inside Secure Folder, "Move to Secure Folder" in Samsung's own apps (My Files, Gallery, Voice Recorder, Contacts), and "Share via" with Secure Folder chosen in the share menu ([Samsung Knox: move content in and out of Secure Folder](https://docs.samsungknox.com/secure-folder/Content/backup-secure-folder-data.htm), [Samsung support](https://www.samsung.com/uk/support/mobile-devices/how-do-i-move-content-or-apps-to-the-secure-folder/)). There is no documented API for other apps, so the app uses the share menu. The option is shown on Samsung phones only.
 
@@ -183,7 +183,8 @@ The DSP is plain TypeScript with no React Native imports, so it is tested in Nod
 - If the app is closed during processing, the recording is marked "interrupted" on next launch and the user can retry. Partial work is not resumed.
 - When "shorten pauses" is used, bookmarks stay on the original timeline and are hidden while the enhanced copy plays.
 - De-reverberation is not implemented.
-- Play-list files are copied into the app when first played (needed for decoding, which reads local files). Delete them from the library to free the space; the folder is not touched.
+- Play-list files are read from their folder each time. If a file is moved, renamed or deleted, or folder access is removed, it can no longer be played until the folder is chosen again.
+- Sharing a play-list file (Export or Send to Secure Folder) makes a temporary copy for the share menu, because expo-sharing shares local files; temporary files are cleared when the app starts.
 - "Send to Secure Folder" sends a copy through the share menu. The app cannot delete or move the original into Secure Folder itself.
 
 ## Acceptance criteria
@@ -208,7 +209,8 @@ Play list
 - After choosing a folder, the screen shows its path and lists only supported audio files (other files are ignored).
 - Extension and name filters (substring or `*`/`?` patterns, `;` for several) narrow the list as you type and are remembered.
 - Tapping a file plays it with "File n of m"; next/previous file work; the next file starts when one ends if that option is on; Skip silence applies to every file.
-- A file already played is not copied again.
+- Playing a file does not copy it: the player shows "Plays from folder", speech sections are found, and the app's storage does not grow by the file's size.
+- Save (replace) is disabled in Edit for folder files; Save as works.
 
 Secure Folder (Samsung)
 - Export shows "Send to Secure Folder"; it explains the steps, then opens the share menu with the chosen file.

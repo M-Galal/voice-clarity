@@ -66,6 +66,39 @@ export async function importAsset(asset: { uri: string; name: string; size?: num
   };
 }
 
+/**
+ * Adds a play-list file to the library without copying it: the audio stays in its folder and is
+ * played and decoded from there. Only the app's own data (bookmarks, speech sections, any enhanced
+ * copy or transcript the user makes) is stored in the app.
+ */
+export async function linkExternal(item: { uri: string; name: string; size?: number }): Promise<Recording> {
+  const ext = assertSupported(item.name);
+  ensureDirs();
+  const id = newId();
+  recordingDir(id).create({ intermediates: true, idempotent: true });
+  const duration = (await readDuration(item.uri)) ?? 0;
+  return {
+    id,
+    name: item.name.replace(/\.[^.]+$/, ''),
+    originalFileName: item.name,
+    format: ext.toUpperCase(),
+    mimeType: MIME[ext],
+    sizeBytes: item.size ?? 0,
+    durationSec: duration,
+    importedAt: new Date().toISOString(),
+    lastPositionSec: 0,
+    lastPlayedSource: 'original',
+    bookmarks: [],
+    status: 'analyzing',
+    sourceUri: item.uri,
+    external: true,
+  };
+}
+
+/** Where the recording's original audio is: in its folder for play-list files, else in the app. */
+export const originalUri = (rec: Recording) =>
+  rec.external && rec.sourceUri ? rec.sourceUri : fileIn(rec.id, rec.originalFileName).uri;
+
 export interface AnalysisResult {
   durationSec: number;
   sampleRate: number;
@@ -77,9 +110,8 @@ export interface AnalysisResult {
 
 /** Decodes at 16 kHz (enough for speech detection and drawing) and finds speech. */
 export async function analyse(rec: Recording, vadThresholdDb: number, whisper = true): Promise<AnalysisResult> {
-  const f = fileIn(rec.id, rec.originalFileName);
   // 16 kHz keeps memory low for long recordings (≈ 230 MB per hour as float32 at 16 kHz mono)
-  const native = await decodeFile(f.uri, 16000);
+  const native = await decodeFile(originalUri(rec), 16000);
   const nativeRate = native.sampleRate;
   const channels = native.channels.length;
   const mono = mixToMono(native.channels);
@@ -114,7 +146,7 @@ export async function enhanceToPreview(
   checkStorage(estimateWorkBytes(rec.durationSec, processingRate));
   const t0 = Date.now();
   onProgress(0, 'decode');
-  const decoded = await decodeFile(fileIn(rec.id, rec.originalFileName).uri, processingRate);
+  const decoded = await decodeFile(originalUri(rec), processingRate);
   if (token.cancelled) throw new CancelledError();
   const result = await enhance(decoded.channels, decoded.sampleRate, settings, {
     isCancelled: () => token.cancelled,
@@ -152,7 +184,7 @@ export function deleteEnhanced(rec: Recording) {
 }
 
 export const audioUri = (rec: Recording, which: 'original' | 'enhanced') =>
-  fileIn(rec.id, which === 'enhanced' && rec.enhanced ? rec.enhanced.fileName : rec.originalFileName).uri;
+  which === 'enhanced' && rec.enhanced ? fileIn(rec.id, rec.enhanced.fileName).uri : originalUri(rec);
 
 export async function shareAudio(rec: Recording, which: 'original' | 'enhanced', dialogTitle?: string) {
   const uri = audioUri(rec, which);
@@ -273,6 +305,8 @@ async function writeSaved(rec: Recording, r: EditRender, dir: Directory, baseNam
 
 /** Save: the recording's audio is replaced by the edit. The previous audio and enhanced copy are deleted. */
 export async function saveEditReplace(rec: Recording, r: EditRender): Promise<Partial<Recording>> {
+  // play-list files are never changed in their folder; the screen offers Save as instead
+  if (rec.external) throw new Error('external_readonly');
   const saved = await writeSaved(rec, r, recordingDir(rec.id), `audio-${Date.now()}`);
   const old = fileIn(rec.id, rec.originalFileName);
   if (old.exists && old.name !== saved.fileName) old.delete();

@@ -146,7 +146,7 @@ function Player({ rec, queueIndex, autoplay }: { rec: Recording; queueIndex?: nu
     const prevBookmark = () => { const p = here(); const b = [...bookmarks].reverse().find((x) => x.time < p - 1); if (b) seek(b.time); };
 
     const confirmDelete = () =>
-      Alert.alert(t('delete_recording'), t('delete_confirm', { name: rec.name }), [
+      Alert.alert(t('delete_recording'), t(rec.external ? 'delete_external_confirm' : 'delete_confirm', { name: rec.name }), [
         { text: t('cancel'), style: 'cancel' },
         { text: t('delete'), style: 'destructive', onPress: () => { player.pause(); app.deleteRecording(rec.id); } },
       ]);
@@ -168,6 +168,7 @@ function Player({ rec, queueIndex, autoplay }: { rec: Recording; queueIndex?: nu
             <KeyValue k={t('format')} v={rec.format} />
             <KeyValue k={t('size')} v={formatBytes(rec.sizeBytes)} />
             <KeyValue k={t('status')} v={statusText(rec, t)} />
+            {rec.external ? <Txt testID="in-folder" size="sm" muted>{t('in_folder')}</Txt> : null}
             {rec.status === 'error' && rec.error && rec.error !== 'interrupted' ? (
               <Txt size="sm" testID="error-detail" style={{ color: colors.danger }}>{`${t('err_decode')} (${rec.error})`}</Txt>
             ) : null}

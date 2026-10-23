@@ -48,8 +48,15 @@ export interface Decoded {
 }
 
 
+/**
+ * Files outside the app (play-list folders, content:// URIs) are read into memory and decoded
+ * from there; nothing is written to disk. react-native-audio-api decodes an ArrayBuffer directly.
+ */
+const isInPlace = (uri: string) => /^content:/i.test(uri);
+const readBytes = (uri: string) => new File(uri).arrayBuffer();
+
 export async function decodeFile(uri: string, sampleRate?: number): Promise<Decoded> {
-  const buf = await decodeAudioData(fileUri(uri), sampleRate);
+  const buf = await decodeAudioData(isInPlace(uri) ? await readBytes(uri) : fileUri(uri), sampleRate);
   const channels: Float32Array[] = [];
   for (let c = 0; c < buf.numberOfChannels; c++) channels.push(Float32Array.from(buf.getChannelData(c)));
   return { channels, sampleRate: buf.sampleRate, durationSec: buf.duration };
@@ -57,7 +64,7 @@ export async function decodeFile(uri: string, sampleRate?: number): Promise<Deco
 
 export async function readDuration(uri: string): Promise<number | null> {
   try {
-    return await getAudioDuration(fileUri(uri));
+    return await getAudioDuration(isInPlace(uri) ? await readBytes(uri) : fileUri(uri));
   } catch {
     return null;
   }

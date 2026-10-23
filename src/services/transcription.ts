@@ -19,7 +19,8 @@ import {
 } from '../transcript/format';
 import type { Recording } from '../types';
 import { decodeFile, writeWav, yieldToUi } from './audio';
-import { fileIn, modelsDir, tempDir } from './storage';
+import { audioUri } from './processing';
+import { modelsDir, tempDir } from './storage';
 
 export interface ModelInfo {
   id: string;
@@ -100,12 +101,12 @@ export async function startTranscription(
   const model = MODELS.find((m) => m.id === opts.modelId) ?? MODELS[1];
   if (!isModelReady(model)) throw new Error('model_missing');
   const useEnhanced = opts.useEnhanced && !!rec.enhanced;
-  const src = fileIn(rec.id, useEnhanced ? rec.enhanced!.fileName : rec.originalFileName);
+  const srcUri = audioUri(rec, useEnhanced ? 'enhanced' : 'original');
 
   // whisper.cpp works on 16 kHz mono; write it as a 16-bit WAV it can read directly.
   // Decoded samples live only inside prepare(), so they can be freed while whisper runs.
   const prepare = async () => {
-    const decoded = await decodeFile(src.uri, 16000);
+    const decoded = await decodeFile(srcUri, 16000);
     let mono = mixToMono(decoded.channels);
     if (decoded.sampleRate !== 16000) mono = resample(mono, decoded.sampleRate, 16000);
     await yieldToUi();

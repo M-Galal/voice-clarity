@@ -268,6 +268,7 @@ function Editor({ rec }: { rec: Recording }) {
               : t('edit_saves_as', { ext: target.ext.toUpperCase() })}
           </Txt>
           {rec.durationSec > 20 * 60 ? <Txt size="sm" muted>{t('edit_long_note')}</Txt> : null}
+          {rec.external ? <Txt size="sm" muted testID="edit-external-note">{t('edit_external_readonly')}</Txt> : null}
           {busy ? (
             <>
               <ProgressBar value={saving ? 1 : progress ?? 0} label={saving ? t('saving') : t('rendering')} />
@@ -277,7 +278,7 @@ function Editor({ rec }: { rec: Recording }) {
             <>
               <Button kind="secondary" testID="edit-preview" label={t('preview')} icon="▶" onPress={preview} disabled={!changed || tooShort} />
               <Row>
-                <Button testID="edit-save" label={t('save')} onPress={save} disabled={!changed || tooShort} style={{ flex: 1 }} />
+                <Button testID="edit-save" label={t('save')} onPress={save} disabled={!changed || tooShort || !!rec.external} accessibilityHint={rec.external ? t('edit_external_readonly') : undefined} style={{ flex: 1 }} />
                 <Button testID="edit-save-as" kind="secondary" label={t('save_as')} onPress={() => setAskName(true)} disabled={!changed || tooShort} style={{ flex: 1 }} />
               </Row>
             </>
