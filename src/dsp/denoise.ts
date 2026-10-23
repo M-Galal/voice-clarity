@@ -10,7 +10,7 @@
  * - Per-bin gain: g = max(floor, 1 − α·N/P), smoothed over time and neighbouring bins to limit
  *   "musical noise". `floorDb` caps how deep any bin can be cut, which protects words.
  */
-import { FFT, nextPow2 } from './fft';
+import { RealFFT, nextPow2 } from './fft';
 import type { Segment } from './vad';
 
 export interface DenoiseOptions {
@@ -57,15 +57,16 @@ export function estimateNoiseProfile(
 ): Float32Array {
   const n = frameSizeFor(sampleRate);
   const hop = n / 2;
-  const fft = new FFT(n);
+  const fft = new RealFFT(n);
   const win = window(n);
   const bins = n / 2 + 1;
-  const re = new Float32Array(n);
-  const im = new Float32Array(n);
+  const buf = new Float32Array(n);
+  const re = new Float32Array(bins);
+  const im = new Float32Array(bins);
   const frames: { energy: number; spec: Float32Array; noise: boolean }[] = [];
   for (let pos = 0; pos + n <= samples.length; pos += hop) {
-    for (let i = 0; i < n; i++) { re[i] = samples[pos + i] * win[i]; im[i] = 0; }
-    fft.transform(re, im);
+    for (let i = 0; i < n; i++) buf[i] = samples[pos + i] * win[i];
+    fft.forward(buf, re, im);
     const spec = new Float32Array(bins);
     let e = 0;
     for (let k = 0; k < bins; k++) { spec[k] = re[k] * re[k] + im[k] * im[k]; e += spec[k]; }
@@ -81,6 +82,19 @@ export function estimateNoiseProfile(
   return profile;
 }
 
+/** Per-frame speech flags for the padded frame grid used by denoise (frame centre in speech). */
+function frameSpeechFlags(length: number, sampleRate: number, n: number, hop: number, segments: Segment[]): Uint8Array {
+  const total = Math.floor((length + 2 * n - n) / hop) + 1;
+  const flags = new Uint8Array(total);
+  let si = 0;
+  for (let f = 0; f < total; f++) {
+    const t = (f * hop + n / 2 - n) / sampleRate;
+    while (si < segments.length && segments[si].end < t) si++;
+    flags[f] = si < segments.length && t >= segments[si].start && t <= segments[si].end ? 1 : 0;
+  }
+  return flags;
+}
+
 export async function denoise(
   samples: Float32Array,
   sampleRate: number,
@@ -91,9 +105,10 @@ export async function denoise(
   const n = frameSizeFor(sampleRate);
   const hop = n / 2;
   const bins = n / 2 + 1;
-  const fft = new FFT(n);
+  const fft = new RealFFT(n);
   const win = window(n);
   const noise = estimateNoiseProfile(samples, sampleRate, segments);
+  const speechFrame = frameSpeechFlags(samples.length, sampleRate, n, hop, segments);
   const floor = Math.pow(10, opts.floorDb / 20);
   const smooth = Math.min(0.95, Math.max(0, opts.smoothing));
 
@@ -101,8 +116,9 @@ export async function denoise(
   const padded = new Float32Array(samples.length + 2 * n);
   padded.set(samples, n);
   const out = new Float32Array(padded.length);
-  const re = new Float32Array(n);
-  const im = new Float32Array(n);
+  const buf = new Float32Array(n);
+  const re = new Float32Array(bins);
+  const im = new Float32Array(bins);
   const prevGain = new Float32Array(bins).fill(1);
   const gain = new Float32Array(bins);
   const totalFrames = Math.floor((padded.length - n) / hop) + 1;
@@ -110,11 +126,10 @@ export async function denoise(
 
   for (let f = 0; f < totalFrames; f++) {
     const pos = f * hop;
-    for (let i = 0; i < n; i++) { re[i] = padded[pos + i] * win[i]; im[i] = 0; }
-    fft.transform(re, im);
+    for (let i = 0; i < n; i++) buf[i] = padded[pos + i] * win[i];
+    fft.forward(buf, re, im);
 
-    const tCentre = (pos + n / 2 - n) / sampleRate;
-    const isNoise = !inSpeech(tCentre, segments);
+    const isNoise = !speechFrame[f];
     for (let k = 0; k < bins; k++) {
       const p = re[k] * re[k] + im[k] * im[k];
       if (isNoise) noise[k] = 0.97 * noise[k] + 0.03 * p;
@@ -131,10 +146,9 @@ export async function denoise(
     for (let k = 0; k < bins; k++) {
       const g = prevGain[k];
       re[k] *= g; im[k] *= g;
-      if (k > 0 && k < n / 2) { re[n - k] *= g; im[n - k] *= g; }
     }
-    fft.transform(re, im, true);
-    for (let i = 0; i < n; i++) out[pos + i] += re[i] * win[i];
+    fft.inverse(re, im, buf);
+    for (let i = 0; i < n; i++) out[pos + i] += buf[i] * win[i];
 
     if (f % chunk === chunk - 1) {
       if (progress.isCancelled?.()) throw new CancelledError();

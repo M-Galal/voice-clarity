@@ -114,6 +114,21 @@ export function samplePeakDb(samples: Float32Array): number {
   return peak > 0 ? 20 * Math.log10(peak) : -Infinity;
 }
 
+/** Integrated and speech loudness from one K-weighting pass. */
+export function loudnessPair(samples: Float32Array, sampleRate: number, segments: Segment[]): { integrated: number; speech: number } {
+  const blocks = blockPowers(kWeight(samples, sampleRate), sampleRate);
+  const integrated = gatedLoudness(blocks.map((b) => b.power));
+  if (segments.length === 0) return { integrated, speech: integrated };
+  const inSpeech: number[] = [];
+  let si = 0;
+  for (const b of blocks) {
+    const centre = b.start / sampleRate + 0.2;
+    while (si < segments.length && segments[si].end < centre) si++;
+    if (si < segments.length && centre >= segments[si].start) inSpeech.push(b.power);
+  }
+  return { integrated, speech: inSpeech.length ? gatedLoudness(inSpeech) : integrated };
+}
+
 /**
  * True-peak estimate: 4× oversampling with a 48-tap windowed-sinc interpolator
  * (the oversampling approach described in BS.1770-4 Annex 2). It is an estimate,
@@ -135,11 +150,17 @@ export function truePeakDb(samples: Float32Array): number {
     }
     phases.push(k);
   }
-  let peak = 0;
   const n = samples.length;
+  let peak = 0;
+  for (let i = 0; i < n; i++) { const a = Math.abs(samples[i]); if (a > peak) peak = a; }
+  if (peak === 0) return -Infinity;
+  // Only interpolate where a neighbouring sample is within 12 dB of the sample peak: for this
+  // interpolator, a point further down cannot produce the largest inter-sample value in
+  // practice, and skipping it makes the measurement many times faster.
+  const gate = peak * 0.25;
   for (let i = 0; i < n; i++) {
-    const a = Math.abs(samples[i]);
-    if (a > peak) peak = a;
+    const near = Math.max(Math.abs(samples[i]), i + 1 < n ? Math.abs(samples[i + 1]) : 0);
+    if (near < gate) continue;
     for (let p = 1; p < factor; p++) {
       const k = phases[p];
       let acc = 0;

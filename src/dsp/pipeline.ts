@@ -11,7 +11,7 @@ import { applyChain, designBiquad, type BiquadCoeffs } from './biquad';
 import { mixToMono, removeSilence } from './buffers';
 import { CancelledError, denoise, detectHum, type Progress } from './denoise';
 import { applyGain, attenuateGaps, detectClipping, limit } from './dynamics';
-import { integratedLoudness, samplePeakDb, speechLoudness, truePeakDb } from './loudness';
+import { loudnessPair, samplePeakDb, speechLoudness, truePeakDb } from './loudness';
 import { clamp } from './units';
 import { detectSpeech, estimateSnrDb, type Segment, type VadOptions } from './vad';
 
@@ -115,9 +115,10 @@ export interface EnhanceResult {
 }
 
 function measure(x: Float32Array, sr: number, segs: Segment[]): LevelReport {
+  const { integrated, speech } = loudnessPair(x, sr, segs);
   return {
-    integratedLufs: integratedLoudness(x, sr),
-    speechLufs: speechLoudness(x, sr, segs),
+    integratedLufs: integrated,
+    speechLufs: speech,
     samplePeakDb: samplePeakDb(x),
     truePeakDb: truePeakDb(x),
   };

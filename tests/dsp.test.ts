@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { FFT } from '../src/dsp/fft';
+import { FFT, RealFFT } from '../src/dsp/fft';
 import { kWeightingCoeffs, integratedLoudness, samplePeakDb, speechLoudness, truePeakDb } from '../src/dsp/loudness';
 import { dbToPercent, percentToDb, dbToGain } from '../src/dsp/units';
 import { detectSpeech, skipSilenceTarget, nextSegmentStart, previousSegmentStart } from '../src/dsp/vad';
@@ -110,6 +110,24 @@ test('FFT round trip', () => {
   f.transform(re, im);
   f.transform(re, im, true);
   for (let i = 0; i < 256; i++) assert.ok(Math.abs(re[i] - orig[i]) < 1e-5);
+});
+
+test('real FFT matches the complex FFT and inverts', () => {
+  for (const n of [16, 512, 1024]) {
+    const x = Float32Array.from({ length: n }, (_, i) => Math.sin(i * 0.37) + 0.5 * Math.cos(i * 1.9) + ((i * 7) % 11) / 20);
+    const re = Float32Array.from(x), im = new Float32Array(n);
+    new FFT(n).transform(re, im);
+    const rf = new RealFFT(n);
+    const R = new Float32Array(n / 2 + 1), I = new Float32Array(n / 2 + 1);
+    rf.forward(x, R, I);
+    for (let k = 0; k <= n / 2; k++) {
+      assert.ok(Math.abs(R[k] - re[k]) < 1e-3 * Math.sqrt(n), `re ${n}/${k}`);
+      assert.ok(Math.abs(I[k] - im[k]) < 1e-3 * Math.sqrt(n), `im ${n}/${k}`);
+    }
+    const y = new Float32Array(n);
+    rf.inverse(R, I, y);
+    for (let i = 0; i < n; i++) assert.ok(Math.abs(y[i] - x[i]) < 1e-4, `inv ${n}/${i}`);
+  }
 });
 
 test('VAD finds the speech bursts and their timing', () => {
