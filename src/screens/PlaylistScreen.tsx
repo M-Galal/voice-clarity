@@ -87,6 +87,13 @@ export function PlaylistScreen() {
         <Txt testID="pl-folder" bold style={{ writingDirection: 'ltr' }}>
           {pl.folderUri ? folderLabel(pl.folderUri, t('pl_internal'), t('pl_sd_card')) : t('pl_no_folder')}
         </Txt>
+        {loading ? (
+          <Row><ActivityIndicator color={colors.primary} /><Txt muted>{t('pl_scanning')}</Txt></Row>
+        ) : scan?.error ? (
+          <Warning text={t('pl_folder_unavailable')} />
+        ) : pl.folderUri ? (
+          <Txt testID="pl-count" bold>{t('pl_count', { n: files.length, total: all.length })}</Txt>
+        ) : null}
         <Button testID="pl-pick" kind={pl.folderUri ? 'secondary' : 'primary'} icon="📁" label={pl.folderUri ? t('pl_change') : t('pl_choose')} onPress={choose} />
         <Txt size="sm" muted>{t('pl_folder_note')}</Txt>
       </Card>
@@ -143,13 +150,6 @@ export function PlaylistScreen() {
           <Button testID="pl-play-all" label={t('pl_play_all')} icon="▶" onPress={() => playFromQueue(files, 0, { autoplay: true })} disabled={!files.length || queueOpening !== null} style={{ flexGrow: 1 }} />
           <Button testID="pl-refresh" kind="secondary" label={t('pl_refresh')} icon="↻" onPress={() => setNonce((n) => n + 1)} disabled={loading} style={{ flexGrow: 1 }} />
         </Row>
-      ) : null}
-      {loading ? (
-        <Row><ActivityIndicator color={colors.primary} /><Txt muted>{t('pl_scanning')}</Txt></Row>
-      ) : scan?.error ? (
-        <Warning text={t('pl_folder_unavailable')} />
-      ) : pl.folderUri ? (
-        <Txt testID="pl-count" muted>{t('pl_count', { n: files.length, total: all.length })}</Txt>
       ) : null}
     </View>
   );

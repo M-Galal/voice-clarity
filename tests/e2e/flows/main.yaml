@@ -432,8 +432,9 @@ appId: com.example.voiceclarity
     id: "pl-pick"
 - runFlow:
     file: pick-folder.yaml
-- extendedWaitUntil:
-    visible: "3 of 3 audio files match"
+- scrollUntilVisible:
+    element: "3 of 3 audio files match"
+    direction: UP
     timeout: 20000
 - assertVisible: ".*Music/vc-playlist"
 - assertNotVisible: "notes.txt"
@@ -442,12 +443,18 @@ appId: com.example.voiceclarity
     id: "pl-ext"
 - inputText: "m4a"
 - hideKeyboard
-- assertVisible: "2 of 3 audio files match"
+- scrollUntilVisible:
+    element: "2 of 3 audio files match"
+    direction: UP
+    timeout: 20000
 - tapOn:
     id: "pl-name"
 - inputText: "whisper"
 - hideKeyboard
-- assertVisible: "1 of 3 audio files match"
+- scrollUntilVisible:
+    element: "1 of 3 audio files match"
+    direction: UP
+    timeout: 20000
 - takeScreenshot: 53_playlist_filtered
 - eraseText:
     charactersToErase: 20
@@ -457,7 +464,10 @@ appId: com.example.voiceclarity
 - eraseText:
     charactersToErase: 10
 - hideKeyboard
-- assertVisible: "3 of 3 audio files match"
+- scrollUntilVisible:
+    element: "3 of 3 audio files match"
+    direction: UP
+    timeout: 20000
 - tapOn:
     id: "pl-sort-oldest"
 - tapOn:
@@ -521,8 +531,9 @@ appId: com.example.voiceclarity
     id: "in-folder"
 - takeScreenshot: 57_folder_saved_player
 - back
-- extendedWaitUntil:
-    visible: "3 of 3 audio files match"
+- scrollUntilVisible:
+    element: "3 of 3 audio files match"
+    direction: UP
     timeout: 20000
 - scrollUntilVisible:
     element:
@@ -540,8 +551,9 @@ appId: com.example.voiceclarity
 - takeScreenshot: 59_folder_delete_confirm
 - tapOn:
     id: "android:id/button1"
-- extendedWaitUntil:
-    visible: "2 of 2 audio files match"
+- scrollUntilVisible:
+    element: "2 of 2 audio files match"
+    direction: UP
     timeout: 20000
 - assertNotVisible:
     id: "pl-item-whisper_mix.m4a"
