@@ -279,8 +279,9 @@ appId: com.example.voiceclarity
       id: "edit-preview"
 - tapOn:
     id: "edit-preview"
-- extendedWaitUntil:
-    visible:
+# the buttons come back below the fold when rendering ends; scroll while waiting
+- scrollUntilVisible:
+    element:
       id: "edit-save-as"
     timeout: 180000
 - scrollUntilVisible:
