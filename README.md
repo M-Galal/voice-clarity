@@ -29,7 +29,7 @@ Supported input formats are M4A (AAC), MP4 audio, AAC, MP3, WAV, FLAC, OGG and O
 2. Listen. Speech sections are shaded on the waveform and listed as chips. Previous/next buttons jump between sections; bookmarks have their own previous/next buttons. Position, speed and bookmarks are saved and restored.
 3. Auto Enhance. The screen shows the steps that will run and the exact settings, then the user taps start. Progress is shown with a cancel button. The result opens in a review screen where the user can switch between original and enhanced at the same timestamp, read measured levels and warnings, then keep or discard it. Nothing is saved before "Keep". If transcription is enabled in the Auto Enhance steps, the transcript screen opens next.
 4. Transcribe. The user picks a language (or automatic detection), a speech model and whether to use the enhanced copy, then starts. Each line has timestamps; tapping a line plays it, long-pressing edits it.
-5. Edit. Trim the recording to a selection or remove a selection, and change its speed (0.5× to 2×, pitch kept). Preview the result, then Save (replaces this recording, after a confirmation) or Save as (adds a new recording and leaves this one alone).
+5. Edit. Trim the recording to a selection or remove a selection, and change its speed (0.5× to 2×, pitch kept). Preview the result, then Save (replaces this recording, after a confirmation) or Save as (adds a new recording named `<name>-v<n>` by default, and leaves this one alone). The edit keeps the original's file type where the phone can encode it.
 6. Export. Original file, enhanced WAV, and transcript as TXT, SRT, VTT or JSON go out through the system share sheet.
 
 ## Screens
@@ -76,7 +76,18 @@ Changing any of these values switches the preset to Advanced.
 
 `src/dsp/edit.ts` trims or cuts every channel with 5 ms fades at the joins, then changes speed with WSOLA (waveform-similarity overlap-add): 40 ms Hann frames at 50 % overlap, each shifted by up to ±10 ms to the position that best continues the previous frame. The search runs on a 4 kHz mono copy and is refined at full rate; the same shift is applied to every channel, so stereo stays aligned and pitch is unchanged. Tests check pitch at 0.5×, 0.75×, 1.5× and 2×, output length, event timing and channel alignment.
 
-Edits are written as 16-bit WAV at the file's own sample rate and channel count (recordings over 20 minutes are processed at 24 kHz to limit memory). Save asks for confirmation, replaces the recording's audio, removes its enhanced copy and transcript because their timing no longer matches, and moves bookmarks that fall inside the kept audio to their new times. Save as creates a new recording with the remapped bookmarks and leaves the source untouched. Speed buttons on the player change playback only; the speed on the Edit screen changes the file.
+Edits are rendered at the file's own sample rate and channel count (recordings over 20 minutes at 24 kHz to limit memory) and saved in the original's file type where the phone has an encoder for it. A small local native module, `modules/voice-encoder`, encodes AAC: on Android with MediaCodec into MPEG-4 (`.m4a`, `.mp4`) or raw ADTS (`.aac`), on iOS with AVAudioFile into MPEG-4. The bit rate follows the original's average bit rate within AAC limits, so size and quality stay close.
+
+| Original | Saved as |
+|---|---|
+| M4A, MP4 | same type (AAC) |
+| WAV | WAV |
+| AAC | AAC on Android, M4A on iOS |
+| MP3, FLAC, OGG, Opus | M4A (AAC) |
+
+Android's media documentation lists no MP3 encoder, and this app does not ship one, so MP3 edits become M4A. FLAC and Opus encoders exist on Android but have no matching iOS path here, so they are saved as M4A on both platforms for consistency. The Edit screen states the file type before saving. If encoding fails, the edit is saved as WAV rather than lost.
+
+"Save as" suggests `<name>-v1`, `-v2` and so on: it drops an existing `-v<n>` suffix from the name and uses one more than the highest version already in the library. Save asks for confirmation, replaces the recording's audio, removes its enhanced copy and transcript because their timing no longer matches, and moves bookmarks that fall inside the kept audio to their new times. Save as creates a new recording with the remapped bookmarks and leaves the source untouched. Speed buttons on the player change playback only; the speed on the Edit screen changes the file.
 
 ### Loudness, units and safeguards
 
@@ -131,6 +142,8 @@ src/services/storage.ts      on-device storage with atomic JSON writes
 src/services/audio.ts        decoding (react-native-audio-api), WAV writing
 src/services/processing.ts   import, analysis, enhancement preview/commit, sharing
 src/services/transcription.ts model download, whisper.rn transcription, flags
+src/edit/saveFormat.ts       save file type, AAC bit rate, -v<n> naming
+modules/voice-encoder/       local Expo module: AAC encoder (Kotlin MediaCodec, Swift AVAudioFile)
 src/dsp/                     pure TypeScript DSP: biquads, FFT, VAD, denoise, loudness, limiter, WAV
 src/transcript/format.ts     Arabic helpers, SRT/VTT/TXT/JSON, search
 tests/                       Node tests for dsp, transcript and contrast
@@ -142,7 +155,7 @@ The DSP is plain TypeScript with no React Native imports, so it is tested in Nod
 
 ## Known limits
 
-- Edited audio is saved as WAV, so an edited M4A becomes a larger WAV file.
+- MP3, FLAC, OGG and Opus edits are saved as M4A (AAC); raw AAC edits become M4A on iOS.
 - Enhanced audio is exported as 16-bit mono WAV. None of the libraries used here encodes an in-memory buffer to M4A/AAC, so M4A export of the enhanced copy would need a small native encoder (AVAudioFile on iOS, MediaCodec + MediaMuxer on Android). The original M4A can be exported unchanged.
 - Import uses the system file picker. Receiving files from another app's share sheet needs an iOS share extension and Android intent filters, which are not included yet.
 - Processing is mono.
@@ -172,8 +185,8 @@ Bookmarks
 Editing
 - Keep-selection and remove-selection produce the expected length; speed 0.5× to 2× keeps pitch.
 - Preview plays the edited result before anything is saved.
-- Save asks first, then replaces the audio (WAV), clears the enhanced copy and transcript, keeps bookmarks inside the kept part at their new times and re-runs speech detection.
-- Save as adds a new recording with the chosen name and leaves the source unchanged.
+- Save asks first, then replaces the audio in the original's file type (M4A stays M4A), clears the enhanced copy and transcript, keeps bookmarks inside the kept part at their new times and re-runs speech detection.
+- Save as suggests `<name>-v<n>` with the next free counter, adds a new recording and leaves the source unchanged.
 
 Speech detection
 - Speech sections are shaded and listed; previous/next speech jumps work.

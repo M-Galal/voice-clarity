@@ -3,7 +3,9 @@
  */
 import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
-import { File } from 'expo-file-system';
+import { Directory, File } from 'expo-file-system';
+import VoiceEncoder from '../../modules/voice-encoder/src/VoiceEncoderModule';
+import { aacBitrate, MIME, saveTarget, type SaveTarget } from '../edit/saveFormat';
 import { mixToMono, waveformPeaks } from '../dsp/buffers';
 import { CancelledError } from '../dsp/denoise';
 import { enhance, type EnhanceResult, type EnhanceSettings } from '../dsp/pipeline';
@@ -234,19 +236,52 @@ function carryBookmarks(rec: Recording, r: EditRender): Bookmark[] {
     .filter((b): b is Bookmark => b !== null);
 }
 
-/** Save: the recording's audio becomes the edited WAV. The previous audio and enhanced copy are deleted. */
-export function saveEditReplace(rec: Recording, r: EditRender): Partial<Recording> {
-  const fileName = `audio-${Date.now()}.wav`;
-  const dest = fileIn(rec.id, fileName);
-  new File(r.previewUri).moveSync(dest);
+/** The file type an edit of this recording will be saved as on this phone. */
+export function editSaveTarget(rec: Recording): SaveTarget {
+  return saveTarget(extOf(rec.originalFileName), VoiceEncoder?.containers ?? []);
+}
+
+/**
+ * Writes the rendered edit (a WAV preview) as `<baseName>.<ext>` in `dir`, encoding to AAC when
+ * the original was M4A/MP4/AAC (or a format the phone cannot write). If encoding fails, the WAV
+ * is kept instead so the edit is never lost.
+ */
+async function writeSaved(rec: Recording, r: EditRender, dir: Directory, baseName: string) {
+  const target = editSaveTarget(rec);
+  const preview = new File(r.previewUri);
+  if (target.container !== 'wav' && VoiceEncoder) {
+    const out = new File(dir, `${baseName}.${target.ext}`);
+    try {
+      const bitrate = aacBitrate(rec.sizeBytes, rec.durationSec, r.sampleRate, r.channels);
+      const t0 = Date.now();
+      await VoiceEncoder.encodeAac(preview.uri, out.uri, target.container as 'mpeg4' | 'adts', bitrate);
+      console.log(`[VC] encoded ${target.ext} ${bitrate / 1000} kb/s in ${Date.now() - t0} ms: ${out.size} bytes`);
+      if (out.exists && out.size > 0) {
+        preview.delete();
+        return { fileName: out.name, sizeBytes: out.size, format: target.ext.toUpperCase(), mimeType: MIME[target.ext] ?? 'audio/*' };
+      }
+    } catch (e) {
+      console.warn(`[VC] AAC encoding failed, saving WAV instead: ${e instanceof Error ? e.message : String(e)}`);
+      if (out.exists) out.delete();
+    }
+  }
+  const wav = new File(dir, `${baseName}.wav`);
+  if (wav.exists) wav.delete();
+  preview.moveSync(wav);
+  return { fileName: wav.name, sizeBytes: wav.size, format: 'WAV', mimeType: 'audio/wav' };
+}
+
+/** Save: the recording's audio is replaced by the edit. The previous audio and enhanced copy are deleted. */
+export async function saveEditReplace(rec: Recording, r: EditRender): Promise<Partial<Recording>> {
+  const saved = await writeSaved(rec, r, recordingDir(rec.id), `audio-${Date.now()}`);
   const old = fileIn(rec.id, rec.originalFileName);
-  if (old.exists && old.uri !== dest.uri) old.delete();
+  if (old.exists && old.name !== saved.fileName) old.delete();
   deleteEnhanced(rec);
   return {
-    originalFileName: fileName,
-    format: 'WAV',
-    mimeType: 'audio/wav',
-    sizeBytes: dest.size,
+    originalFileName: saved.fileName,
+    format: saved.format,
+    mimeType: saved.mimeType,
+    sizeBytes: saved.sizeBytes,
     durationSec: r.durationSec,
     channels: r.channels,
     sampleRate: r.sampleRate,
@@ -263,20 +298,19 @@ export function saveEditReplace(rec: Recording, r: EditRender): Partial<Recordin
 }
 
 /** Save As: a new recording in the library; the current one is left as it is. */
-export function saveEditAsNew(rec: Recording, r: EditRender, name: string): Recording {
+export async function saveEditAsNew(rec: Recording, r: EditRender, name: string): Promise<Recording> {
   ensureDirs();
   const id = newId();
   const dir = recordingDir(id);
   dir.create({ intermediates: true, idempotent: true });
-  const dest = new File(dir, 'original.wav');
-  new File(r.previewUri).moveSync(dest);
+  const saved = await writeSaved(rec, r, dir, 'original');
   return {
     id,
-    name: name.trim() || `${rec.name} (edit)`,
-    originalFileName: 'original.wav',
-    format: 'WAV',
-    mimeType: 'audio/wav',
-    sizeBytes: dest.size,
+    name: name.trim() || `${rec.name}-v1`,
+    originalFileName: saved.fileName,
+    format: saved.format,
+    mimeType: saved.mimeType,
+    sizeBytes: saved.sizeBytes,
     durationSec: r.durationSec,
     channels: r.channels,
     sampleRate: r.sampleRate,

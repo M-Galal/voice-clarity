@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["VoiceEncoderModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.voiceencoder.VoiceEncoderModule"]
+  }
+}

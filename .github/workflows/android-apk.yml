@@ -193,3 +193,51 @@ jobs:
         run: |
           mkdir -p results
           bash tests/e2e/publish-results.sh results ci-results-e2e
+
+  # Compiles the iOS app (simulator, unsigned) so Swift code such as the AAC encoder is checked.
+  ios-build:
+    runs-on: macos-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate native iOS project
+        run: npx expo prebuild --platform ios --no-install
+        env:
+          CI: '1'
+
+      - name: Pods
+        working-directory: ios
+        run: pod install
+
+      - name: Build for iOS Simulator
+        run: |
+          mkdir -p ios-results
+          set -o pipefail
+          WS=$(ls -d ios/*.xcworkspace | head -1)
+          SCHEME=$(basename "$WS" .xcworkspace)
+          xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Debug -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build 2>&1 | tee ios-results/xcodebuild.txt | tail -n 40
+
+      - name: Publish iOS results
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p ios-results
+          if [ -f ios-results/xcodebuild.txt ]; then
+            grep -nE "error:|BUILD (SUCCEEDED|FAILED)|\*\* " ios-results/xcodebuild.txt > ios-results/summary.txt || true
+            grep -nE "warning:.*VoiceEncoder|VoiceEncoder.*(error|warning)" ios-results/xcodebuild.txt >> ios-results/summary.txt || true
+            tail -n 300 ios-results/xcodebuild.txt > ios-results/xcodebuild-tail.txt
+            rm ios-results/xcodebuild.txt
+          fi
+          echo "${{ job.status }}" > ios-results/STATUS
+          bash tests/e2e/publish-results.sh ios-results ci-results-ios

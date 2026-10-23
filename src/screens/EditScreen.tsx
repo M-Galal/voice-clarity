@@ -4,9 +4,10 @@ import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useKeepAwake } from 'expo-keep-awake';
 import { editedDuration, MAX_SPEED, MIN_SPEED, normalizeSpec, type EditSpec } from '../dsp/edit';
 import {
-  audioUri, discardPreview, renderEdit, saveEditAsNew, saveEditReplace, type CancelToken, type EditRender,
+  audioUri, discardPreview, editSaveTarget, renderEdit, saveEditAsNew, saveEditReplace, type CancelToken, type EditRender,
 } from '../services/processing';
 import { useApp } from '../state/AppContext';
+import { nextVersionName } from '../edit/saveFormat';
 import { clock, clockTenths } from '../transcript/format';
 import type { Recording } from '../types';
 import { Button, Card, Choice, Header, IconButton, LabeledSlider, ProgressBar, Row, Section, Txt, Warning } from '../ui/components';
@@ -22,7 +23,7 @@ export function EditScreen({ id }: { id: string }) {
 }
 
 function Editor({ rec }: { rec: Recording }) {
-  const { t, goBack, navigate, updateRecording, reanalyse, addRecording, showError, colors, fs } = useApp();
+  const { t, goBack, navigate, updateRecording, reanalyse, addRecording, showError, colors, fs, library } = useApp();
   const [source, setSource] = useState<'original' | 'enhanced'>(rec.enhanced ? rec.lastPlayedSource : 'original');
   const [mode, setMode] = useState<EditSpec['mode']>('keep');
   const [start, setStart] = useState(0);
@@ -33,7 +34,9 @@ function Editor({ rec }: { rec: Recording }) {
   const [listening, setListening] = useState<'current' | 'preview'>('current');
   const [progress, setProgress] = useState<number | null>(null);
   const [askName, setAskName] = useState(false);
-  const [newName, setNewName] = useState(`${rec.name} (edit)`);
+  const [newName, setNewName] = useState(() => nextVersionName(rec.name, library.map((r) => r.name)));
+  const [saving, setSaving] = useState(false);
+  const target = editSaveTarget(rec);
   // true while 'Play selection' is running; a ref, so stopping does not re-render
   const selectionPlay = useRef(false);
   const token = useRef<CancelToken>({ cancelled: false });
@@ -121,8 +124,9 @@ function Editor({ rec }: { rec: Recording }) {
           const r = await doRender();
           if (!r) return;
           player.pause();
+          setSaving(true);
           try {
-            const patch = saveEditReplace(rec, r);
+            const patch = await saveEditReplace(rec, r);
             renderRef.current = null;
             setRender(null);
             updateRecording(rec.id, patch);
@@ -130,6 +134,8 @@ function Editor({ rec }: { rec: Recording }) {
             reanalyse(rec.id);
           } catch (e) {
             showError(e);
+          } finally {
+            setSaving(false);
           }
         },
       },
@@ -140,8 +146,9 @@ function Editor({ rec }: { rec: Recording }) {
     const r = await doRender();
     if (!r) return;
     player.pause();
+    setSaving(true);
     try {
-      const created = saveEditAsNew(rec, r, newName);
+      const created = await saveEditAsNew(rec, r, newName);
       renderRef.current = null;
       setRender(null);
       goBack();
@@ -149,6 +156,8 @@ function Editor({ rec }: { rec: Recording }) {
       await addRecording(created);
     } catch (e) {
       showError(e);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -164,7 +173,7 @@ function Editor({ rec }: { rec: Recording }) {
     else setEnd((v) => Math.min(sourceDuration, Math.max(start, v + d)));
   };
 
-  const busy = progress !== null;
+  const busy = progress !== null || saving;
   const segments = listening === 'current' ? (source === 'enhanced' ? rec.enhanced?.segments : rec.segments) ?? [] : [];
 
   return (
@@ -237,11 +246,15 @@ function Editor({ rec }: { rec: Recording }) {
           {!changed ? <Txt size="sm" muted>{t('edit_nothing')}</Txt> : null}
           {changed && tooShort ? <Warning text={t('edit_too_short')} /> : null}
           {dirty ? <Txt size="sm" style={{ color: colors.warn }}>{t('edit_dirty')}</Txt> : null}
-          <Txt size="sm" muted>{t('edit_format_note')}</Txt>
+          <Txt size="sm" muted testID="saves-as">
+            {target.changed
+              ? t('edit_saves_as_changed', { orig: rec.format, ext: target.ext.toUpperCase() })
+              : t('edit_saves_as', { ext: target.ext.toUpperCase() })}
+          </Txt>
           {rec.durationSec > 20 * 60 ? <Txt size="sm" muted>{t('edit_long_note')}</Txt> : null}
           {busy ? (
             <>
-              <ProgressBar value={progress ?? 0} label={t('rendering')} />
+              <ProgressBar value={saving ? 1 : progress ?? 0} label={saving ? t('saving') : t('rendering')} />
               <Button kind="danger" testID="cancel-edit" label={t('cancel')} onPress={() => (token.current.cancelled = true)} />
             </>
           ) : (
