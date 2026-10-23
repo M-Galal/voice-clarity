@@ -120,7 +120,10 @@ function Player({ rec }: { rec: Recording }) {
             <KeyValue k={t('format')} v={rec.format} />
             <KeyValue k={t('size')} v={formatBytes(rec.sizeBytes)} />
             <KeyValue k={t('status')} v={statusText(rec, t)} />
-            {rec.status === 'error' ? <Button kind="secondary" label={t('retry')} onPress={() => app.reanalyse(rec.id)} /> : null}
+            {rec.status === 'error' && rec.error && rec.error !== 'interrupted' ? (
+              <Txt size="sm" testID="error-detail" style={{ color: colors.danger }}>{`${t('err_decode')} (${rec.error})`}</Txt>
+            ) : null}
+            {rec.status === 'error' ? <Button testID="retry" kind="secondary" label={t('retry')} onPress={() => app.reanalyse(rec.id)} /> : null}
           </Card>
 
           {rec.enhanced ? (

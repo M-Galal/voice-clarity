@@ -17,10 +17,13 @@ adb logcat -c
 adb logcat -v time > "$RES/logcat-full.txt" 2>&1 &
 LOGPID=$!
 
-cd "$RES/screens"
-"$HOME/.maestro/bin/maestro" test ../../tests/e2e/flows/main.yaml --format junit --output ../junit.xml > ../maestro.txt 2>&1
+ROOT=$PWD
+STAMP=$(mktemp)
+"$HOME/.maestro/bin/maestro" test tests/e2e/flows/main.yaml --format junit --output "$RES/junit.xml" \
+  --test-output-dir "$RES/maestro-out" > "$RES/maestro.txt" 2>&1
 CODE=$?
-cd ../..
+# takeScreenshot paths are resolved by Maestro, not by our cwd: collect every new PNG.
+find "$ROOT" "$HOME/.maestro" -name "*.png" -newer "$STAMP" -not -path "$ROOT/$RES/screens/*" -exec cp {} "$RES/screens/" \; 2>/dev/null || true
 # last screen state for diagnosis
 adb exec-out screencap -p > "$RES/screens/zz_final.png" 2>/dev/null || true
 adb exec-out uiautomator dump /dev/tty > "$RES/final-ui.xml" 2>/dev/null || true

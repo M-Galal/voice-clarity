@@ -149,7 +149,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           noiseFloorDb: a.noiseFloorDb,
         });
       } catch (e) {
-        updateRecording(rec.id, { status: 'error', error: e instanceof Error ? e.message : String(e) });
+        const msg = e instanceof Error ? e.message : String(e);
+        console.warn(`[VC] analyse failed for ${rec.format}: ${msg}`);
+        updateRecording(rec.id, { status: 'error', error: msg });
       }
     },
     [settings.vadThresholdDb, updateRecording],

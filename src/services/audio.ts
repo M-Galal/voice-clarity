@@ -5,6 +5,7 @@
 import { decodeAudioData, getAudioDuration, isFfmpegEnabled } from 'react-native-audio-api';
 import { File } from 'expo-file-system';
 import { encodeWav16 } from '../dsp/wav';
+import { fileUri } from './uri';
 
 export const SUPPORTED_EXTENSIONS = ['m4a', 'mp4', 'aac', 'mp3', 'wav', 'flac', 'ogg', 'opus'] as const;
 const NEEDS_FFMPEG = new Set(['m4a', 'mp4', 'aac']);
@@ -46,10 +47,9 @@ export interface Decoded {
   durationSec: number;
 }
 
-const localPath = (uri: string) => (uri.startsWith('file://') ? decodeURI(uri.slice(7)) : uri);
 
 export async function decodeFile(uri: string, sampleRate?: number): Promise<Decoded> {
-  const buf = await decodeAudioData(localPath(uri), sampleRate);
+  const buf = await decodeAudioData(fileUri(uri), sampleRate);
   const channels: Float32Array[] = [];
   for (let c = 0; c < buf.numberOfChannels; c++) channels.push(Float32Array.from(buf.getChannelData(c)));
   return { channels, sampleRate: buf.sampleRate, durationSec: buf.duration };
@@ -57,7 +57,7 @@ export async function decodeFile(uri: string, sampleRate?: number): Promise<Deco
 
 export async function readDuration(uri: string): Promise<number | null> {
   try {
-    return await getAudioDuration(localPath(uri));
+    return await getAudioDuration(fileUri(uri));
   } catch {
     return null;
   }

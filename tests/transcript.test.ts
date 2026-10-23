@@ -1,4 +1,5 @@
 import { test } from 'node:test';
+import { fileUri } from '../src/services/uri';
 import assert from 'node:assert/strict';
 import {
   arabicPunctuation, detectTimeScale, flagSegments, isMostlyArabic, normalizeArabic,
@@ -55,4 +56,10 @@ test('flags: repetition and low audio quality', () => {
   assert.equal(f[0].flag, undefined);
   assert.equal(f[1].flag, 'possible_repetition');
   assert.equal(f[2].flag, 'low_audio_quality');
+});
+
+test('decoder paths keep or gain the file:// prefix (Android release builds need it)', () => {
+  assert.equal(fileUri('file:///data/user/0/app/files/a.m4a'), 'file:///data/user/0/app/files/a.m4a');
+  assert.equal(fileUri('/data/user/0/app/files/a.m4a'), 'file:///data/user/0/app/files/a.m4a');
+  assert.equal(fileUri('content://x/y'), 'content://x/y');
 });
