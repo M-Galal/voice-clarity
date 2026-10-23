@@ -36,7 +36,10 @@ function Player({ rec }: { rec: Recording }) {
     const lastSaved = useRef(0);
 
     const duration = status.duration || rec.durationSec;
-    const position = status.currentTime;
+    // While paused the player only reports its position when it jumps; show the requested
+    // position right away so the time label and playhead follow every tap.
+    const [pausedAt, setPausedAt] = useState<number | null>(null);
+    const position = pausedAt !== null && !status.playing ? pausedAt : status.currentTime;
     const segments = (source === 'enhanced' ? rec.enhanced?.segments : rec.segments) ?? [];
     // bookmarks are stored on the original timeline; hide them on a silence-shortened copy
     const bookmarksVisible = source === 'original' || !rec.enhanced?.report.silenceMap;
@@ -74,14 +77,18 @@ function Player({ rec }: { rec: Recording }) {
     const lastSeek = useRef({ to: 0, at: 0 });
     const here = () => (Date.now() - lastSeek.current.at < 600 ? lastSeek.current.to : position);
     const seek = (time: number) => {
-      const to = Math.max(0, Math.min(duration, time));
+      // stop just short of the end: seeking onto the last sample puts the player in its
+      // "ended" state, where later jumps back are not reported until playback resumes
+      const to = Math.max(0, Math.min(Math.max(0, duration - 0.25), time));
       lastSeek.current = { to, at: Date.now() };
+      setPausedAt(to);
       player.seekTo(to);
     };
     const toggle = () => {
-      if (status.playing) player.pause();
+      if (status.playing) { setPausedAt(null); player.pause(); }
       else {
-        if (status.didJustFinish || position >= duration - 0.2) player.seekTo(0);
+        if (status.didJustFinish || position >= duration - 0.3) seek(0);
+        setPausedAt(null);
         player.setActiveForLockScreen(true, { title: rec.name, artist: t('app_name') }, { showSeekBackward: true, showSeekForward: true });
         player.play();
       }
@@ -91,6 +98,7 @@ function Player({ rec }: { rec: Recording }) {
       const keep = position;
       const wasPlaying = status.playing;
       setSource(s);
+      setPausedAt(null);
       player.replace({ uri: audioUri(rec, s), name: rec.name });
       // same-length files: keep the spot so the two versions can be compared
       const sameTimeline = !rec.enhanced?.report.silenceMap;
@@ -153,7 +161,7 @@ function Player({ rec }: { rec: Recording }) {
             onSeek={seek}
           />
           <Row style={{ justifyContent: 'space-between', direction: 'ltr' }}>
-            <Txt size="sm" muted>{clock(position)}</Txt>
+            <Txt size="sm" muted testID="elapsed">{clock(position)}</Txt>
             <Txt size="sm" muted>{t('speech_count', { n: segments.length })}</Txt>
             <Txt size="sm" muted>{clock(duration)}</Txt>
           </Row>

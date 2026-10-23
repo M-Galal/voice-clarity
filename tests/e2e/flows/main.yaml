@@ -40,15 +40,46 @@ appId: com.example.voiceclarity
 - tapOn:
     id: "play-pause"
 - takeScreenshot: 06_played_then_paused
+# back to 0, then: next speech (first section starts at ~1.4 s), +10, -10 -> back at 0:01
+- tapOn:
+    id: "back-10"
+- tapOn:
+    id: "back-10"
+- assertVisible:
+    id: "elapsed"
+    text: "0:00"
 - tapOn:
     id: "next-speech"
+- assertVisible:
+    id: "elapsed"
+    text: "0:01"
+- tapOn:
+    id: "fwd-10"
+- assertVisible:
+    id: "elapsed"
+    text: "0:11"
+- tapOn:
+    id: "back-10"
+- assertVisible:
+    id: "elapsed"
+    text: "0:01"
+- takeScreenshot: 07_after_seek
+# jumping past the end stops just before it and a jump back still works
 - tapOn:
     id: "fwd-10"
 - tapOn:
+    id: "fwd-10"
+- tapOn:
+    id: "fwd-10"
+- assertVisible:
+    id: "elapsed"
+    text: "0:20"
+- tapOn:
     id: "back-10"
-- takeScreenshot: 07_after_seek
-# next speech starts at ~5.8 s; +10 then -10 must land back there, not at the end
-- assertVisible: "0:0[5-6]"
+- assertVisible:
+    id: "elapsed"
+    text: "0:10"
+- takeScreenshot: 07b_back_from_end
 
 # ---- Bookmarks ----
 - tapOn:

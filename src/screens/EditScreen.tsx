@@ -47,14 +47,16 @@ function Editor({ rec }: { rec: Recording }) {
   const st = useAudioPlayerStatus(player);
   const sourceDuration = (source === 'enhanced' ? rec.enhanced?.report.outputDurationSec : rec.durationSec) ?? rec.durationSec;
   const duration = listening === 'preview' && render ? render.durationSec : st.duration || sourceDuration;
-  const position = st.currentTime;
+  const [pausedAt, setPausedAt] = useState<number | null>(null);
+  const position = pausedAt !== null && !st.playing ? pausedAt : st.currentTime;
 
   // same lag guard as the player: relative jumps and "set start/end" use the requested position
   const lastSeek = useRef({ to: 0, at: 0 });
   const here = () => (Date.now() - lastSeek.current.at < 600 ? lastSeek.current.to : position);
   const seekTo = (v: number) => {
-    const to = Math.max(0, Math.min(duration, v));
+    const to = Math.max(0, Math.min(Math.max(0, duration - 0.25), v));
     lastSeek.current = { to, at: Date.now() };
+    setPausedAt(to);
     player.seekTo(to);
   };
 
@@ -82,12 +84,14 @@ function Editor({ rec }: { rec: Recording }) {
   const switchListening = (w: 'current' | 'preview') => {
     if (w === listening || (w === 'preview' && !render)) return;
     player.pause();
+    setPausedAt(null);
     setListening(w);
     player.replace({ uri: w === 'preview' && render ? render.previewUri : audioUri(rec, source) });
   };
   const switchSource = (s: 'original' | 'enhanced') => {
     if (s === source) return;
     player.pause();
+    setPausedAt(null);
     setSource(s);
     setListening('current');
     const d = (s === 'enhanced' ? rec.enhanced?.report.outputDurationSec : rec.durationSec) ?? rec.durationSec;
@@ -119,6 +123,7 @@ function Editor({ rec }: { rec: Recording }) {
     const r = await doRender();
     if (!r) return;
     setListening('preview');
+    setPausedAt(null);
     player.replace({ uri: r.previewUri });
     setTimeout(() => player.play(), 150);
   };
@@ -211,7 +216,7 @@ function Editor({ rec }: { rec: Recording }) {
         />
         <Row style={{ justifyContent: 'center', direction: 'ltr' }}>
           <IconButton testID="edit-back-10" icon="↺" label={t('back_10')} onPress={() => seekTo(here() - 10)} />
-          <IconButton testID="edit-play" big icon={st.playing ? '❚❚' : '▶'} label={st.playing ? t('pause') : t('play')} onPress={() => { selectionPlay.current = false; if (st.playing) player.pause(); else player.play(); }} />
+          <IconButton testID="edit-play" big icon={st.playing ? '❚❚' : '▶'} label={st.playing ? t('pause') : t('play')} onPress={() => { selectionPlay.current = false; setPausedAt(null); if (st.playing) player.pause(); else player.play(); }} />
           <IconButton testID="edit-fwd-10" icon="↻" label={t('fwd_10')} onPress={() => seekTo(here() + 10)} />
         </Row>
         <Txt size="sm" muted style={{ textAlign: 'center', writingDirection: 'ltr' }}>{`${clockTenths(position)} / ${clockTenths(duration)}`}</Txt>
