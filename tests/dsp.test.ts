@@ -166,6 +166,10 @@ test('hum detector finds 50 Hz and 60 Hz, ignores white noise', () => {
   assert.equal(detectHum(mk(50), sr, []), 50);
   assert.equal(detectHum(mk(60), sr, []), 60);
   assert.equal(detectHum(noise(0.05, n, 9), sr, []), null);
+  // pure 50 Hz with no harmonics, under louder noise
+  const pure = noise(0.04, n, 4);
+  for (let i = 0; i < n; i++) pure[i] += 0.03 * Math.sin((2 * Math.PI * 50 * i) / sr);
+  assert.equal(detectHum(pure, sr, []), 50);
 });
 
 test('limiter keeps every sample under the ceiling and reports reduction', () => {
@@ -225,6 +229,7 @@ test('pipeline: hits LUFS target on speech, respects ceiling, keeps original unt
   assert.deepEqual(x, copy, 'original buffer modified');
   assert.ok(Math.abs(r.report.output.speechLufs - -16) < 1.0, `speech LUFS ${r.report.output.speechLufs}`);
   assert.ok(r.report.output.samplePeakDb <= -1 + 1e-4, `peak ${r.report.output.samplePeakDb}`);
+  assert.ok(r.report.output.truePeakDb <= -1 + 0.1, `true peak ${r.report.output.truePeakDb}`);
   assert.ok(r.report.appliedGainDb > 5);
   assert.ok(r.report.segments.length >= 9);
 });

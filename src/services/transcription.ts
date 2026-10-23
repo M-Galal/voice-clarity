@@ -124,7 +124,9 @@ export async function startTranscription(
     onProgress: (p) => onProgress(p / 100),
   });
 
+  const tStart = Date.now();
   const done = promise.then((res) => {
+    console.log(`[VC] transcribe ${duration.toFixed(1)}s model=${model.id} lang=${opts.language}: ${Date.now() - tStart} ms, detected=${res.language}, segments=${res.segments.length}`);
     if (wav.exists) wav.delete();
     if (res.isAborted) throw new Error('aborted');
     const scale = detectTimeScale(res.segments.map((s) => s.t1), duration);

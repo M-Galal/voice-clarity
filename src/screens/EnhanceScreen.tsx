@@ -100,6 +100,7 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
 
           <Section title={t('strength')}>
             <Choice<Strength>
+              testID="strength"
               value={s.strength}
               onChange={(v) => setS((prev) => settingsForPreset(v, prev))}
               options={(['light', 'balanced', 'strong', 'advanced'] as Strength[]).map((v) => ({ value: v, label: t(v) }))}
@@ -136,7 +137,7 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
             <Txt bold>{t('settings_summary')}</Txt>
             <Txt size="sm">{summary(s, rate, t)}</Txt>
             {rec.durationSec > 45 * 60 ? <Warning text={t('long_file_warning')} /> : null}
-            <Button label={auto ? t('auto_enhance') : t('start')} icon="✨" onPress={run} disabled={auto && !settings.auto.enhance} />
+            <Button testID="start-enhance" label={auto ? t('auto_enhance') : t('start')} icon="✨" onPress={run} disabled={auto && !settings.auto.enhance} />
           </Card>
 
           {rec.enhanced ? (
@@ -221,7 +222,7 @@ function Running({ phase, durationSec, onCancel }: { phase: { progress: number; 
       <ProgressBar value={phase.progress} label={t(stageKey)} />
       {durationSec > 45 * 60 ? <Warning text={t('long_file_warning')} /> : null}
       <Txt size="sm" muted>{t('processing_local')}</Txt>
-      <Button kind="danger" label={t('cancel')} onPress={onCancel} />
+      <Button testID="cancel-enhance" kind="danger" label={t('cancel')} onPress={onCancel} />
     </View>
   );
 }
@@ -275,10 +276,10 @@ function Review({ rec, result, previewUri, onKeep, onDiscard }: { rec: Recording
       ) : null}
 
       <Card>
-        <Choice label={t('listening_to')} value={which} onChange={switchTo} options={[{ value: 'original', label: t('original') }, { value: 'enhanced', label: t('enhanced') }]} />
+        <Choice testID="ab" label={t('listening_to')} value={which} onChange={switchTo} options={[{ value: 'original', label: t('original') }, { value: 'enhanced', label: t('enhanced') }]} />
         <Row style={{ justifyContent: 'center', direction: 'ltr' }}>
           <IconButton icon="↺" label={t('back_10')} onPress={() => player.seekTo(Math.max(0, st.currentTime - 10))} />
-          <IconButton big icon={st.playing ? '❚❚' : '▶'} label={st.playing ? t('pause') : t('play')} onPress={() => (st.playing ? player.pause() : player.play())} />
+          <IconButton testID="review-play" big icon={st.playing ? '❚❚' : '▶'} label={st.playing ? t('pause') : t('play')} onPress={() => (st.playing ? player.pause() : player.play())} />
           <IconButton icon="↻" label={t('fwd_10')} onPress={() => player.seekTo(st.currentTime + 10)} />
         </Row>
         <Txt size="sm" muted style={{ textAlign: 'center' }}>{`${clock(st.currentTime)} / ${clock(st.duration)}`}</Txt>
@@ -296,8 +297,8 @@ function Review({ rec, result, previewUri, onKeep, onDiscard }: { rec: Recording
         <KeyValue k={t('duration')} v={`${clock(r.durationSec)} → ${clock(r.outputDurationSec)}`} />
       </Section>
 
-      <Button label={t('keep_enhanced')} icon="✓" onPress={() => { player.pause(); onKeep(); }} />
-      <Button kind="secondary" label={t('discard')} onPress={() => { player.pause(); onDiscard(); }} />
+      <Button testID="keep-enhanced" label={t('keep_enhanced')} icon="✓" onPress={() => { player.pause(); onKeep(); }} />
+      <Button testID="discard-enhanced" kind="secondary" label={t('discard')} onPress={() => { player.pause(); onDiscard(); }} />
     </ScrollView>
   );
 }

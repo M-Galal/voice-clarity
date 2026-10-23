@@ -9,9 +9,9 @@ export function LibraryScreen() {
   const { t, library, importFromPicker, navigate, colors } = useApp();
   return (
     <View style={{ flex: 1 }}>
-      <Header title={t('library')} right={<IconButton icon="⚙︎" label={t('settings')} onPress={() => navigate({ name: 'settings' })} />} />
+      <Header title={t('library')} right={<IconButton testID="open-settings" icon="⚙︎" label={t('settings')} onPress={() => navigate({ name: 'settings' })} />} />
       <View style={{ padding: space.lg, gap: space.xs }}>
-        <Button label={t('import')} icon="＋" onPress={importFromPicker} />
+        <Button testID="import" label={t('import')} icon="＋" onPress={importFromPicker} />
         <Txt size="sm" muted>{t('import_hint')}</Txt>
       </View>
       <FlatList
@@ -42,6 +42,7 @@ function RecordingRow({ rec, onOpen, colorsBg, border }: { rec: Recording; onOpe
   return (
     <Pressable
       onPress={onOpen}
+      testID={`rec-${rec.name}`}
       accessibilityRole="button"
       accessibilityLabel={summary}
       style={({ pressed }) => ({ backgroundColor: colorsBg, borderRadius: radius, borderWidth: 1, borderColor: border, padding: space.lg, gap: space.xs, opacity: pressed ? 0.85 : 1 })}

@@ -82,7 +82,9 @@ export async function analyse(rec: Recording, vadThresholdDb: number): Promise<A
   const mono = mixToMono(native.channels);
   native.channels.length = 0;
   await yieldToUi();
+  const tVad = Date.now();
   const { segments, analysis } = detectSpeech(mono, nativeRate, { thresholdDb: vadThresholdDb });
+  console.log(`[VC] analyse ${rec.format} ${(mono.length / nativeRate).toFixed(1)}s: ${segments.length} speech sections, VAD ${Date.now() - tVad} ms`);
   await yieldToUi();
   return {
     durationSec: mono.length / nativeRate,
@@ -107,6 +109,7 @@ export async function enhanceToPreview(
   onProgress: (f: number, stage: string) => void,
 ): Promise<{ result: EnhanceResult; previewUri: string }> {
   checkStorage(estimateWorkBytes(rec.durationSec, processingRate));
+  const t0 = Date.now();
   onProgress(0, 'decode');
   const decoded = await decodeFile(fileIn(rec.id, rec.originalFileName).uri, processingRate);
   if (token.cancelled) throw new CancelledError();
@@ -115,6 +118,8 @@ export async function enhanceToPreview(
     yieldFn: yieldToUi,
     onProgress: (f) => onProgress(0.05 + f * 0.9, 'process'),
   });
+  const r = result.report;
+  console.log(`[VC] enhance ${rec.durationSec.toFixed(1)}s @${processingRate}: ${Date.now() - t0} ms, gain ${r.appliedGainDb.toFixed(1)} dB, speech ${r.output.speechLufs.toFixed(1)} LUFS, TP ${r.output.truePeakDb.toFixed(2)}, hum ${r.humHz}, warnings ${r.warnings.join(',') || 'none'}`);
   onProgress(0.96, 'write');
   const preview = new File(tempDir(), `${rec.id}-preview-${Date.now()}.wav`);
   await writeWav(preview, result.output, result.sampleRate);

@@ -1,7 +1,9 @@
 name: Android APK
 
-# Builds an installable test APK (release build, signed with the Android debug key).
-# Not for the Play Store: that needs your own upload key.
+# 1. build: type check, unit tests, test APK (release build signed with the debug key,
+#    for testing only, not for the Play Store), published as a pre-release.
+# 2. e2e: installs that APK on an Android emulator and runs tests/e2e/flows/main.yaml.
+# Screenshots and logs from both jobs are pushed to the ci-results-* branches.
 on:
   push:
     branches: [main]
@@ -38,8 +40,9 @@ jobs:
 
       - name: Type check and unit tests
         run: |
-          npm run typecheck
-          npm test
+          mkdir -p build-results
+          npm run typecheck 2>&1 | tee build-results/typecheck.txt
+          npm test 2>&1 | tee build-results/unit-tests.txt
 
       - name: Generate native Android project
         run: npx expo prebuild --platform android --no-install
@@ -49,12 +52,15 @@ jobs:
       - name: Build APK
         working-directory: android
         # arm64-v8a covers current phones, x86_64 covers the Android emulator.
-        run: ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a,x86_64 --no-daemon
+        run: |
+          set -o pipefail
+          ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a,x86_64 --no-daemon 2>&1 | tee ../build-results/gradle.txt
 
       - name: Rename APK
         run: |
           mkdir -p out
           cp android/app/build/outputs/apk/release/app-release.apk "out/voice-clarity-${GITHUB_SHA::7}.apk"
+          ls -la out > build-results/apk.txt
 
       - uses: actions/upload-artifact@v4
         with:
@@ -74,3 +80,66 @@ jobs:
             Test APK built from ${{ github.sha }}. Signed with the Android debug key: for testing only, not for the Play Store.
             Install: open the .apk on your phone and allow "Install unknown apps" for your browser or file manager.
           files: out/*.apk
+
+      - name: Publish build results
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p build-results
+          if [ -f build-results/gradle.txt ]; then tail -n 400 build-results/gradle.txt > build-results/gradle-tail.txt; grep -nE "^e: |error:|FAILURE|What went wrong" -A5 build-results/gradle.txt > build-results/gradle-errors.txt || true; rm build-results/gradle.txt; fi
+          echo "${{ job.status }}" > build-results/STATUS
+          bash tests/e2e/publish-results.sh build-results ci-results-build
+
+  e2e:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: voice-clarity-apk
+          path: apk
+
+      - name: Make test recordings
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q espeak-ng ffmpeg
+          bash tests/e2e/make-audio.sh e2e-audio
+
+      - name: Install Maestro
+        run: curl -fsSL "https://get.maestro.mobile.dev" | bash
+
+      - name: Run on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          ram-size: 4096M
+          disk-size: 8G
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-boot-anim -camera-back none
+          disable-animations: true
+          script: bash tests/e2e/run-on-emulator.sh
+
+      - name: Publish e2e results
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p results
+          cp -r e2e-audio results/audio-info 2>/dev/null && rm -f results/audio-info/*.m4a results/audio-info/*.mp3 || true
+          bash tests/e2e/publish-results.sh results ci-results-e2e

@@ -178,14 +178,16 @@ export function detectHum(samples: Float32Array, sampleRate: number, segments: S
     for (let i = 0; i < x.length; i++) { const s0 = x[i] + c * s1 - s2; s2 = s1; s1 = s0; }
     return s1 * s1 + s2 * s2 - c * s1 * s2;
   };
+  // Prominence of the strongest of the first four harmonics: a pure 50 Hz hum has no
+  // harmonics, buzzy hum has strong ones; either should count.
   const score = (base: number) => {
-    let acc = 0;
+    let best = -Infinity;
     for (let h = 1; h <= 4; h++) {
       const on = goertzel(base * h);
       const offP = (goertzel(base * h - 7) + goertzel(base * h + 7)) / 2;
-      acc += 10 * Math.log10((on + 1e-20) / (offP + 1e-20));
+      best = Math.max(best, 10 * Math.log10((on + 1e-20) / (offP + 1e-20)));
     }
-    return acc / 4;
+    return best;
   };
   const s50 = score(50);
   const s60 = score(60);

@@ -109,7 +109,7 @@ function Player({ rec }: { rec: Recording }) {
 
     return (
       <View style={{ flex: 1 }}>
-        <Header title={rec.name} onBack={goBack} right={<IconButton icon="🗑" label={t('delete_recording')} onPress={confirmDelete} />} />
+        <Header title={rec.name} onBack={goBack} right={<IconButton testID="delete-recording" icon="🗑" label={t('delete_recording')} onPress={confirmDelete} />} />
         <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.lg }}>
           <Card>
             <KeyValue k={t('duration')} v={clock(rec.durationSec)} />
@@ -121,6 +121,7 @@ function Player({ rec }: { rec: Recording }) {
 
           {rec.enhanced ? (
             <Choice
+              testID="source"
               label={t('playing_from')}
               value={source}
               onChange={switchSource}
@@ -144,31 +145,32 @@ function Player({ rec }: { rec: Recording }) {
           {status.error ? <Txt style={{ color: colors.danger }}>{status.error}</Txt> : null}
 
           <Row style={{ justifyContent: 'space-between', direction: 'ltr' }}>
-            <IconButton icon="⏮" label={t('prev_speech')} onPress={() => { const s = previousSegmentStart(segments, position); if (s !== null) seek(s); }} disabled={!segments.length} />
-            <IconButton icon="↺" label={t('back_10')} onPress={() => seek(position - 10)} />
-            <IconButton big icon={status.playing ? '❚❚' : '▶'} label={status.playing ? t('pause') : t('play')} onPress={toggle} disabled={!status.isLoaded} />
-            <IconButton icon="↻" label={t('fwd_10')} onPress={() => seek(position + 10)} />
-            <IconButton icon="⏭" label={t('next_speech')} onPress={() => { const s = nextSegmentStart(segments, position); if (s !== null) seek(s); }} disabled={!segments.length} />
+            <IconButton testID="prev-speech" icon="⏮" label={t('prev_speech')} onPress={() => { const s = previousSegmentStart(segments, position); if (s !== null) seek(s); }} disabled={!segments.length} />
+            <IconButton testID="back-10" icon="↺" label={t('back_10')} onPress={() => seek(position - 10)} />
+            <IconButton testID="play-pause" big icon={status.playing ? '❚❚' : '▶'} label={status.playing ? t('pause') : t('play')} onPress={toggle} disabled={!status.isLoaded} />
+            <IconButton testID="fwd-10" icon="↻" label={t('fwd_10')} onPress={() => seek(position + 10)} />
+            <IconButton testID="next-speech" icon="⏭" label={t('next_speech')} onPress={() => { const s = nextSegmentStart(segments, position); if (s !== null) seek(s); }} disabled={!segments.length} />
           </Row>
           <Row style={{ justifyContent: 'center', direction: 'ltr' }}>
-            <IconButton icon="◀︎⚑" label={t('prev_bookmark')} onPress={prevBookmark} disabled={!bookmarks.length || !bookmarksVisible} />
-            <Button label={t('add_bookmark')} icon="⚑" kind="secondary" onPress={addBookmark} disabled={source === 'enhanced' && !bookmarksVisible} />
-            <IconButton icon="⚑▶︎" label={t('next_bookmark')} onPress={nextBookmark} disabled={!bookmarks.length || !bookmarksVisible} />
+            <IconButton testID="prev-bookmark" icon="◀︎⚑" label={t('prev_bookmark')} onPress={prevBookmark} disabled={!bookmarks.length || !bookmarksVisible} />
+            <Button testID="add-bookmark" label={t('add_bookmark')} icon="⚑" kind="secondary" onPress={addBookmark} disabled={source === 'enhanced' && !bookmarksVisible} />
+            <IconButton testID="next-bookmark" icon="⚑▶︎" label={t('next_bookmark')} onPress={nextBookmark} disabled={!bookmarks.length || !bookmarksVisible} />
           </Row>
 
           <Choice
+            testID="speed"
             label={t('speed')}
             value={settings.playbackRate}
             onChange={(v) => { updateSettings({ playbackRate: v }); player.setPlaybackRate(v, 'high'); }}
             options={SPEEDS.map((s) => ({ value: s, label: `${s}×` }))}
           />
-          <Toggle label={t('skip_silence')} value={settings.skipSilence} onChange={(v) => updateSettings({ skipSilence: v })} hint={`${t('silence_gap')} ${settings.skipSilenceMinGapSec} s`} />
+          <Toggle testID="skip-silence" label={t('skip_silence')} value={settings.skipSilence} onChange={(v) => updateSettings({ skipSilence: v })} hint={`${t('silence_gap')} ${settings.skipSilenceMinGapSec} s`} />
 
           <Row wrap>
-            <Button label={t('auto_enhance')} icon="✨" onPress={() => { player.pause(); navigate({ name: 'enhance', id: rec.id, auto: true }); }} disabled={busy} style={{ flexGrow: 1 }} />
-            <Button label={t('enhance')} icon="🎚" kind="secondary" onPress={() => { player.pause(); navigate({ name: 'enhance', id: rec.id }); }} disabled={busy} style={{ flexGrow: 1 }} />
-            <Button label={t('transcript')} icon="📝" kind="secondary" onPress={() => { player.pause(); navigate({ name: 'transcript', id: rec.id }); }} disabled={busy && rec.status !== 'transcribing'} style={{ flexGrow: 1 }} />
-            <Button label={t('export')} icon="⇪" kind="secondary" onPress={() => setExportOpen(true)} style={{ flexGrow: 1 }} />
+            <Button testID="auto-enhance" label={t('auto_enhance')} icon="✨" onPress={() => { player.pause(); navigate({ name: 'enhance', id: rec.id, auto: true }); }} disabled={busy} style={{ flexGrow: 1 }} />
+            <Button testID="enhance" label={t('enhance')} icon="🎚" kind="secondary" onPress={() => { player.pause(); navigate({ name: 'enhance', id: rec.id }); }} disabled={busy} style={{ flexGrow: 1 }} />
+            <Button testID="transcript" label={t('transcript')} icon="📝" kind="secondary" onPress={() => { player.pause(); navigate({ name: 'transcript', id: rec.id }); }} disabled={busy && rec.status !== 'transcribing'} style={{ flexGrow: 1 }} />
+            <Button testID="export" label={t('export')} icon="⇪" kind="secondary" onPress={() => setExportOpen(true)} style={{ flexGrow: 1 }} />
           </Row>
 
           <Section title={t('bookmarks')}>
@@ -179,14 +181,14 @@ function Player({ rec }: { rec: Recording }) {
                   <Txt>{b.label}</Txt>
                   <Txt size="sm" muted>{clock(b.time)}</Txt>
                 </Pressable>
-                <IconButton icon="✎" label={`${t('edit')} ${b.label}`} onPress={() => setEditing(b)} />
-                <IconButton icon="✕" label={`${t('delete')} ${b.label}`} onPress={() => updateRecording(rec.id, (r) => ({ bookmarks: r.bookmarks.filter((x) => x.id !== b.id) }))} />
+                <IconButton testID={`edit-bm-${b.label}`} icon="✎" label={`${t('edit')} ${b.label}`} onPress={() => setEditing(b)} />
+                <IconButton testID={`del-bm-${b.label}`} icon="✕" label={`${t('delete')} ${b.label}`} onPress={() => updateRecording(rec.id, (r) => ({ bookmarks: r.bookmarks.filter((x) => x.id !== b.id) }))} />
               </Row>
             ))}
           </Section>
 
           <Section title={t('speech_sections')}>
-            <Button kind="ghost" label={t('reanalyse')} onPress={() => app.reanalyse(rec.id)} disabled={busy} accessibilityHint={t('vad_note')} />
+            <Button testID="reanalyse" kind="ghost" label={t('reanalyse')} onPress={() => app.reanalyse(rec.id)} disabled={busy} accessibilityHint={t('vad_note')} />
             {segments.length === 0 ? <Txt muted>{rec.status === 'analyzing' ? t('status_analyzing') : t('w_no_speech_found')}</Txt> : null}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.xs, direction: 'ltr' }}>
               {segments.map((s, i) => {
@@ -258,12 +260,12 @@ function BookmarkEditor({ bookmark, onClose, onSave, duration }: { bookmark: Boo
         <Card>
           <Txt size="lg" bold>{t('edit')}</Txt>
           <Txt size="sm" muted>{t('bookmark_label')}</Txt>
-          <TextInput value={label} onChangeText={setLabel} style={input} accessibilityLabel={t('bookmark_label')} />
+          <TextInput testID="bm-label" value={label} onChangeText={setLabel} style={input} accessibilityLabel={t('bookmark_label')} />
           <Txt size="sm" muted>{t('bookmark_time')}</Txt>
           <TextInput value={time} onChangeText={setTime} style={[input, { writingDirection: 'ltr' }]} keyboardType="numbers-and-punctuation" accessibilityLabel={t('bookmark_time')} />
           <Row>
             <Button kind="ghost" label={t('cancel')} onPress={onClose} style={{ flex: 1 }} />
-            <Button label={t('save')} disabled={!valid} onPress={() => bookmark && parsed !== null && onSave({ ...bookmark, label: label.trim(), time: parsed })} style={{ flex: 1 }} />
+            <Button testID="bm-save" label={t('save')} disabled={!valid} onPress={() => bookmark && parsed !== null && onSave({ ...bookmark, label: label.trim(), time: parsed })} style={{ flex: 1 }} />
           </Row>
         </Card>
       </View>

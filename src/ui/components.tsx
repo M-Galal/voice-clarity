@@ -30,8 +30,9 @@ export function Txt({
 }
 
 export function Button({
-  label, onPress, kind = 'primary', disabled, icon, accessibilityHint, style, compact,
+  label, onPress, kind = 'primary', disabled, icon, accessibilityHint, style, compact, testID,
 }: {
+  testID?: string;
   label: string;
   onPress: () => void;
   kind?: 'primary' | 'secondary' | 'danger' | 'ghost';
@@ -46,6 +47,7 @@ export function Button({
   const fg = kind === 'primary' ? colors.onPrimary : kind === 'danger' ? colors.danger : colors.text;
   return (
     <Pressable
+      testID={testID}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={accessibilityHint}
@@ -76,11 +78,12 @@ export function Button({
 }
 
 /** Round icon button with a spoken label. */
-export function IconButton({ icon, label, onPress, big, disabled }: { icon: string; label: string; onPress: () => void; big?: boolean; disabled?: boolean }) {
+export function IconButton({ icon, label, onPress, big, disabled, testID }: { icon: string; label: string; onPress: () => void; big?: boolean; disabled?: boolean; testID?: string }) {
   const { colors, fs } = useApp();
   const size = big ? 72 : TOUCH + 4;
   return (
     <Pressable
+      testID={testID}
       accessibilityRole="button"
       accessibilityLabel={label}
       disabled={disabled}
@@ -111,10 +114,11 @@ export function Row({ children, style, wrap, accessible, accessibilityLabel }: {
   return <View accessible={accessible} accessibilityLabel={accessibilityLabel} style={[{ flexDirection: 'row', alignItems: 'center', gap: space.sm, flexWrap: wrap ? 'wrap' : 'nowrap' }, style]}>{children}</View>;
 }
 
-export function Toggle({ label, value, onChange, hint, disabled }: { label: string; value: boolean; onChange: (v: boolean) => void; hint?: string; disabled?: boolean }) {
+export function Toggle({ label, value, onChange, hint, disabled, testID }: { label: string; value: boolean; onChange: (v: boolean) => void; hint?: string; disabled?: boolean; testID?: string }) {
   const { colors } = useApp();
   return (
     <Pressable
+      testID={testID}
       accessibilityRole="switch"
       accessibilityLabel={label}
       accessibilityHint={hint}
@@ -133,8 +137,8 @@ export function Toggle({ label, value, onChange, hint, disabled }: { label: stri
 
 /** Segmented choice. */
 export function Choice<T extends string | number>({
-  options, value, onChange, label,
-}: { options: { value: T; label: string }[]; value: T; onChange: (v: T) => void; label?: string }) {
+  options, value, onChange, label, testID,
+}: { options: { value: T; label: string }[]; value: T; onChange: (v: T) => void; label?: string; testID?: string }) {
   const { colors, fs } = useApp();
   return (
     <View accessibilityRole="radiogroup" accessibilityLabel={label} style={{ gap: space.xs }}>
@@ -145,6 +149,7 @@ export function Choice<T extends string | number>({
           return (
             <Pressable
               key={String(o.value)}
+              testID={testID ? `${testID}-${o.value}` : undefined}
               accessibilityRole="radio"
               accessibilityState={{ checked: on }}
               accessibilityLabel={o.label}

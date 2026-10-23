@@ -204,7 +204,18 @@ export async function enhance(
   stages.push('gain');
   await step(0.86);
 
-  const lim = limit(x, sampleRate, settings.limiterCeilingDb);
+  // The limiter works on sample peaks; peaks between samples can still exceed the ceiling
+  // after D/A conversion or lossy encoding. Re-run with a lower internal ceiling until the
+  // estimated true peak is within the user's ceiling (two extra passes at most).
+  const preLimit = x;
+  let lim = limit(preLimit, sampleRate, settings.limiterCeilingDb);
+  let internalCeiling = settings.limiterCeilingDb;
+  for (let pass = 0; pass < 2; pass++) {
+    const tp = truePeakDb(lim.output);
+    if (!(tp > settings.limiterCeilingDb + 0.05)) break;
+    internalCeiling -= tp - settings.limiterCeilingDb + 0.05;
+    lim = limit(preLimit, sampleRate, internalCeiling);
+  }
   x = lim.output;
   stages.push('limiter');
   await step(0.92);

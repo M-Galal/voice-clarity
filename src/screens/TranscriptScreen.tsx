@@ -71,16 +71,16 @@ function TranscriptView({ rec }: { rec: Recording }) {
             <View style={{ gap: space.lg }}>
               <Txt size="sm" muted>{t('processing_local')}</Txt>
               <Section title={t('transcript_language')}>
-                <Choice value={tr.language} onChange={(v) => updateSettings({ transcription: { ...tr, language: v } })} options={LANGS.map((l) => ({ value: l, label: t(`lang_${l}` as 'lang_ar') }))} />
+                <Choice testID="lang" value={tr.language} onChange={(v) => updateSettings({ transcription: { ...tr, language: v } })} options={LANGS.map((l) => ({ value: l, label: t(`lang_${l}` as 'lang_ar') }))} />
                 <Txt size="sm" muted>{t('dialect_note')}</Txt>
                 <Txt size="sm" muted>{t('speakers_note')}</Txt>
               </Section>
               <Section title={t('model')}>
-                <Choice value={tr.modelId} onChange={(v) => updateSettings({ transcription: { ...tr, modelId: v } })} options={MODELS.map((m) => ({ value: m.id, label: t(m.labelKey) }))} />
+                <Choice testID="model" value={tr.modelId} onChange={(v) => updateSettings({ transcription: { ...tr, modelId: v } })} options={MODELS.map((m) => ({ value: m.id, label: t(m.labelKey) }))} />
                 {modelReady ? <Txt size="sm" style={{ color: colors.ok }}>✓ {t('downloaded')}</Txt> : dl !== null ? <ProgressBar value={dl} label={t('downloading')} /> : (
                   <>
                     <Txt size="sm" muted>{t('model_download_note')}</Txt>
-                    <Button kind="secondary" label={`${t('download')} (${model.sizeMB} MB)`} onPress={download} />
+                    <Button testID="download-model" kind="secondary" label={`${t('download')} (${model.sizeMB} MB)`} onPress={download} />
                   </>
                 )}
               </Section>
@@ -97,7 +97,7 @@ function TranscriptView({ rec }: { rec: Recording }) {
                   style={{ minHeight: TOUCH * 1.5, borderWidth: 1, borderColor: colors.border, borderRadius: radius, padding: space.md, color: colors.text, fontSize: fs.md, textAlign: 'auto' }}
                 />
               </Section>
-              <Button label={t('transcribe')} icon="📝" onPress={start} disabled={!modelReady} />
+              <Button testID="start-transcribe" label={t('transcribe')} icon="📝" onPress={start} disabled={!modelReady} />
               {rec.transcript ? <Button kind="ghost" label={t('cancel')} onPress={() => setRedo(false)} /> : null}
             </View>
         </ScrollView>
@@ -156,6 +156,7 @@ function TranscriptBody({ rec, onRedo }: { rec: Recording; onRedo: () => void })
         <Txt size="sm" muted>{t('detected_language', { lang: langName(transcript.language) })} · {t('transcript_from', { src: t(src), model: transcript.model })}</Txt>
         {flagged ? <Warning text={`${t('uncertain')}: ${flagged}`} /> : null}
         <TextInput
+          testID="search"
           value={query}
           onChangeText={setQuery}
           placeholder={t('search')}
@@ -176,6 +177,7 @@ function TranscriptBody({ rec, onRedo }: { rec: Recording; onRedo: () => void })
           const warn = item.flag && item.flag !== 'edited';
           return (
             <Pressable
+              testID={`seg-${item.id}`}
               onPress={() => playSeg(item)}
               onLongPress={() => setEditing(item)}
               accessibilityRole="button"

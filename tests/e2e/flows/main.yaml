@@ -1,0 +1,221 @@
+# End-to-end test on an Android emulator. Screenshots go to the results folder.
+appId: com.example.voiceclarity
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "OK"
+    timeout: 60000
+- takeScreenshot: 01_first_run_privacy
+- tapOn: "OK"
+- assertVisible: ".*No recordings yet.*"
+- takeScreenshot: 02_library_empty
+
+# ---- Import the noisy Arabic M4A ----
+- tapOn:
+    id: "import"
+- runFlow:
+    file: pick.yaml
+    env:
+      FILE: arabic_noisy.m4a
+      SHOT: "03"
+- extendedWaitUntil:
+    visible: ".*arabic_noisy.*Ready.*"
+    timeout: 120000
+- takeScreenshot: 04_library_imported
+- tapOn:
+    id: "rec-arabic_noisy"
+- extendedWaitUntil:
+    visible: ".*[1-9] speech sections.*"
+    timeout: 30000
+- takeScreenshot: 05_player
+
+# ---- Playback ----
+- tapOn:
+    id: "play-pause"
+- extendedWaitUntil:
+    visible: "0:0[3-9]"
+    timeout: 20000
+    optional: true
+- takeScreenshot: 06_playing
+- tapOn:
+    id: "play-pause"
+- tapOn:
+    id: "next-speech"
+- tapOn:
+    id: "fwd-10"
+- tapOn:
+    id: "back-10"
+- takeScreenshot: 07_after_seek
+
+# ---- Bookmarks ----
+- tapOn:
+    id: "add-bookmark"
+- tapOn: "OK"
+- scrollUntilVisible:
+    element: "Bookmark 1"
+- tapOn:
+    id: "edit-bm-Bookmark 1"
+- tapOn:
+    id: "bm-label"
+- eraseText: 30
+- inputText: "Intro"
+- tapOn:
+    id: "bm-save"
+- assertVisible: "Intro"
+- takeScreenshot: 08_bookmark_renamed
+
+# ---- Speed and skip silence ----
+- scrollUntilVisible:
+    element:
+      id: "speed-1.5"
+    direction: UP
+- tapOn:
+    id: "speed-1.5"
+- tapOn:
+    id: "skip-silence"
+- takeScreenshot: 09_speed_skip
+
+# ---- Auto Enhance ----
+- scrollUntilVisible:
+    element:
+      id: "auto-enhance"
+- tapOn:
+    id: "auto-enhance"
+- extendedWaitUntil:
+    visible: ".*These settings will be used.*|.*Strength.*"
+    timeout: 15000
+- takeScreenshot: 10_enhance_setup
+- scrollUntilVisible:
+    element:
+      id: "start-enhance"
+- takeScreenshot: 11_enhance_summary
+- tapOn:
+    id: "start-enhance"
+- takeScreenshot: 12_enhance_running
+- extendedWaitUntil:
+    visible:
+      id: "keep-enhanced"
+    timeout: 600000
+- takeScreenshot: 13_review_top
+- tapOn:
+    id: "ab-original"
+- tapOn:
+    id: "review-play"
+- tapOn:
+    id: "ab-enhanced"
+- tapOn:
+    id: "review-play"
+- scrollUntilVisible:
+    element:
+      id: "keep-enhanced"
+- takeScreenshot: 14_review_levels
+- tapOn:
+    id: "keep-enhanced"
+- extendedWaitUntil:
+    visible:
+      id: "source-enhanced"
+    timeout: 20000
+- takeScreenshot: 15_player_enhanced
+- tapOn:
+    id: "source-original"
+- tapOn:
+    id: "source-enhanced"
+
+# ---- Transcription (Arabic, base model) ----
+- scrollUntilVisible:
+    element:
+      id: "transcript"
+- tapOn:
+    id: "transcript"
+- extendedWaitUntil:
+    visible:
+      id: "lang-ar"
+    timeout: 15000
+- tapOn:
+    id: "lang-ar"
+- tapOn:
+    id: "model-base"
+- takeScreenshot: 16_transcript_setup
+- runFlow:
+    when:
+      visible:
+        id: "download-model"
+    commands:
+      - tapOn:
+          id: "download-model"
+- extendedWaitUntil:
+    visible: ".*On device.*"
+    timeout: 900000
+- scrollUntilVisible:
+    element:
+      id: "start-transcribe"
+- tapOn:
+    id: "start-transcribe"
+- takeScreenshot: 17_transcribing
+- extendedWaitUntil:
+    visible:
+      id: "seg-s0"
+    timeout: 1200000
+- takeScreenshot: 18_transcript
+- tapOn:
+    id: "seg-s0"
+- tapOn:
+    id: "search"
+- inputText: "x"
+- takeScreenshot: 19_search
+- eraseText: 5
+- back
+- back
+
+# ---- Export sheet ----
+- scrollUntilVisible:
+    element:
+      id: "export"
+- tapOn:
+    id: "export"
+- takeScreenshot: 20_export_sheet
+- tapOn: "Close"
+
+# ---- Back to library: stereo MP3 and a broken file ----
+- back
+- tapOn:
+    id: "import"
+- runFlow:
+    file: pick.yaml
+    env:
+      FILE: english_stereo.mp3
+      SHOT: "21"
+- extendedWaitUntil:
+    visible: ".*english_stereo.*Ready.*"
+    timeout: 120000
+- tapOn:
+    id: "import"
+- runFlow:
+    file: pick.yaml
+    env:
+      FILE: broken.m4a
+      SHOT: "22"
+- extendedWaitUntil:
+    visible: ".*broken.*(Needs attention|Ready).*"
+    timeout: 120000
+- takeScreenshot: 23_library_three_files
+
+# ---- Arabic interface ----
+- tapOn:
+    id: "open-settings"
+- tapOn:
+    id: "ui-lang-ar"
+- takeScreenshot: 24_rtl_prompt
+- tapOn:
+    text: "حسناً|OK"
+    optional: true
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: ".*التسجيلات.*"
+    timeout: 30000
+- takeScreenshot: 25_library_arabic_rtl
+- tapOn:
+    id: "rec-arabic_noisy"
+- takeScreenshot: 26_player_arabic_rtl
