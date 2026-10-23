@@ -11,6 +11,9 @@ concurrency:
   group: android-apk-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -58,3 +61,16 @@ jobs:
           name: voice-clarity-apk
           path: out/*.apk
           retention-days: 30
+
+      # A pre-release per build gives a direct .apk link you can open on the phone.
+      - name: Publish test build
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Test build ${{ github.run_number }} (${{ github.sha }})
+          prerelease: true
+          target_commitish: ${{ github.sha }}
+          body: |
+            Test APK built from ${{ github.sha }}. Signed with the Android debug key: for testing only, not for the Play Store.
+            Install: open the .apk on your phone and allow "Install unknown apps" for your browser or file manager.
+          files: out/*.apk
