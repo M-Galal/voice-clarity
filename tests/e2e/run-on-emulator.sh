@@ -34,5 +34,6 @@ grep -E -A30 "FATAL EXCEPTION|AndroidRuntime: |libc.*Fatal signal|DEBUG   : " "$
 grep -E "com.example.voiceclarity|whisper|RNWhisper|audioapi|ExoPlayer" "$RES/logcat-full.txt" | grep -E " [EW]/" > "$RES/app-errors.txt" || true
 tail -c 5000000 "$RES/logcat-full.txt" > "$RES/logcat-tail.txt"; rm -f "$RES/logcat-full.txt"
 echo "maestro_exit=$CODE" > "$RES/STATUS"
-if [ -s "$RES/crashes.txt" ]; then echo "crashes=yes" >> "$RES/STATUS"; fi
-exit 0
+if [ -s "$RES/crashes.txt" ]; then echo "crashes=yes" >> "$RES/STATUS"; [ "$CODE" -eq 0 ] && CODE=1; fi
+# A failed flow or an app crash fails the job (the workflow then retries once on a fresh boot).
+exit "$CODE"

@@ -105,7 +105,17 @@ appId: com.example.voiceclarity
     direction: UP
 - tapOn:
     id: "speed-5"
-- assertVisible: "5.00×"
+- assertVisible:
+    id: "speed-5"
+    checked: true
+# the rate label sits above the chips; scrolling to it proves the player took 5×
+- scrollUntilVisible:
+    element: "5.00×"
+    direction: UP
+- scrollUntilVisible:
+    element:
+      id: "speed-1.5"
+    direction: DOWN
 - tapOn:
     id: "speed-1.5"
 - tapOn:
