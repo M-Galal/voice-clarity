@@ -14,6 +14,7 @@ export type Route =
   | { name: 'player'; id: string }
   | { name: 'enhance'; id: string; auto?: boolean }
   | { name: 'transcript'; id: string }
+  | { name: 'edit'; id: string }
   | { name: 'settings' };
 
 interface Ctx {
@@ -32,6 +33,7 @@ interface Ctx {
   getRecording: (id: string) => Recording | undefined;
   importFromPicker: () => Promise<void>;
   reanalyse: (id: string) => Promise<void>;
+  addRecording: (rec: Recording) => Promise<void>;
   deleteRecording: (id: string) => void;
   showError: (e: unknown) => void;
   resetAll: (lib: Recording[]) => void;
@@ -185,6 +187,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [runAnalysis],
   );
 
+  const addRecording = useCallback(
+    async (rec: Recording) => {
+      setLib((l) => [rec, ...l]);
+      await runAnalysis(rec);
+    },
+    [runAnalysis, setLib],
+  );
+
   const deleteRecording = useCallback(
     (id: string) => {
       try { deleteRecordingFiles(id); } catch { /* already gone */ }
@@ -214,11 +224,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       getRecording,
       importFromPicker,
       reanalyse,
+      addRecording,
       deleteRecording,
       showError,
       resetAll,
     }),
-    [ready, library, settings, stack, t, dark, updateSettings, updateRecording, getRecording, importFromPicker, reanalyse, deleteRecording, showError, resetAll],
+    [ready, library, settings, stack, t, dark, updateSettings, updateRecording, getRecording, importFromPicker, reanalyse, addRecording, deleteRecording, showError, resetAll],
   );
 
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;

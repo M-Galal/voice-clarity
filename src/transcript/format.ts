@@ -101,6 +101,14 @@ export function clock(sec: number): string {
   return h > 0 ? `${h}:${pad(m)}:${pad(r)}` : `${m}:${pad(r)}`;
 }
 
+/** m:ss.t, rounded to tenths first so 9.99 s reads 0:10.0, not 0:010.0. */
+export function clockTenths(sec: number): string {
+  const tenths = Math.round(Math.max(0, sec) * 10);
+  const m = Math.floor(tenths / 600);
+  const r = (tenths % 600) / 10;
+  return `${m}:${r < 10 ? '0' : ''}${r.toFixed(1)}`;
+}
+
 /** Unicode RLE/PDF marks keep Arabic lines right-to-left in players that ignore direction. */
 const RLE = '‫';
 const PDF = '‬';

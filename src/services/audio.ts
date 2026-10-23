@@ -63,6 +63,12 @@ export async function readDuration(uri: string): Promise<number | null> {
   }
 }
 
+export async function writeWavChannels(file: File, channels: Float32Array[], sampleRate: number): Promise<void> {
+  if (file.exists) file.delete();
+  file.create({ intermediates: true });
+  await file.write(encodeWav16(channels, sampleRate));
+}
+
 export async function writeWav(file: File, mono: Float32Array, sampleRate: number): Promise<void> {
   if (file.exists) file.delete();
   file.create({ intermediates: true });

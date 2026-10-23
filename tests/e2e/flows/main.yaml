@@ -177,6 +177,73 @@ appId: com.example.voiceclarity
 - takeScreenshot: 20_export_sheet
 - tapOn: "Close"
 
+# ---- Edit: trim 0.5-10 s, speed 1.5x, preview, Save as a new recording ----
+- scrollUntilVisible:
+    element:
+      id: "edit-audio"
+- tapOn:
+    id: "edit-audio"
+- extendedWaitUntil:
+    visible:
+      id: "trim-mode-keep"
+    timeout: 15000
+- tapOn:
+    id: "edit-fwd-10"
+- extendedWaitUntil:
+    visible: "0:10.0 / .*"
+    timeout: 10000
+- tapOn:
+    id: "set-end"
+- assertVisible: "0:10.0"
+- tapOn:
+    id: "start-plus"
+- tapOn:
+    id: "start-plus"
+- tapOn:
+    id: "start-plus"
+- tapOn:
+    id: "start-plus"
+- tapOn:
+    id: "start-plus"
+- assertVisible: "0:00.5"
+- scrollUntilVisible:
+    element:
+      id: "edit-speed-1.5"
+- tapOn:
+    id: "edit-speed-1.5"
+- assertVisible: "New length: 0:06.*"
+- takeScreenshot: 30_edit_setup
+- scrollUntilVisible:
+    element:
+      id: "edit-preview"
+- tapOn:
+    id: "edit-preview"
+- extendedWaitUntil:
+    visible:
+      id: "edit-listen-preview"
+    timeout: 180000
+- takeScreenshot: 31_edit_preview
+- scrollUntilVisible:
+    element:
+      id: "edit-save-as"
+- tapOn:
+    id: "edit-save-as"
+- tapOn:
+    id: "save-as-name"
+- eraseText: 60
+- inputText: "Arabic short"
+- tapOn:
+    id: "save-as-confirm"
+- extendedWaitUntil:
+    visible: "Arabic short"
+    timeout: 60000
+- extendedWaitUntil:
+    visible: ".*[1-9] speech sections.*"
+    timeout: 120000
+- assertVisible: ".*0:06.*"
+- takeScreenshot: 32_saved_as_player
+- back
+
 # ---- Back to library: stereo MP3 and a broken file ----
 - back
 - tapOn:
@@ -189,6 +256,37 @@ appId: com.example.voiceclarity
 - extendedWaitUntil:
     visible: ".*english_stereo.*Ready.*"
     timeout: 120000
+
+# ---- Edit with Save (replace): stereo MP3 at 1.25x becomes a WAV ----
+- tapOn:
+    id: "rec-english_stereo"
+- scrollUntilVisible:
+    element:
+      id: "edit-audio"
+- tapOn:
+    id: "edit-audio"
+- tapOn:
+    id: "trim-mode-none"
+- scrollUntilVisible:
+    element:
+      id: "edit-speed-1.25"
+- tapOn:
+    id: "edit-speed-1.25"
+- scrollUntilVisible:
+    element:
+      id: "edit-save"
+- tapOn:
+    id: "edit-save"
+- takeScreenshot: 33_replace_confirm
+- tapOn: "Replace"
+- extendedWaitUntil:
+    visible: "WAV"
+    timeout: 120000
+- extendedWaitUntil:
+    visible: ".*[1-9] speech sections.*"
+    timeout: 120000
+- takeScreenshot: 34_replaced_player
+- back
 - tapOn:
     id: "import"
 - runFlow:
@@ -199,7 +297,8 @@ appId: com.example.voiceclarity
 - extendedWaitUntil:
     visible: ".*broken.*(Needs attention|Ready).*"
     timeout: 120000
-- takeScreenshot: 23_library_three_files
+- assertVisible: ".*Arabic short.*Ready.*"
+- takeScreenshot: 23_library_four_files
 
 # ---- Arabic interface ----
 - tapOn:

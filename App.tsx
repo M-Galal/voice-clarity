@@ -9,6 +9,7 @@ import { PlayerScreen } from './src/screens/PlayerScreen';
 import { EnhanceScreen } from './src/screens/EnhanceScreen';
 import { TranscriptScreen } from './src/screens/TranscriptScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
+import { EditScreen } from './src/screens/EditScreen';
 
 function Router() {
   const { ready, route, goBack, colors, settings, updateSettings, t } = useApp();
@@ -50,6 +51,7 @@ function Router() {
       {route.name === 'enhance' && <EnhanceScreen id={route.id} auto={route.auto} />}
       {route.name === 'transcript' && <TranscriptScreen id={route.id} />}
       {route.name === 'settings' && <SettingsScreen />}
+      {route.name === 'edit' && <EditScreen id={route.id} />}
     </SafeAreaView>
   );
 }

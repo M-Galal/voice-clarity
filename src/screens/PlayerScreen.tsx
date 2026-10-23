@@ -12,7 +12,7 @@ import { Waveform } from '../ui/Waveform';
 import { statusText } from './LibraryScreen';
 import { newId } from '../services/storage';
 
-const SPEEDS = [0.75, 1, 1.25, 1.5, 2];
+const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
 export function PlayerScreen({ id }: { id: string }) {
   const { library } = useApp();
@@ -178,6 +178,7 @@ function Player({ rec }: { rec: Recording }) {
             <Button testID="auto-enhance" label={t('auto_enhance')} icon="✨" onPress={() => { player.pause(); navigate({ name: 'enhance', id: rec.id, auto: true }); }} disabled={busy} style={{ flexGrow: 1 }} />
             <Button testID="enhance" label={t('enhance')} icon="🎚" kind="secondary" onPress={() => { player.pause(); navigate({ name: 'enhance', id: rec.id }); }} disabled={busy} style={{ flexGrow: 1 }} />
             <Button testID="transcript" label={t('transcript')} icon="📝" kind="secondary" onPress={() => { player.pause(); navigate({ name: 'transcript', id: rec.id }); }} disabled={busy && rec.status !== 'transcribing'} style={{ flexGrow: 1 }} />
+            <Button testID="edit-audio" label={t('edit_audio')} icon="✂︎" kind="secondary" onPress={() => { player.pause(); navigate({ name: 'edit', id: rec.id }); }} disabled={busy} style={{ flexGrow: 1 }} />
             <Button testID="export" label={t('export')} icon="⇪" kind="secondary" onPress={() => setExportOpen(true)} style={{ flexGrow: 1 }} />
           </Row>
 

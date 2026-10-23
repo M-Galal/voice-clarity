@@ -29,13 +29,16 @@ Supported input formats are M4A (AAC), MP4 audio, AAC, MP3, WAV, FLAC, OGG and O
 2. Listen. Speech sections are shaded on the waveform and listed as chips. Previous/next buttons jump between sections; bookmarks have their own previous/next buttons. Position, speed and bookmarks are saved and restored.
 3. Auto Enhance. The screen shows the steps that will run and the exact settings, then the user taps start. Progress is shown with a cancel button. The result opens in a review screen where the user can switch between original and enhanced at the same timestamp, read measured levels and warnings, then keep or discard it. Nothing is saved before "Keep". If transcription is enabled in the Auto Enhance steps, the transcript screen opens next.
 4. Transcribe. The user picks a language (or automatic detection), a speech model and whether to use the enhanced copy, then starts. Each line has timestamps; tapping a line plays it, long-pressing edits it.
-5. Export. Original file, enhanced WAV, and transcript as TXT, SRT, VTT or JSON go out through the system share sheet.
+5. Edit. Trim the recording to a selection or remove a selection, and change its speed (0.5× to 2×, pitch kept). Preview the result, then Save (replaces this recording, after a confirmation) or Save as (adds a new recording and leaves this one alone).
+6. Export. Original file, enhanced WAV, and transcript as TXT, SRT, VTT or JSON go out through the system share sheet.
 
 ## Screens
 
 Recordings: import button, list with name, duration, format, size, processing status and badges for "Enhanced copy" and "Transcript". Settings is in the header.
 
 Player: file details (duration, format, size, status, with Retry after an error), Original/Enhanced switch, waveform with speech shading, red bookmark ticks and a playhead (tap to seek; screen readers get ±5 s swipe actions), transport controls (previous speech, back 10 s, play/pause, forward 10 s, next speech), bookmark controls, speed (0.75× to 2×), skip-silence toggle, buttons for Auto Enhance, Enhance, Transcript and Export, a bookmark list with edit and delete, and the list of speech sections.
+
+Edit: choose the original or enhanced version, a trim mode (no trimming, keep the selection, remove the selection), start and end set from the playhead with ±0.1 s nudges, "Play selection", a speed slider from 0.5× to 2× in 0.05 steps with 0.75/1/1.25/1.5 shortcuts, the resulting length, Preview (switch between the current audio and the preview), Save and Save as. The waveform dims what will be dropped in keep mode and shades the removed part in cut mode.
 
 Enhance: strength preset (Light, Balanced, Strong, Advanced), noise suppression and hum removal switches, advanced sliders, the loudness section with an explanation of LUFS, peak and gain, processing quality, the option to shorten pauses in the exported file, a summary card of the settings that will be used, and "Delete enhanced copy" when one exists. While running, the screen shows a progress bar and a cancel button and keeps the screen awake. The review screen is described in flow 3.
 
@@ -68,6 +71,12 @@ The high-pass filter (70 to 100 Hz in the presets, up to 200 Hz in Advanced) han
 | Strong | 2.2× | −26 dB | 100 Hz | +4 dB | 10 dB |
 
 Changing any of these values switches the preset to Advanced.
+
+### Editing
+
+`src/dsp/edit.ts` trims or cuts every channel with 5 ms fades at the joins, then changes speed with WSOLA (waveform-similarity overlap-add): 40 ms Hann frames at 50 % overlap, each shifted by up to ±10 ms to the position that best continues the previous frame. The search runs on a 4 kHz mono copy and is refined at full rate; the same shift is applied to every channel, so stereo stays aligned and pitch is unchanged. Tests check pitch at 0.5×, 0.75×, 1.5× and 2×, output length, event timing and channel alignment.
+
+Edits are written as 16-bit WAV at the file's own sample rate and channel count (recordings over 20 minutes are processed at 24 kHz to limit memory). Save asks for confirmation, replaces the recording's audio, removes its enhanced copy and transcript because their timing no longer matches, and moves bookmarks that fall inside the kept audio to their new times. Save as creates a new recording with the remapped bookmarks and leaves the source untouched. Speed buttons on the player change playback only; the speed on the Edit screen changes the file.
 
 ### Loudness, units and safeguards
 
@@ -133,6 +142,7 @@ The DSP is plain TypeScript with no React Native imports, so it is tested in Nod
 
 ## Known limits
 
+- Edited audio is saved as WAV, so an edited M4A becomes a larger WAV file.
 - Enhanced audio is exported as 16-bit mono WAV. None of the libraries used here encodes an in-memory buffer to M4A/AAC, so M4A export of the enhanced copy would need a small native encoder (AVAudioFile on iOS, MediaCodec + MediaMuxer on Android). The original M4A can be exported unchanged.
 - Import uses the system file picker. Receiving files from another app's share sheet needs an iOS share extension and Android intent filters, which are not included yet.
 - Processing is mono.
@@ -145,7 +155,7 @@ The DSP is plain TypeScript with no React Native imports, so it is tested in Nod
 
 Playback
 - Play, pause, ±10 s and tap-to-seek work for every supported format; position is accurate to the status update interval (100 ms).
-- Speed 0.75× to 2× keeps pitch.
+- Playback speed 0.5× to 2× keeps pitch.
 - Leaving and reopening a recording restores position, source and bookmarks.
 - Playback continues with the screen locked, and lock-screen controls appear.
 
@@ -158,6 +168,12 @@ M4A import and export
 Bookmarks
 - Add at the current time, rename, change time (m:ss, validated against duration), delete.
 - Previous/next bookmark jumps work, and ticks appear on the waveform.
+
+Editing
+- Keep-selection and remove-selection produce the expected length; speed 0.5× to 2× keeps pitch.
+- Preview plays the edited result before anything is saved.
+- Save asks first, then replaces the audio (WAV), clears the enhanced copy and transcript, keeps bookmarks inside the kept part at their new times and re-runs speech detection.
+- Save as adds a new recording with the chosen name and leaves the source unchanged.
 
 Speech detection
 - Speech sections are shaded and listed; previous/next speech jumps work.

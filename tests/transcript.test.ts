@@ -3,7 +3,7 @@ import { fileUri } from '../src/services/uri';
 import assert from 'node:assert/strict';
 import {
   arabicPunctuation, detectTimeScale, flagSegments, isMostlyArabic, normalizeArabic,
-  searchTranscript, timecode, toSrt, toTxt, toVtt, type Transcript,
+  searchTranscript, timecode, toSrt, toTxt, toVtt, clockTenths, type Transcript,
 } from '../src/transcript/format';
 
 const t: Transcript = {
@@ -62,4 +62,11 @@ test('decoder paths keep or gain the file:// prefix (Android release builds need
   assert.equal(fileUri('file:///data/user/0/app/files/a.m4a'), 'file:///data/user/0/app/files/a.m4a');
   assert.equal(fileUri('/data/user/0/app/files/a.m4a'), 'file:///data/user/0/app/files/a.m4a');
   assert.equal(fileUri('content://x/y'), 'content://x/y');
+});
+
+test('clockTenths rounds before formatting', () => {
+  assert.equal(clockTenths(9.99), '0:10.0');
+  assert.equal(clockTenths(59.96), '1:00.0');
+  assert.equal(clockTenths(0.5), '0:00.5');
+  assert.equal(clockTenths(125.04), '2:05.0');
 });

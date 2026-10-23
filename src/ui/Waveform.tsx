@@ -10,10 +10,12 @@ import { useApp } from '../state/AppContext';
  * Kept left-to-right in Arabic layout too: time runs left to right on media scrubbers.
  */
 export function Waveform({
-  peaks, duration, position, segments, bookmarks, onSeek, height = 96,
+  peaks, duration, position, segments, bookmarks, onSeek, height = 96, selection, selectionMode = 'keep',
 }: {
   peaks: number[]; duration: number; position: number; segments: Segment[]; bookmarks: Bookmark[];
   onSeek: (t: number) => void; height?: number;
+  /** Edit range: 'keep' dims everything outside it, 'cut' hatches the range itself. */
+  selection?: { start: number; end: number }; selectionMode?: 'keep' | 'cut' | 'none';
 }) {
   const { colors, t } = useApp();
   const [width, setWidth] = useState(0);
@@ -56,6 +58,20 @@ export function Waveform({
           );
         })}
       </View>
+      {width > 0 && selection && selectionMode === 'keep' ? (
+        <>
+          <View pointerEvents="none" style={{ position: 'absolute', left: 0, width: x(selection.start), top: 0, bottom: 0, backgroundColor: colors.bg, opacity: 0.75 }} />
+          <View pointerEvents="none" style={{ position: 'absolute', left: x(selection.end), right: 0, top: 0, bottom: 0, backgroundColor: colors.bg, opacity: 0.75 }} />
+        </>
+      ) : null}
+      {width > 0 && selection && selectionMode === 'cut' ? (
+        <View pointerEvents="none" style={{ position: 'absolute', left: x(selection.start), width: Math.max(2, x(selection.end) - x(selection.start)), top: 0, bottom: 0, backgroundColor: colors.danger, opacity: 0.35 }} />
+      ) : null}
+      {width > 0 && selection && selectionMode !== 'none'
+        ? [selection.start, selection.end].map((v, i) => (
+            <View key={`h${i}`} pointerEvents="none" style={{ position: 'absolute', left: x(v) - 2, width: 4, top: 0, bottom: 0, backgroundColor: colors.primary }} />
+          ))
+        : null}
       {width > 0 &&
         bookmarks.map((b) => (
           <View key={b.id} pointerEvents="none" style={{ position: 'absolute', left: x(b.time) - 1, top: 0, bottom: 0, width: 3, backgroundColor: colors.bookmark }} />

@@ -9,8 +9,9 @@ import { CancelledError } from '../dsp/denoise';
 import { enhance, type EnhanceResult, type EnhanceSettings } from '../dsp/pipeline';
 import { detectSpeech, type Segment } from '../dsp/vad';
 import { toJson, toSrt, toTxt, toVtt, type Transcript } from '../transcript/format';
-import type { Recording } from '../types';
-import { assertSupported, decodeFile, extOf, PICKER_TYPES, readDuration, writeWav, yieldToUi } from './audio';
+import type { Bookmark, Recording } from '../types';
+import { assertSupported, decodeFile, extOf, PICKER_TYPES, readDuration, writeWav, writeWavChannels, yieldToUi } from './audio';
+import { applyEdit, editedDuration, normalizeSpec, remapTime, type EditSpec } from '../dsp/edit';
 import { ensureDirs, fileIn, freeBytes, newId, recordingDir, tempDir } from './storage';
 
 export class LowStorageError extends Error {
@@ -176,3 +177,113 @@ export async function shareTranscript(rec: Recording, t: Transcript, format: 'tx
 }
 
 const safeName = (s: string) => s.replace(/[\\/:*?"<>|]+/g, '_').slice(0, 80) || 'recording';
+
+// ---------------------------------------------------------------- editing
+
+export interface EditRender {
+  previewUri: string;
+  sampleRate: number;
+  channels: number;
+  durationSec: number;
+  spec: EditSpec;
+  source: 'original' | 'enhanced';
+}
+
+/** Recordings longer than this are edited at 24 kHz to keep memory use reasonable. */
+const LONG_EDIT_SEC = 20 * 60;
+
+export async function renderEdit(
+  rec: Recording,
+  source: 'original' | 'enhanced',
+  spec: EditSpec,
+  token: CancelToken,
+  onProgress: (f: number) => void,
+): Promise<EditRender> {
+  const rate = rec.durationSec > LONG_EDIT_SEC ? 24000 : undefined;
+  checkStorage(estimateWorkBytes(editedDuration(spec, rec.durationSec) * (rec.channels ?? 1), rate ?? 48000));
+  const t0 = Date.now();
+  onProgress(0.02);
+  const decoded = await decodeFile(audioUri(rec, source), rate);
+  if (token.cancelled) throw new CancelledError();
+  const dur = decoded.channels[0].length / decoded.sampleRate;
+  const s = normalizeSpec(spec, dur);
+  const out = await applyEdit(decoded.channels, decoded.sampleRate, s, {
+    isCancelled: () => token.cancelled,
+    yieldFn: yieldToUi,
+    onProgress: (f) => onProgress(0.1 + f * 0.8),
+  });
+  if (token.cancelled) throw new CancelledError();
+  onProgress(0.92);
+  const f = new File(tempDir(), `${rec.id}-edit-${Date.now()}.wav`);
+  await writeWavChannels(f, out, decoded.sampleRate);
+  console.log(`[VC] edit ${s.mode} ${s.start.toFixed(2)}-${s.end.toFixed(2)} x${s.speed}: ${dur.toFixed(1)}s -> ${(out[0].length / decoded.sampleRate).toFixed(1)}s in ${Date.now() - t0} ms`);
+  onProgress(1);
+  return { previewUri: f.uri, sampleRate: decoded.sampleRate, channels: out.length, durationSec: out[0].length / decoded.sampleRate, spec: s, source };
+}
+
+/** Bookmarks live on the original timeline. They can be carried over when the edit started from it
+ * (or from an enhanced copy of the same length). */
+function carryBookmarks(rec: Recording, r: EditRender): Bookmark[] {
+  const sameTimeline = r.source === 'original' || !rec.enhanced?.report.silenceMap;
+  if (!sameTimeline) return [];
+  return rec.bookmarks
+    .map((b) => {
+      const t = remapTime(b.time, r.spec, rec.durationSec);
+      return t === null ? null : { ...b, time: Math.round(t * 10) / 10 };
+    })
+    .filter((b): b is Bookmark => b !== null);
+}
+
+/** Save: the recording's audio becomes the edited WAV. The previous audio and enhanced copy are deleted. */
+export function saveEditReplace(rec: Recording, r: EditRender): Partial<Recording> {
+  const fileName = `audio-${Date.now()}.wav`;
+  const dest = fileIn(rec.id, fileName);
+  new File(r.previewUri).moveSync(dest);
+  const old = fileIn(rec.id, rec.originalFileName);
+  if (old.exists && old.uri !== dest.uri) old.delete();
+  deleteEnhanced(rec);
+  return {
+    originalFileName: fileName,
+    format: 'WAV',
+    mimeType: 'audio/wav',
+    sizeBytes: dest.size,
+    durationSec: r.durationSec,
+    channels: r.channels,
+    sampleRate: r.sampleRate,
+    bookmarks: carryBookmarks(rec, r),
+    enhanced: undefined,
+    transcript: undefined,
+    segments: undefined,
+    waveform: undefined,
+    lastPositionSec: 0,
+    lastPlayedSource: 'original',
+    status: 'analyzing',
+    error: undefined,
+  };
+}
+
+/** Save As: a new recording in the library; the current one is left as it is. */
+export function saveEditAsNew(rec: Recording, r: EditRender, name: string): Recording {
+  ensureDirs();
+  const id = newId();
+  const dir = recordingDir(id);
+  dir.create({ intermediates: true, idempotent: true });
+  const dest = new File(dir, 'original.wav');
+  new File(r.previewUri).moveSync(dest);
+  return {
+    id,
+    name: name.trim() || `${rec.name} (edit)`,
+    originalFileName: 'original.wav',
+    format: 'WAV',
+    mimeType: 'audio/wav',
+    sizeBytes: dest.size,
+    durationSec: r.durationSec,
+    channels: r.channels,
+    sampleRate: r.sampleRate,
+    importedAt: new Date().toISOString(),
+    lastPositionSec: 0,
+    lastPlayedSource: 'original',
+    bookmarks: carryBookmarks(rec, r).map((b) => ({ ...b, id: newId() })),
+    status: 'analyzing',
+  };
+}
