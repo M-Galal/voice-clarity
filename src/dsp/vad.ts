@@ -1,21 +1,28 @@
 /**
- * Energy-based speech detection.
+ * Energy-based speech detection with a whisper-sensitive second band.
  *
- * 1. 20 ms frames → RMS in dBFS, measured on a 100 Hz–4 kHz band-passed copy so rumble
- *    and hiss count less than voice.
- * 2. Noise floor = 10th percentile of frame levels (assumes some pauses exist).
- * 3. A frame is speech when it is `thresholdDb` above the floor (and above `minLevelDb`).
- * 4. Hangover, minimum-speech and minimum-silence rules turn frames into segments,
- *    then `padMs` is added on both sides.
+ * 1. 20 ms frames → RMS in dBFS in two bands:
+ *    - voice band 100 Hz–4 kHz (voiced speech, rumble and hiss count less), and
+ *    - whisper band 1.5–7 kHz (capped below Nyquist). Whispered and distant speech has
+ *      little voiced low end, so its energy shows up here while the voice band barely moves.
+ * 2. Each band's noise floor = 10th percentile of its frame levels (assumes some pauses exist).
+ * 3. A frame is speech when the voice band is `thresholdDb` above its floor, or (with
+ *    `whisper` on) the whisper band is `whisperThresholdDb` above its own floor.
+ * 4. Minimum-speech and minimum-silence rules turn frames into segments, then `padMs` is
+ *    added on both sides. Segments found mainly through the whisper band are marked
+ *    `kind: 'whisper'`.
  *
- * This finds *voice-like energy*, not words. Loud non-speech sounds (a door, music) can be
- * marked as speech, and very quiet speech under loud noise can be missed. The UI says so.
+ * This finds *voice-like energy*, not words. Loud non-speech sounds (a door, music, keyboard
+ * clicks in the whisper band) can be marked as speech, and speech fully buried in noise can be
+ * missed. The UI says so.
  */
 import { applyChain, designBiquad } from './biquad';
 
 export interface Segment {
   start: number; // seconds
   end: number; // seconds
+  /** 'whisper' when the segment was found mainly through the whisper band. */
+  kind?: 'voice' | 'whisper';
 }
 
 export interface VadOptions {
@@ -27,6 +34,10 @@ export interface VadOptions {
   minSilenceMs: number;
   padMs: number;
   frameMs: number;
+  /** Also detect whispered / distant speech through the 1.5–7 kHz band. */
+  whisper: boolean;
+  /** dB above the whisper-band floor needed to count as (whispered) speech. */
+  whisperThresholdDb: number;
 }
 
 export const DEFAULT_VAD: VadOptions = {
@@ -36,20 +47,21 @@ export const DEFAULT_VAD: VadOptions = {
   minSilenceMs: 400,
   padMs: 120,
   frameMs: 20,
+  whisper: true,
+  whisperThresholdDb: 4,
 };
 
 export interface FrameAnalysis {
   frameSec: number;
+  /** Voice band (100 Hz–4 kHz) frame levels, dBFS. */
   levelsDb: Float32Array;
   noiseFloorDb: number;
+  /** Whisper band (1.5–7 kHz) frame levels, dBFS. */
+  highLevelsDb: Float32Array;
+  highFloorDb: number;
 }
 
-export function analyzeFrames(samples: Float32Array, sampleRate: number, frameMs = 20): FrameAnalysis {
-  const band = applyChain(samples, [
-    designBiquad('highpass', sampleRate, 100, 0.707),
-    designBiquad('lowpass', sampleRate, Math.min(4000, sampleRate * 0.45), 0.707),
-  ]);
-  const frame = Math.max(1, Math.round((frameMs / 1000) * sampleRate));
+function frameLevels(band: Float32Array, frame: number): Float32Array {
   const count = Math.ceil(band.length / frame);
   const levels = new Float32Array(count);
   for (let f = 0; f < count; f++) {
@@ -60,9 +72,43 @@ export function analyzeFrames(samples: Float32Array, sampleRate: number, frameMs
     const ms = s / Math.max(1, en - st);
     levels[f] = ms > 1e-12 ? 10 * Math.log10(ms) : -120;
   }
-  const sorted = Float32Array.from(levels).sort();
-  const noiseFloorDb = sorted.length ? sorted[Math.floor(sorted.length * 0.1)] : -120;
-  return { frameSec: frame / sampleRate, levelsDb: levels, noiseFloorDb };
+  return levels;
+}
+
+const percentile = (x: Float32Array, p: number) => {
+  if (!x.length) return -120;
+  const sorted = Float32Array.from(x).sort();
+  return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))];
+};
+
+export function analyzeFrames(samples: Float32Array, sampleRate: number, frameMs = 20): FrameAnalysis {
+  const nyq = sampleRate / 2;
+  const band = applyChain(samples, [
+    designBiquad('highpass', sampleRate, 100, 0.707),
+    designBiquad('lowpass', sampleRate, Math.min(4000, nyq * 0.9), 0.707),
+  ]);
+  const high = applyChain(samples, [
+    designBiquad('highpass', sampleRate, Math.min(1500, nyq * 0.5), 0.707),
+    designBiquad('highpass', sampleRate, Math.min(1500, nyq * 0.5), 0.707),
+    designBiquad('lowpass', sampleRate, Math.min(7000, nyq * 0.9), 0.707),
+  ]);
+  const frame = Math.max(1, Math.round((frameMs / 1000) * sampleRate));
+  const levelsDb = frameLevels(band, frame);
+  // whisper energy flickers frame to frame: average its power over ±2 frames (100 ms)
+  const rawHigh = frameLevels(high, frame);
+  const highLevelsDb = new Float32Array(rawHigh.length);
+  for (let f = 0; f < rawHigh.length; f++) {
+    let p = 0, n = 0;
+    for (let k = Math.max(0, f - 2); k <= Math.min(rawHigh.length - 1, f + 2); k++) { p += Math.pow(10, rawHigh[k] / 10); n++; }
+    highLevelsDb[f] = 10 * Math.log10(p / n);
+  }
+  return {
+    frameSec: frame / sampleRate,
+    levelsDb,
+    noiseFloorDb: percentile(levelsDb, 0.1),
+    highLevelsDb,
+    highFloorDb: percentile(highLevelsDb, 0.1),
+  };
 }
 
 export function detectSpeech(
@@ -86,15 +132,24 @@ function detectWith(
   o: VadOptions,
 ): { segments: Segment[]; analysis: FrameAnalysis } {
   const analysis = analyzeFrames(samples, sampleRate, o.frameMs);
-  const { levelsDb, frameSec, noiseFloorDb } = analysis;
+  const { levelsDb, highLevelsDb, frameSec, noiseFloorDb, highFloorDb } = analysis;
   const threshold = Math.max(noiseFloorDb + o.thresholdDb, o.minLevelDb);
+  // whispers are quiet: allow 15 dB lower absolute level in their band
+  const highThreshold = Math.max(highFloorDb + o.whisperThresholdDb, o.minLevelDb - 15);
   const duration = samples.length / sampleRate;
+
+  // per frame: 0 = silence, 1 = voice band, 2 = whisper band only
+  const kind = new Uint8Array(levelsDb.length);
+  for (let f = 0; f < levelsDb.length; f++) {
+    if (levelsDb[f] >= threshold) kind[f] = 1;
+    else if (o.whisper && highLevelsDb[f] >= highThreshold) kind[f] = 2;
+  }
 
   // raw on/off with merging of short gaps
   const raw: Segment[] = [];
   let startF = -1;
   for (let f = 0; f < levelsDb.length; f++) {
-    const on = levelsDb[f] >= threshold;
+    const on = kind[f] > 0;
     if (on && startF < 0) startF = f;
     if (!on && startF >= 0) {
       raw.push({ start: startF * frameSec, end: f * frameSec });
@@ -122,7 +177,16 @@ function detectWith(
     if (last && s.start <= last.end) last.end = Math.max(last.end, s.end);
     else out.push(s);
   }
-  return { segments: out.map((s) => ({ start: round3(s.start), end: round3(s.end) })), analysis };
+  // label each segment by which band found most of its frames
+  const labelled = out.map((s) => {
+    const a = Math.floor(s.start / frameSec), b = Math.min(kind.length, Math.ceil(s.end / frameSec));
+    let v = 0, w = 0;
+    for (let f = a; f < b; f++) { if (kind[f] === 1) v++; else if (kind[f] === 2) w++; }
+    const seg: Segment = { start: round3(s.start), end: round3(s.end) };
+    if (o.whisper) seg.kind = w > v ? 'whisper' : 'voice';
+    return seg;
+  });
+  return { segments: labelled, analysis };
 }
 
 const round3 = (x: number) => Math.round(x * 1000) / 1000;

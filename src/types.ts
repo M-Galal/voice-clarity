@@ -60,6 +60,11 @@ export interface AppSettings {
   skipSilence: boolean;
   /** Pauses shorter than this are not skipped (seconds). */
   skipSilenceMinGapSec: number;
+  /** Back / forward button jumps, 1 s to 1 h. */
+  skipBackSec: number;
+  skipForwardSec: number;
+  /** Also detect whispered and distant speech (1.5–7 kHz band). */
+  vadWhisper: boolean;
   /** dB above the noise floor that counts as speech. */
   vadThresholdDb: number;
   /** Processing sample rate for enhancement. */

@@ -10,12 +10,13 @@
 import { applyChain, designBiquad, type BiquadCoeffs } from './biquad';
 import { mixToMono, removeSilence } from './buffers';
 import { CancelledError, denoise, detectHum, type Progress } from './denoise';
-import { applyGain, attenuateGaps, detectClipping, limit } from './dynamics';
-import { loudnessPair, samplePeakDb, speechLoudness, truePeakDb } from './loudness';
+import { applyGain, attenuateGaps, detectClipping, levelSpeech, limit } from './dynamics';
+import { kWeight, loudnessPair, samplePeakDb, speechLoudness, truePeakDb } from './loudness';
+import { chooseSettings, measureForAuto, type AutoReason } from './autoTune';
 import { clamp } from './units';
 import { detectSpeech, estimateSnrDb, type Segment, type VadOptions } from './vad';
 
-export type Strength = 'light' | 'balanced' | 'strong' | 'advanced';
+export type Strength = 'auto' | 'light' | 'balanced' | 'strong' | 'advanced';
 
 export interface EnhanceSettings {
   strength: Strength;
@@ -32,6 +33,10 @@ export interface EnhanceSettings {
   clarityDb: number;
   /** How far pauses are lowered before the gain stage, dB (0 = off). */
   pauseReductionDb: number;
+  /** Raise quiet speech (whispers, distant voices) towards the louder speech. */
+  levelSpeech: boolean;
+  /** Most a quiet speech window may be raised by the leveller, dB. */
+  levelMaxBoostDb: number;
   /** 'target' = reach targetLufs on speech; 'manual' = apply manualGainDb. */
   gainMode: 'target' | 'manual';
   targetLufs: number;
@@ -45,7 +50,7 @@ export interface EnhanceSettings {
 }
 
 const BASE: EnhanceSettings = {
-  strength: 'balanced',
+  strength: 'auto',
   noiseSuppression: true,
   noiseAmount: 1.5,
   noiseFloorDb: -18,
@@ -53,6 +58,8 @@ const BASE: EnhanceSettings = {
   humRemoval: true,
   clarityDb: 3,
   pauseReductionDb: 6,
+  levelSpeech: true,
+  levelMaxBoostDb: 12,
   gainMode: 'target',
   targetLufs: -16,
   manualGainDb: 0,
@@ -63,18 +70,20 @@ const BASE: EnhanceSettings = {
   vad: {},
 };
 
-export const PRESETS: Record<Exclude<Strength, 'advanced'>, Partial<EnhanceSettings>> = {
-  light: { noiseAmount: 1.0, noiseFloorDb: -10, highPassHz: 70, clarityDb: 2, pauseReductionDb: 0 },
-  balanced: { noiseAmount: 1.5, noiseFloorDb: -18, highPassHz: 80, clarityDb: 3, pauseReductionDb: 6 },
-  strong: { noiseAmount: 2.2, noiseFloorDb: -26, highPassHz: 100, clarityDb: 4, pauseReductionDb: 10 },
+export const PRESETS: Record<Exclude<Strength, 'advanced' | 'auto'>, Partial<EnhanceSettings>> = {
+  light: { noiseAmount: 1.0, noiseFloorDb: -10, highPassHz: 70, clarityDb: 2, pauseReductionDb: 0, levelSpeech: false, levelMaxBoostDb: 6 },
+  balanced: { noiseAmount: 1.5, noiseFloorDb: -18, highPassHz: 80, clarityDb: 3, pauseReductionDb: 6, levelSpeech: true, levelMaxBoostDb: 12 },
+  strong: { noiseAmount: 2.2, noiseFloorDb: -26, highPassHz: 100, clarityDb: 4, pauseReductionDb: 10, levelSpeech: true, levelMaxBoostDb: 20 },
 };
 
+/** 'auto' keeps the user's loudness/limiter values; the rest is chosen per file in enhance(). */
 export function settingsForPreset(strength: Strength, current?: Partial<EnhanceSettings>): EnhanceSettings {
   const merged = { ...BASE, ...current, strength };
-  return strength === 'advanced' ? merged : { ...merged, ...PRESETS[strength] };
+  return strength === 'advanced' || strength === 'auto' ? merged : { ...merged, ...PRESETS[strength] };
 }
 
-export const DEFAULT_SETTINGS: EnhanceSettings = settingsForPreset('balanced');
+/** Smart mode is the default: the file is analysed and the settings chosen for it. */
+export const DEFAULT_SETTINGS: EnhanceSettings = settingsForPreset('auto');
 
 export interface LevelReport {
   integratedLufs: number;
@@ -106,6 +115,14 @@ export interface EnhanceReport {
   durationSec: number;
   outputDurationSec: number;
   stagesRun: string[];
+  /** Settings actually used (for Smart mode these were chosen from the file). */
+  appliedSettings: EnhanceSettings;
+  /** Why Smart mode chose what it chose. */
+  autoReasons?: AutoReason[];
+  /** Number of detected speech sections that were whispered or distant. */
+  whisperSections: number;
+  /** Largest boost the speech leveller applied, dB. */
+  levelerMaxBoostDb: number;
 }
 
 export interface EnhanceResult {
@@ -127,9 +144,11 @@ function measure(x: Float32Array, sr: number, segs: Segment[]): LevelReport {
 export async function enhance(
   channels: Float32Array[],
   sampleRate: number,
-  settings: EnhanceSettings,
+  requested: EnhanceSettings,
   progress: Progress = {},
 ): Promise<EnhanceResult> {
+  let settings = requested;
+  let autoReasons: AutoReason[] | undefined;
   const step = async (frac: number) => {
     if (progress.isCancelled?.()) throw new CancelledError();
     progress.onProgress?.(frac);
@@ -145,6 +164,13 @@ export async function enhance(
   const snrDb = estimateSnrDb(analysis, segments);
   const input = measure(x, sampleRate, segments);
   stages.push('analyse');
+  if (requested.strength === 'auto') {
+    const m = measureForAuto(x, sampleRate, segments, snrDb, kWeight(x, sampleRate));
+    const chosen = chooseSettings(requested, m);
+    settings = chosen.settings;
+    autoReasons = chosen.reasons;
+    stages.push('smart-settings');
+  }
   await step(0.1);
 
   const chain: BiquadCoeffs[] = [];
@@ -186,6 +212,13 @@ export async function enhance(
   if (settings.pauseReductionDb > 0) {
     x = attenuateGaps(x, sampleRate, segments, settings.pauseReductionDb);
     stages.push('pause-reduction');
+  }
+  let levelerMaxBoostDb = 0;
+  if (settings.levelSpeech && segments.length > 0) {
+    const lv = levelSpeech(x, sampleRate, segments, { maxBoostDb: clamp(settings.levelMaxBoostDb, 0, 30) }, kWeight(x, sampleRate));
+    x = lv.output;
+    levelerMaxBoostDb = lv.boostsDb.reduce((a, b) => Math.max(a, b), 0);
+    stages.push('speech-leveller');
   }
   await step(0.8);
 
@@ -261,6 +294,10 @@ export async function enhance(
       durationSec,
       outputDurationSec: x.length / sampleRate,
       stagesRun: stages,
+      appliedSettings: settings,
+      autoReasons,
+      whisperSections: segments.filter((g) => g.kind === 'whisper').length,
+      levelerMaxBoostDb,
     },
   };
 }

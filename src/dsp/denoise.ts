@@ -192,19 +192,23 @@ export function detectHum(samples: Float32Array, sampleRate: number, segments: S
     for (let i = 0; i < x.length; i++) { const s0 = x[i] + c * s1 - s2; s2 = s1; s1 = s0; }
     return s1 * s1 + s2 * s2 - c * s1 * s2;
   };
-  // Prominence of the strongest of the first four harmonics: a pure 50 Hz hum has no
-  // harmonics, buzzy hum has strong ones; either should count.
+  // Prominence of each of the first four harmonics over its neighbours (±5, ±9 Hz). A pure
+  // hum shows one very strong line; buzzy hum shows several. Random low-frequency noise can
+  // make one line stand out by chance, so it must be very strong (≥ 18 dB) or two lines must
+  // stand out together (mean of the best two ≥ 10 dB).
   const score = (base: number) => {
-    let best = -Infinity;
+    const p: number[] = [];
     for (let h = 1; h <= 4; h++) {
-      const on = goertzel(base * h);
-      const offP = (goertzel(base * h - 7) + goertzel(base * h + 7)) / 2;
-      best = Math.max(best, 10 * Math.log10((on + 1e-20) / (offP + 1e-20)));
+      const f = base * h;
+      const on = goertzel(f);
+      const offP = (goertzel(f - 5) + goertzel(f + 5) + goertzel(f - 9) + goertzel(f + 9)) / 4;
+      p.push(10 * Math.log10((on + 1e-20) / (offP + 1e-20)));
     }
-    return best;
+    p.sort((a, b) => b - a);
+    return p[0] >= 18 || (p[0] + p[1]) / 2 >= 10 ? Math.max(p[0], (p[0] + p[1]) / 2) : -Infinity;
   };
   const s50 = score(50);
   const s60 = score(60);
-  const best = s50 >= s60 ? 50 : 60;
-  return Math.max(s50, s60) >= 10 ? best : null;
+  if (!Number.isFinite(s50) && !Number.isFinite(s60)) return null;
+  return s50 >= s60 ? 50 : 60;
 }

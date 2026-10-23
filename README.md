@@ -26,8 +26,8 @@ Supported input formats are M4A (AAC), MP4 audio, AAC, MP3, WAV, FLAC, OGG and O
 ### Key user flows
 
 1. Import. The user taps "Import recording" and picks one or more files in the system picker (Files app on iOS, the document picker on Android, which includes Downloads, Drive and other providers). The app checks the extension and free space, copies the file, then decodes it at 16 kHz to draw the waveform and find speech.
-2. Listen. Speech sections are shaded on the waveform and listed as chips. Previous/next buttons jump between sections; bookmarks have their own previous/next buttons. Position, speed and bookmarks are saved and restored.
-3. Auto Enhance. The screen shows the steps that will run and the exact settings, then the user taps start. Progress is shown with a cancel button. The result opens in a review screen where the user can switch between original and enhanced at the same timestamp, read measured levels and warnings, then keep or discard it. Nothing is saved before "Keep". If transcription is enabled in the Auto Enhance steps, the transcript screen opens next.
+2. Listen. Speech sections are shaded on the waveform and listed as chips; whispered or distant sections have their own tint and a "whisper" tag. Previous/next buttons jump between sections; bookmarks have their own previous/next buttons. The back and forward buttons jump by an interval you choose (1 s to 1 h each, set in Settings). Playback speed goes from 0.1× to 5× with the pitch kept. Position, speed and bookmarks are saved and restored.
+3. Auto Enhance. By default it uses Smart mode, which measures the recording and chooses the settings for the clearest speech, including raising whispers and distant voices to the level of normal speech. The screen shows the steps that will run and the exact settings, then the user taps start. Progress is shown with a cancel button. The result opens in a review screen where the user can switch between original and enhanced at the same timestamp, read measured levels and warnings, then keep or discard it. Nothing is saved before "Keep". If transcription is enabled in the Auto Enhance steps, the transcript screen opens next.
 4. Transcribe. The user picks a language (or automatic detection), a speech model and whether to use the enhanced copy, then starts. Each line has timestamps; tapping a line plays it, long-pressing edits it.
 5. Edit. Trim the recording to a selection or remove a selection, and change its speed (0.5× to 2×, pitch kept). Preview the result, then Save (replaces this recording, after a confirmation) or Save as (adds a new recording named `<name>-v<n>` by default, and leaves this one alone). The edit keeps the original's file type where the phone can encode it.
 6. Export. Original file, enhanced WAV, and transcript as TXT, SRT, VTT or JSON go out through the system share sheet.
@@ -56,7 +56,9 @@ measure → speech detection → high-pass → hum notches → noise suppression
         → [optional pause shortening] → measure → report + warnings
 ```
 
-Speech detection (`vad.ts`) measures 20 ms frames on a 100 Hz to 4 kHz band, sets the noise floor at the 10th percentile of frame levels and marks frames that sit a set margin above it (default 10 dB, adjustable from 4 to 20 dB). Minimum speech length, minimum gap and padding turn frames into sections. If nothing passes at 10 dB it retries once at 6 dB. It detects voice-like energy, not words, and the app says so.
+Speech detection (`vad.ts`) measures 20 ms frames in two bands: a voice band (100 Hz–4 kHz) and a whisper band (1.5–7 kHz, averaged over 100 ms). Whispered and distant speech has little voiced low end, so it shows up in the whisper band while the voice band barely moves. Each band's noise floor is the 10th percentile of its frame levels; a frame is speech when the voice band is a set margin above its floor (default 10 dB, adjustable from 4 to 20 dB) or the whisper band is 4 dB above its own. Minimum speech length, minimum gap and padding turn frames into sections; sections found mainly through the whisper band are labelled as whispers. Whisper detection can be switched off in Settings. It detects voice-like energy, not words, and the app says so.
+
+On the committed test recording (`tests/fixtures/whisper_mix_16k.wav`: two normal Arabic sentences and two whispered ones 20 dB quieter, over room rumble and hiss), the voice band alone finds only the normal sentences; with the whisper band, more than 85 % of each whispered sentence is detected and labelled, and noise alone produces no sections. Both are unit tests.
 
 Noise suppression (`denoise.ts`) is spectral subtraction on a short-time Fourier transform with ~32 ms frames and 50 % overlap. The noise profile comes from the pauses and keeps adapting during them, which follows steady or slowly changing noise (hiss, hum, fans, traffic, room tone). Short sounds that land in the middle of speech are not learned, so intermittent noise is only partly reduced. The "deepest cut per band" floor limits how far any frequency band can be lowered, which is the main protection against removing parts of words.
 
@@ -64,13 +66,19 @@ Hum removal uses Goertzel analysis on non-speech audio to look for 50 or 60 Hz a
 
 The high-pass filter (70 to 100 Hz in the presets, up to 200 Hz in Advanced) handles rumble, wind and low-frequency plosive pops. De-reverberation is shown as not available in this version.
 
-| Preset | Noise amount | Deepest cut | High-pass | Clarity boost | Pause lowering |
-|---|---|---|---|---|---|
-| Light | 1.0× | −10 dB | 70 Hz | +2 dB | off |
-| Balanced | 1.5× | −18 dB | 80 Hz | +3 dB | 6 dB |
-| Strong | 2.2× | −26 dB | 100 Hz | +4 dB | 10 dB |
+The speech leveller (`levelSpeech` in `dynamics.ts`) raises quiet speech towards the louder speech in the same file. It measures speech in ~1 s windows on a K-weighted copy (which counts the 1.5–7 kHz whisper region more than the low end), boosts each window by the gap to the 80th-percentile level, up to a maximum, never turns anything down, gives pauses no boost, and changes gain over ~80 ms.
+
+| Preset | Noise amount | Deepest cut | High-pass | Clarity boost | Pause lowering | Leveller |
+|---|---|---|---|---|---|---|
+| Light | 1.0× | −10 dB | 70 Hz | +2 dB | off | off |
+| Balanced | 1.5× | −18 dB | 80 Hz | +3 dB | 6 dB | up to 12 dB |
+| Strong | 2.2× | −26 dB | 100 Hz | +4 dB | 10 dB | up to 20 dB |
 
 Changing any of these values switches the preset to Advanced.
+
+Smart (the default, `autoTune.ts`) measures the recording first: speech-to-noise ratio, the share of speech that is whispered, the level spread between loud and quiet speech, low-frequency rumble in the pauses, hum and clipping. It then picks noise reduction by noise level (gentler when whispers are present, because whispers are noise-like and their consonants are easily removed), turns the leveller on when speech levels differ by more than 4 dB or whispers are present (maximum boost = spread + 6 dB, 8–30 dB), raises the low-cut to 100 or 120 Hz when there is rumble, uses a +4 dB clarity boost for whispered or distant speech, and lowers pauses by 4 or 8 dB. Your loudness target and peak ceiling are kept. The review screen lists each choice with its reason.
+
+On the whisper test recording, Smart mode brings the whispered sentences from −42 dB to about −18 dB, the same level as the normal sentences (−18 / −16 dB), while the pauses drop from −43 to −53 dB. Before, the whispers were only about 1 dB above the background; after, about 35 dB. A unit test checks that whispers end within 4 dB of normal speech and more than 20 dB above the pauses.
 
 ### Editing
 
@@ -149,6 +157,8 @@ src/transcript/format.ts     Arabic helpers, SRT/VTT/TXT/JSON, search
 tests/                       Node tests for dsp, transcript and contrast
 ```
 
+Playback speed above 2×: expo-audio limits the rate to 2× in its own code. The underlying players support more (Media3's `DefaultAudioSink` accepts 0.1×–8×; Apple documents the `timeDomain` time-pitch algorithm, which is meant for voice, for 1/32× to 32×), so `patches/expo-audio+58.0.10.patch` raises that limit and the app uses 0.1×–5× with the `timeDomain` algorithm on iOS. The patch is applied by `patch-package` after every `npm install`; re-check it when upgrading expo-audio.
+
 Libraries: expo-audio for playback (rate change with pitch correction, background playback, lock-screen controls), react-native-audio-api for decoding, whisper.rn for speech recognition, expo-file-system, expo-document-picker, expo-sharing, expo-clipboard and expo-keep-awake.
 
 The DSP is plain TypeScript with no React Native imports, so it is tested in Node and could later move to a native module or a worklet without changes to the UI. Processing runs on the JavaScript thread in chunks that yield to the UI between steps; cancel takes effect at the next chunk.
@@ -168,7 +178,7 @@ The DSP is plain TypeScript with no React Native imports, so it is tested in Nod
 
 Playback
 - Play, pause, ±10 s and tap-to-seek work for every supported format; position is accurate to the status update interval (100 ms).
-- Playback speed 0.5× to 2× keeps pitch.
+- Playback speed 0.1× to 5× keeps pitch; back and forward jumps follow the intervals set in Settings (1 s to 1 h).
 - Leaving and reopening a recording restores position, source and bookmarks.
 - Playback continues with the screen locked, and lock-screen controls appear.
 

@@ -12,8 +12,8 @@ export interface EditSpec {
   speed: number;
 }
 
-export const MIN_SPEED = 0.5;
-export const MAX_SPEED = 2;
+export const MIN_SPEED = 0.1;
+export const MAX_SPEED = 5;
 
 export function normalizeSpec(spec: EditSpec, duration: number): EditSpec {
   const a = Math.max(0, Math.min(duration, Math.min(spec.start, spec.end)));

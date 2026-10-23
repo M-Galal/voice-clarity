@@ -27,3 +27,16 @@ ffmpeg -loglevel error -i "$T/e.wav" -ac 2 -ar 48000 -c:a libmp3lame -b:a 128k "
 head -c 40000 /dev/urandom > "$OUT/broken.m4a"
 ls -la "$OUT"
 for f in "$OUT/arabic_noisy.m4a" "$OUT/english_stereo.mp3"; do ffprobe -v error -show_entries stream=codec_name,sample_rate,channels -show_entries format=duration -of compact "$f"; done
+
+# Whisper test: normal and whispered (20 dB lower) Arabic over room rumble and hiss.
+espeak-ng -v ar -s 140 -w "$T/n1.wav" "السلام عليكم ورحمة الله"
+espeak-ng -v ar+whisper -s 130 -w "$T/w1.wav" "هذا كلام هامس لا يكاد يسمع"
+espeak-ng -v ar+whisper -s 130 -w "$T/w2.wav" "هل تسمعني الآن"
+espeak-ng -v ar -s 140 -w "$T/n2.wav" "انتهى الاختبار"
+ffmpeg -loglevel error -y -i "$T/n1.wav" -i "$T/sil.wav" -i "$T/w1.wav" -i "$T/w2.wav" -i "$T/n2.wav" -filter_complex \
+  "[0:a]volume=0.6[a0];[2:a]volume=0.06[a2];[3:a]volume=0.06[a3];[4:a]volume=0.6[a4];[1:a][a0][1:a][a2][1:a][a3][1:a][a4][1:a]concat=n=9:v=0:a=1,aresample=44100[s]" \
+  -map "[s]" "$T/wspeech.wav"
+WD=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$T/wspeech.wav")
+ffmpeg -loglevel error -y -i "$T/wspeech.wav" -f lavfi -t "$WD" -i "anoisesrc=color=pink:amplitude=0.006:sample_rate=44100" \
+  -f lavfi -t "$WD" -i "anoisesrc=color=brown:amplitude=0.05:sample_rate=44100" \
+  -filter_complex "[0:a][1:a][2:a]amix=inputs=3:normalize=0[m]" -map "[m]" -ac 1 -ar 44100 -c:a aac -b:a 96k "$OUT/whisper_mix.m4a"

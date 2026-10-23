@@ -76,7 +76,7 @@ export interface AnalysisResult {
 }
 
 /** Decodes at 16 kHz (enough for speech detection and drawing) and finds speech. */
-export async function analyse(rec: Recording, vadThresholdDb: number): Promise<AnalysisResult> {
+export async function analyse(rec: Recording, vadThresholdDb: number, whisper = true): Promise<AnalysisResult> {
   const f = fileIn(rec.id, rec.originalFileName);
   // 16 kHz keeps memory low for long recordings (≈ 230 MB per hour as float32 at 16 kHz mono)
   const native = await decodeFile(f.uri, 16000);
@@ -86,8 +86,8 @@ export async function analyse(rec: Recording, vadThresholdDb: number): Promise<A
   native.channels.length = 0;
   await yieldToUi();
   const tVad = Date.now();
-  const { segments, analysis } = detectSpeech(mono, nativeRate, { thresholdDb: vadThresholdDb });
-  console.log(`[VC] analyse ${rec.format} ${(mono.length / nativeRate).toFixed(1)}s: ${segments.length} speech sections, VAD ${Date.now() - tVad} ms`);
+  const { segments, analysis } = detectSpeech(mono, nativeRate, { thresholdDb: vadThresholdDb, whisper });
+  console.log(`[VC] analyse ${rec.format} ${(mono.length / nativeRate).toFixed(1)}s: ${segments.length} speech sections (${segments.filter((s) => s.kind === 'whisper').length} whispered), VAD ${Date.now() - tVad} ms`);
   await yieldToUi();
   return {
     durationSec: mono.length / nativeRate,

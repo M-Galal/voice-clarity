@@ -6,13 +6,13 @@ import { audioUri, shareAudio, shareTranscript } from '../services/processing';
 import { formatBytes, useApp } from '../state/AppContext';
 import { clock } from '../transcript/format';
 import type { Bookmark, Recording } from '../types';
-import { Button, Card, Choice, Dialog, Header, IconButton, KeyValue, Row, Section, Toggle, Txt } from '../ui/components';
+import { Button, Card, Choice, Dialog, Header, IconButton, KeyValue, LabeledSlider, Row, Section, Toggle, Txt } from '../ui/components';
+import { clampRate, formatSkip, RATE_MAX, RATE_MIN, RATE_PRESETS, shortSkip } from '../playback/controls';
 import { radius, space, TOUCH } from '../ui/theme';
 import { Waveform } from '../ui/Waveform';
 import { statusText } from './LibraryScreen';
 import { newId } from '../services/storage';
 
-const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
 export function PlayerScreen({ id }: { id: string }) {
   const { library } = useApp();
@@ -49,7 +49,8 @@ function Player({ rec }: { rec: Recording }) {
     useEffect(() => {
       if (status.isLoaded && !restored.current) {
         restored.current = true;
-        player.setPlaybackRate(settings.playbackRate, 'high');
+        // 'medium' = AVFoundation timeDomain on iOS (voice-oriented, 1/32x-32x); ignored on Android
+        player.setPlaybackRate(clampRate(settings.playbackRate), 'medium');
         if (rec.lastPositionSec > 0 && rec.lastPositionSec < duration - 1) player.seekTo(rec.lastPositionSec);
       }
     }, [status.isLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -76,6 +77,12 @@ function Player({ rec }: { rec: Recording }) {
     // after a seek, because the reported position lags by up to one status update.
     const lastSeek = useRef({ to: 0, at: 0 });
     const here = () => (Date.now() - lastSeek.current.at < 600 ? lastSeek.current.to : position);
+    const units = { s: t('unit_s'), min: t('unit_min'), h: t('unit_h') };
+    const setRate = (v: number) => {
+      const r = clampRate(v);
+      updateSettings({ playbackRate: r });
+      player.setPlaybackRate(r, 'medium');
+    };
     const seek = (time: number) => {
       // stop just short of the end: seeking onto the last sample puts the player in its
       // "ended" state, where later jumps back are not reported until playback resumes
@@ -169,9 +176,9 @@ function Player({ rec }: { rec: Recording }) {
 
           <Row style={{ justifyContent: 'space-between', direction: 'ltr', gap: 0 }}>
             <IconButton testID="prev-speech" icon="⏮" label={t('prev_speech')} onPress={() => { const s = previousSegmentStart(segments, here()); if (s !== null) seek(s); }} disabled={!segments.length} />
-            <IconButton testID="back-10" icon="↺" label={t('back_10')} onPress={() => seek(here() - 10)} />
+            <IconButton testID="back-10" icon={`−${shortSkip(settings.skipBackSec)}`} label={t('back_by', { t: formatSkip(settings.skipBackSec, units) })} onPress={() => seek(here() - settings.skipBackSec)} />
             <IconButton testID="play-pause" big icon={status.playing ? '❚❚' : '▶'} label={status.playing ? t('pause') : t('play')} onPress={toggle} disabled={!status.isLoaded} />
-            <IconButton testID="fwd-10" icon="↻" label={t('fwd_10')} onPress={() => seek(here() + 10)} />
+            <IconButton testID="fwd-10" icon={`+${shortSkip(settings.skipForwardSec)}`} label={t('fwd_by', { t: formatSkip(settings.skipForwardSec, units) })} onPress={() => seek(here() + settings.skipForwardSec)} />
             <IconButton testID="next-speech" icon="⏭" label={t('next_speech')} onPress={() => { const s = nextSegmentStart(segments, here()); if (s !== null) seek(s); }} disabled={!segments.length} />
           </Row>
           <Row style={{ justifyContent: 'center', direction: 'ltr' }}>
@@ -181,12 +188,21 @@ function Player({ rec }: { rec: Recording }) {
           </Row>
 
           {notice ? <Txt testID="bookmark-notice" style={{ textAlign: 'center', color: colors.ok }}>{notice}</Txt> : null}
-          <Choice
-            testID="speed"
+          <LabeledSlider
             label={t('speed')}
             value={settings.playbackRate}
-            onChange={(v) => { updateSettings({ playbackRate: v }); player.setPlaybackRate(v, 'high'); }}
-            options={SPEEDS.map((s) => ({ value: s, label: `${s}×` }))}
+            min={RATE_MIN}
+            max={RATE_MAX}
+            step={0.05}
+            onChange={setRate}
+            format={(v) => `${v.toFixed(2)}×`}
+            hint={t('speed_hint')}
+          />
+          <Choice
+            testID="speed"
+            value={settings.playbackRate}
+            onChange={setRate}
+            options={RATE_PRESETS.map((s) => ({ value: s, label: `${s}×` }))}
           />
           <Toggle testID="skip-silence" label={t('skip_silence')} value={settings.skipSilence} onChange={(v) => updateSettings({ skipSilence: v })} hint={`${t('silence_gap')} ${settings.skipSilenceMinGapSec} s`} />
 
@@ -223,10 +239,10 @@ function Player({ rec }: { rec: Recording }) {
                     key={i}
                     onPress={() => seek(s.start)}
                     accessibilityRole="button"
-                    accessibilityLabel={`${t('speech_sections')} ${i + 1}: ${clock(s.start)} – ${clock(s.end)}`}
+                    accessibilityLabel={`${t('speech_sections')} ${i + 1}: ${clock(s.start)} – ${clock(s.end)}${s.kind === 'whisper' ? `, ${t('whisper_tag')}` : ''}`}
                     style={{ paddingHorizontal: space.md, minHeight: TOUCH, justifyContent: 'center', borderRadius: radius, backgroundColor: active ? colors.primary : colors.surface2 }}
                   >
-                    <Txt size="sm" style={{ color: active ? colors.onPrimary : colors.text }}>{clock(s.start)}</Txt>
+                    <Txt size="sm" style={{ color: active ? colors.onPrimary : colors.text }}>{s.kind === 'whisper' ? `${clock(s.start)} · ${t('whisper_tag')}` : clock(s.start)}</Txt>
                   </Pressable>
                 );
               })}

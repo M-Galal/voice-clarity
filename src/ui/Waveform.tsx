@@ -45,7 +45,7 @@ export function Waveform({
     >
       {width > 0 &&
         segments.map((s, i) => (
-          <View key={`s${i}`} style={{ position: 'absolute', left: x(s.start), width: Math.max(2, x(s.end) - x(s.start)), top: 0, bottom: 0, backgroundColor: colors.speech }} />
+          <View key={`s${i}`} style={{ position: 'absolute', left: x(s.start), width: Math.max(2, x(s.end) - x(s.start)), top: 0, bottom: 0, backgroundColor: s.kind === 'whisper' ? colors.whisper : colors.speech }} />
         ))}
       <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, flexDirection: 'row', alignItems: 'center' }} pointerEvents="none">
         {bars.map((p, i) => {

@@ -1,0 +1,28 @@
+diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
+index fb2d0b5..d1d4673 100644
+--- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
++++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
+@@ -146,7 +146,8 @@ class AudioPlayer(
+   }
+ 
+   override fun setPlaybackRate(rate: Float) {
+-    val playbackRate = rate.coerceIn(0.1f, 2.0f)
++    // Voice Clarity patch: Media3 DefaultAudioSink accepts 0.1x-8x; the app limits itself to 0.1x-5x
++    val playbackRate = rate.coerceIn(0.1f, 8.0f)
+     val pitch = if (preservesPitch) {
+       1f
+     } else {
+diff --git a/node_modules/expo-audio/ios/AudioModule.swift b/node_modules/expo-audio/ios/AudioModule.swift
+index 42ce9e8..a5e29d5 100644
+--- a/node_modules/expo-audio/ios/AudioModule.swift
++++ b/node_modules/expo-audio/ios/AudioModule.swift
+@@ -234,7 +234,8 @@ public class AudioModule: Module {
+       }
+ 
+       Function("setPlaybackRate") { (player, rate: Double, pitchCorrectionQuality: PitchCorrectionQuality?) in
+-        let playerRate = rate < 0 ? 0.0 : Float(min(rate, 2.0))
++        // Voice Clarity patch: the timeDomain algorithm supports 1/32x-32x; the app limits itself to 0.1x-5x
++        let playerRate = rate < 0 ? 0.0 : Float(min(rate, 8.0))
+         player.currentRate = playerRate
+ 
+         if player.isPlaying {

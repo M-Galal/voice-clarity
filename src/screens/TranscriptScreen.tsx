@@ -8,7 +8,7 @@ import { downloadModel, isModelReady, MODELS, startTranscription, type Transcrib
 import { useApp } from '../state/AppContext';
 import { clock, isMostlyArabic, searchTranscript, toTxt, type TranscriptSegment } from '../transcript/format';
 import type { Recording } from '../types';
-import { Button, Card, Choice, Dialog, Header, IconButton, ProgressBar, Row, Section, Toggle, Txt, Warning } from '../ui/components';
+import { Button, Choice, Dialog, Header, IconButton, ProgressBar, Row, Section, Toggle, Txt, Warning } from '../ui/components';
 import { radius, space, TOUCH } from '../ui/theme';
 
 export const LANGS = ['auto', 'ar', 'en', 'fr', 'ur', 'hi'] as const;
@@ -131,6 +131,7 @@ function TranscriptBody({ rec, onRedo }: { rec: Recording; onRedo: () => void })
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<TranscriptSegment | null>(null);
   const [copied, setCopied] = useState(false);
+  const [more, setMore] = useState(false);
   const matches = useMemo(() => new Set(searchTranscript(transcript, query)), [transcript, query]);
   const visible = query.trim() ? transcript.segments.filter((s) => matches.has(s.id)) : transcript.segments;
   const flagged = transcript.segments.filter((s) => s.flag && s.flag !== 'edited').length;
@@ -201,19 +202,23 @@ function TranscriptBody({ rec, onRedo }: { rec: Recording; onRedo: () => void })
           );
         }}
       />
-      <Card style={{ margin: space.md }}>
-        <Row style={{ justifyContent: 'center', direction: 'ltr' }}>
-          <IconButton icon={status.playing ? '❚❚' : '▶'} label={status.playing ? t('pause') : t('play')} onPress={() => (status.playing ? player.pause() : player.play())} />
-          <Txt size="sm" muted>{`${clock(status.currentTime)} / ${clock(status.duration)}`}</Txt>
-        </Row>
-        <Row wrap>
-          <Button compact kind="secondary" label={copied ? t('copied') : t('copy')} onPress={async () => { await Clipboard.setStringAsync(toTxt(transcript, false)); setCopied(true); setTimeout(() => setCopied(false), 1500); }} />
-          <Choice value={settings.export.transcriptFormat} onChange={(v) => updateSettings({ export: { transcriptFormat: v } })} options={(['txt', 'srt', 'vtt', 'json'] as const).map((f) => ({ value: f, label: f.toUpperCase() }))} />
-          <Button compact kind="secondary" label={t('export')} onPress={() => shareTranscript(rec, transcript, settings.export.transcriptFormat).catch(showError)} />
-          <Button compact kind="secondary" label={t('transcribe')} onPress={onRedo} />
-          <Button compact kind="danger" label={t('delete_transcript')} onPress={() => updateRecording(rec.id, { transcript: undefined })} />
-        </Row>
-      </Card>
+      {/* one compact row so most of the screen stays for the transcript */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, padding: space.sm, borderTopWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, direction: 'ltr' }}>
+        <IconButton testID="tr-play" icon={status.playing ? '❚❚' : '▶'} label={status.playing ? t('pause') : t('play')} onPress={() => (status.playing ? player.pause() : player.play())} />
+        <Txt size="sm" muted style={{ flex: 1 }}>{`${clock(status.currentTime)} / ${clock(status.duration)}`}</Txt>
+        <Button compact kind="secondary" testID="tr-copy" label={copied ? t('copied') : t('copy')} onPress={async () => { await Clipboard.setStringAsync(toTxt(transcript, false)); setCopied(true); setTimeout(() => setCopied(false), 1500); }} />
+        <Button compact kind="secondary" testID="tr-more" label="⋯" accessibilityHint={t('export_transcript')} onPress={() => setMore(true)} />
+      </View>
+      {more ? (
+        <Dialog onClose={() => setMore(false)}>
+          <Txt bold>{t('export_transcript')}</Txt>
+          <Choice testID="tr-format" label={t('transcript_format')} value={settings.export.transcriptFormat} onChange={(v) => updateSettings({ export: { transcriptFormat: v } })} options={(['txt', 'srt', 'vtt', 'json'] as const).map((f) => ({ value: f, label: f.toUpperCase() }))} />
+          <Button testID="tr-export" label={t('export')} onPress={() => { setMore(false); shareTranscript(rec, transcript, settings.export.transcriptFormat).catch(showError); }} />
+          <Button kind="secondary" testID="tr-redo" label={t('transcribe')} onPress={() => { setMore(false); onRedo(); }} />
+          <Button kind="danger" testID="tr-delete" label={t('delete_transcript')} onPress={() => { setMore(false); updateRecording(rec.id, { transcript: undefined }); }} />
+          <Button kind="ghost" label={t('close')} onPress={() => setMore(false)} />
+        </Dialog>
+      ) : null}
       {editing ? <EditModal key={editing.id} seg={editing} onClose={() => setEditing(null)} onSave={saveEdit} /> : null}
     </View>
   );

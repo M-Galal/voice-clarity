@@ -141,7 +141,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     async (rec: Recording) => {
       updateRecording(rec.id, { status: 'analyzing', error: undefined });
       try {
-        const a = await analyse(rec, settings.vadThresholdDb);
+        const a = await analyse(rec, settings.vadThresholdDb, settings.vadWhisper);
         updateRecording(rec.id, {
           status: 'ready',
           durationSec: a.durationSec || rec.durationSec,
@@ -156,7 +156,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         updateRecording(rec.id, { status: 'error', error: msg });
       }
     },
-    [settings.vadThresholdDb, updateRecording],
+    [settings.vadThresholdDb, settings.vadWhisper, updateRecording],
   );
 
   const importFromPicker = useCallback(async () => {

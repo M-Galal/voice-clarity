@@ -8,6 +8,7 @@ import {
 } from '../services/processing';
 import { useApp } from '../state/AppContext';
 import { nextVersionName } from '../edit/saveFormat';
+import { formatSkip, shortSkip } from '../playback/controls';
 import { clock, clockTenths } from '../transcript/format';
 import type { Recording } from '../types';
 import { Button, Card, Choice, Dialog, Header, IconButton, LabeledSlider, ProgressBar, Row, Section, Txt, Warning } from '../ui/components';
@@ -23,7 +24,8 @@ export function EditScreen({ id }: { id: string }) {
 }
 
 function Editor({ rec }: { rec: Recording }) {
-  const { t, goBack, navigate, updateRecording, reanalyse, addRecording, showError, colors, fs, library } = useApp();
+  const { t, goBack, navigate, updateRecording, reanalyse, addRecording, showError, colors, fs, library, settings } = useApp();
+  const units = { s: t('unit_s'), min: t('unit_min'), h: t('unit_h') };
   const [source, setSource] = useState<'original' | 'enhanced'>(rec.enhanced ? rec.lastPlayedSource : 'original');
   const [mode, setMode] = useState<EditSpec['mode']>('keep');
   const [start, setStart] = useState(0);
@@ -215,9 +217,9 @@ function Editor({ rec }: { rec: Recording }) {
           selectionMode={mode}
         />
         <Row style={{ justifyContent: 'center', direction: 'ltr' }}>
-          <IconButton testID="edit-back-10" icon="↺" label={t('back_10')} onPress={() => seekTo(here() - 10)} />
+          <IconButton testID="edit-back-10" icon={`−${shortSkip(settings.skipBackSec)}`} label={t('back_by', { t: formatSkip(settings.skipBackSec, units) })} onPress={() => seekTo(here() - settings.skipBackSec)} />
           <IconButton testID="edit-play" big icon={st.playing ? '❚❚' : '▶'} label={st.playing ? t('pause') : t('play')} onPress={() => { selectionPlay.current = false; setPausedAt(null); if (st.playing) player.pause(); else player.play(); }} />
-          <IconButton testID="edit-fwd-10" icon="↻" label={t('fwd_10')} onPress={() => seekTo(here() + 10)} />
+          <IconButton testID="edit-fwd-10" icon={`+${shortSkip(settings.skipForwardSec)}`} label={t('fwd_by', { t: formatSkip(settings.skipForwardSec, units) })} onPress={() => seekTo(here() + settings.skipForwardSec)} />
         </Row>
         <Txt size="sm" muted style={{ textAlign: 'center', writingDirection: 'ltr' }}>{`${clockTenths(position)} / ${clockTenths(duration)}`}</Txt>
 
@@ -249,7 +251,7 @@ function Editor({ rec }: { rec: Recording }) {
           <LabeledSlider label={t('speed_change')} value={speed} min={MIN_SPEED} max={MAX_SPEED} step={0.05}
             onChange={setSpeed} format={(v) => `${v.toFixed(2)}×`} hint={t('speed_change_hint')} />
           <Row wrap>
-            {[0.75, 1, 1.25, 1.5].map((v) => (
+            {[0.5, 0.75, 1, 1.25, 1.5, 2, 3].map((v) => (
               <Button key={v} compact kind={Math.abs(speed - v) < 1e-6 ? 'primary' : 'secondary'} testID={`edit-speed-${v}`} label={`${v}×`} onPress={() => setSpeed(v)} />
             ))}
           </Row>

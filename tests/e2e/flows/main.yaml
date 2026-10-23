@@ -104,6 +104,9 @@ appId: com.example.voiceclarity
       id: "speed-1.5"
     direction: UP
 - tapOn:
+    id: "speed-5"
+- assertVisible: "5.00×"
+- tapOn:
     id: "speed-1.5"
 - tapOn:
     id: "skip-silence"
@@ -268,9 +271,16 @@ appId: com.example.voiceclarity
     id: "edit-preview"
 - extendedWaitUntil:
     visible:
-      id: "edit-listen-preview"
+      id: "edit-save-as"
     timeout: 180000
+- scrollUntilVisible:
+    element:
+      id: "edit-listen-preview"
+    direction: UP
 - takeScreenshot: 31_edit_preview
+- scrollUntilVisible:
+    element:
+      id: "edit-save-as"
 - scrollUntilVisible:
     element:
       id: "edit-save-as"
@@ -291,8 +301,61 @@ appId: com.example.voiceclarity
 - takeScreenshot: 32_saved_as_player
 - back
 
-# ---- Back to library: stereo MP3 and a broken file ----
+# ---- Whispers: detection, Smart settings, audibility ----
 - back
+- tapOn:
+    id: "import"
+- runFlow:
+    file: pick.yaml
+    env:
+      FILE: whisper_mix.m4a
+      SHOT: "40"
+- extendedWaitUntil:
+    visible: ".*whisper_mix.*Ready.*"
+    timeout: 120000
+- tapOn:
+    id: "rec-whisper_mix"
+- extendedWaitUntil:
+    visible: "4 speech sections"
+    timeout: 30000
+- scrollUntilVisible:
+    element: ".*· whisper"
+- takeScreenshot: 41_whisper_sections
+- scrollUntilVisible:
+    element:
+      id: "auto-enhance"
+    direction: UP
+- tapOn:
+    id: "auto-enhance"
+- assertVisible:
+    id: "auto-hint"
+- scrollUntilVisible:
+    element:
+      id: "start-enhance"
+- tapOn:
+    id: "start-enhance"
+- extendedWaitUntil:
+    visible:
+      id: "ab-original"
+    timeout: 600000
+- scrollUntilVisible:
+    element:
+      id: "reason-auto_whisper_protect"
+- assertVisible:
+    id: "reason-auto_level_on"
+- takeScreenshot: 42_whisper_smart_reasons
+- scrollUntilVisible:
+    element: "Whispered or distant sections"
+- takeScreenshot: 43_whisper_levels
+- tapOn:
+    id: "keep-enhanced"
+- extendedWaitUntil:
+    visible:
+      id: "source-enhanced"
+    timeout: 20000
+- back
+
+# ---- Back in the library: stereo MP3 and a broken file ----
 - tapOn:
     id: "import"
 - runFlow:
@@ -354,6 +417,22 @@ appId: com.example.voiceclarity
 # ---- Arabic interface ----
 - tapOn:
     id: "open-settings"
+- scrollUntilVisible:
+    element:
+      id: "skip-back-custom"
+- tapOn:
+    id: "skip-back-custom"
+- inputText: "1:30"
+- tapOn:
+    id: "skip-back-apply"
+- assertVisible:
+    id: "skip-back-value"
+    text: "1 min 30 s"
+- takeScreenshot: 44_skip_custom
+- scrollUntilVisible:
+    element:
+      id: "ui-lang-ar"
+    direction: UP
 - tapOn:
     id: "ui-lang-ar"
 - takeScreenshot: 24_rtl_prompt

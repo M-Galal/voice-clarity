@@ -5,6 +5,8 @@ import { deleteAllData } from '../services/storage';
 import { useApp } from '../state/AppContext';
 import { Button, Choice, Header, LabeledSlider, ProgressBar, Row, Section, Toggle, Txt } from '../ui/components';
 import { space } from '../ui/theme';
+import { SkipPicker } from '../ui/SkipPicker';
+import { clampSkip } from '../playback/controls';
 
 export function SettingsScreen() {
   const { t, goBack, settings, updateSettings, showError, resetAll, colors } = useApp();
@@ -34,10 +36,13 @@ export function SettingsScreen() {
 
         <Section title={t('playback')}>
           <Toggle label={t('skip_silence')} value={settings.skipSilence} onChange={(v) => updateSettings({ skipSilence: v })} />
+          <SkipPicker testID="skip-back" label={t('skip_back')} value={settings.skipBackSec} onChange={(v) => updateSettings({ skipBackSec: clampSkip(v) })} />
+          <SkipPicker testID="skip-forward" label={t('skip_forward')} value={settings.skipForwardSec} onChange={(v) => updateSettings({ skipForwardSec: clampSkip(v) })} />
           <LabeledSlider label={t('silence_gap')} value={settings.skipSilenceMinGapSec} min={0.3} max={5} step={0.1} onChange={(v) => updateSettings({ skipSilenceMinGapSec: v })} format={(v) => `${v.toFixed(1)} s`} />
         </Section>
 
         <Section title={t('speech_detection')}>
+          <Toggle testID="detect-whispers" label={t('detect_whispers')} value={settings.vadWhisper} onChange={(v) => updateSettings({ vadWhisper: v })} hint={t('detect_whispers_hint')} />
           <LabeledSlider label={t('vad_threshold')} value={settings.vadThresholdDb} min={4} max={20} step={1} onChange={(v) => updateSettings({ vadThresholdDb: v })} format={(v) => `${v} dB`} hint={t('vad_note')} />
         </Section>
 

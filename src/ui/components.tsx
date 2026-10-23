@@ -82,6 +82,8 @@ export function Button({
 
 /** Round icon button with a spoken label. */
 export function IconButton({ icon, label, onPress, big, disabled, testID }: { icon: string; label: string; onPress: () => void; big?: boolean; disabled?: boolean; testID?: string }) {
+  // longer text labels (e.g. "−1m30") use a smaller font so they fit the round button
+  const long = !big && icon.length > 3;
   const { colors, fs } = useApp();
   // 48 dp (minimum touch target) and 64 dp for the main button: five of them fit a 320 dp screen
   const size = big ? 64 : TOUCH;
@@ -100,7 +102,7 @@ export function IconButton({ icon, label, onPress, big, disabled, testID }: { ic
         opacity: disabled ? 0.4 : pressed ? 0.8 : 1,
       })}
     >
-      <Text style={{ fontSize: big ? fs.xxl : fs.lg, color: big ? colors.onPrimary : colors.text }}>{icon}</Text>
+      <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize: big ? fs.xxl : long ? fs.xs : fs.lg, fontWeight: long ? '700' : '400', color: big ? colors.onPrimary : colors.text }}>{icon}</Text>
     </Pressable>
   );
 }

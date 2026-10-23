@@ -69,7 +69,7 @@ test('keep (trim) and cut lengths, with fades only at joins', () => {
 });
 
 test('spec normalisation, edited duration and bookmark remap', () => {
-  assert.deepEqual(normalizeSpec({ mode: 'keep', start: 8, end: 3, speed: 9 }, 10), { mode: 'keep', start: 3, end: 8, speed: 2 });
+  assert.deepEqual(normalizeSpec({ mode: 'keep', start: 8, end: 3, speed: 9 }, 10), { mode: 'keep', start: 3, end: 8, speed: 5 });
   assert.equal(editedDuration({ mode: 'keep', start: 2, end: 6, speed: 2 }, 10), 2);
   assert.equal(editedDuration({ mode: 'cut', start: 2, end: 6, speed: 0.5 }, 10), 12);
   assert.equal(editedDuration({ mode: 'none', start: 0, end: 0, speed: 1.25 }, 10), 8);

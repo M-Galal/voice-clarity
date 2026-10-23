@@ -42,7 +42,7 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
     updateRecording(rec.id, { status: 'enhancing' });
     setPhase({ kind: 'running', progress: 0, stage: 'decode' });
     try {
-      const vadSettings = { ...s, vad: { ...s.vad, thresholdDb: settings.vadThresholdDb } };
+      const vadSettings = { ...s, vad: { ...s.vad, thresholdDb: settings.vadThresholdDb, whisper: settings.vadWhisper } };
       const { result, previewUri } = await enhanceToPreview(rec, vadSettings, rate, token.current, (p, stage) => setPhase({ kind: 'running', progress: p, stage }));
       setPhase({ kind: 'review', result, previewUri });
     } catch (e) {
@@ -103,10 +103,17 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
               testID="strength"
               value={s.strength}
               onChange={(v) => setS((prev) => settingsForPreset(v, prev))}
-              options={(['light', 'balanced', 'strong', 'advanced'] as Strength[]).map((v) => ({ value: v, label: t(v) }))}
+              options={(['auto', 'light', 'balanced', 'strong', 'advanced'] as Strength[]).map((v) => ({ value: v, label: t(v) }))}
             />
-            <Toggle label={t('noise_suppression')} value={s.noiseSuppression} onChange={(v) => patch({ noiseSuppression: v })} />
-            <Toggle label={t('hum_removal')} value={s.humRemoval} onChange={(v) => patch({ humRemoval: v })} />
+            {s.strength === 'auto' ? (
+              <Txt size="sm" testID="auto-hint">{t('auto_hint')}</Txt>
+            ) : (
+              <>
+                <Toggle label={t('noise_suppression')} value={s.noiseSuppression} onChange={(v) => patch({ noiseSuppression: v })} />
+                <Toggle label={t('hum_removal')} value={s.humRemoval} onChange={(v) => patch({ humRemoval: v })} />
+                <Toggle testID="level-speech" label={t('level_speech')} value={s.levelSpeech} onChange={(v) => patch({ levelSpeech: v })} />
+              </>
+            )}
             {s.strength === 'advanced' ? (
               <>
                 <LabeledSlider label={t('noise_amount')} value={s.noiseAmount} min={0.5} max={3} step={0.1} onChange={(v) => patch({ noiseAmount: v })} format={(v) => `${v.toFixed(1)}×`} disabled={!s.noiseSuppression} />
@@ -114,6 +121,7 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
                 <LabeledSlider label={t('high_pass')} value={s.highPassHz} min={0} max={200} step={10} onChange={(v) => patch({ highPassHz: v })} format={(v) => (v === 0 ? '—' : `${v} Hz`)} />
                 <LabeledSlider label={t('clarity')} value={s.clarityDb} min={0} max={8} step={0.5} onChange={(v) => patch({ clarityDb: v })} format={(v) => formatDb(v)} />
                 <LabeledSlider label={t('pause_reduction')} value={s.pauseReductionDb} min={0} max={20} step={1} onChange={(v) => patch({ pauseReductionDb: v })} format={(v) => (v === 0 ? '—' : `${v} dB`)} />
+                <LabeledSlider label={t('level_max_boost')} value={s.levelMaxBoostDb} min={0} max={30} step={1} onChange={(v) => patch({ levelMaxBoostDb: v })} format={(v) => `${v} dB`} disabled={!s.levelSpeech} />
               </>
             ) : null}
             <Toggle label={t('dereverb')} value={false} onChange={() => {}} disabled hint={t('not_available')} />
@@ -154,12 +162,23 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
 }
 
 function summary(s: EnhanceSettings, rate: number, t: ReturnType<typeof useApp>['t']) {
+  if (s.strength === 'auto') {
+    return [
+      `${t('strength')}: ${t('auto')}`,
+      t('auto_hint'),
+      s.gainMode === 'target' ? `${t('target_lufs')}: ${s.targetLufs} LUFS` : `${t('manual_gain')}: ${formatDb(s.manualGainDb)} (${pct(s.manualGainDb)})`,
+      `${t('limiter_ceiling')}: ${s.limiterCeilingDb} dBFS`,
+      `${t('processing_rate')}: ${rate / 1000} kHz`,
+      s.removeSilence ? `${t('remove_silence_export')}: ≤ ${(s.keepGapMs / 1000).toFixed(2)} s` : '',
+    ].filter(Boolean).join('\n');
+  }
   const parts = [
     `${t('strength')}: ${t(s.strength)}`,
     `${t('noise_suppression')}: ${s.noiseSuppression ? `${s.noiseAmount.toFixed(1)}×, ${formatDb(s.noiseFloorDb, 0)}` : '—'}`,
     `${t('high_pass')}: ${s.highPassHz ? `${s.highPassHz} Hz` : '—'}`,
     `${t('clarity')}: ${s.clarityDb ? formatDb(s.clarityDb) : '—'}`,
     `${t('pause_reduction')}: ${s.pauseReductionDb ? `${s.pauseReductionDb} dB` : '—'}`,
+    `${t('level_speech')}: ${s.levelSpeech ? `≤ ${s.levelMaxBoostDb} dB` : '—'}`,
     s.gainMode === 'target' ? `${t('target_lufs')}: ${s.targetLufs} LUFS` : `${t('manual_gain')}: ${formatDb(s.manualGainDb)} (${pct(s.manualGainDb)})`,
     `${t('limiter_ceiling')}: ${s.limiterCeilingDb} dBFS`,
     `${t('processing_rate')}: ${rate / 1000} kHz`,
@@ -288,6 +307,14 @@ function Review({ rec, result, previewUri, onKeep, onDiscard }: { rec: Recording
         <Txt size="sm" muted style={{ textAlign: 'center' }}>{`${clock(st.currentTime)} / ${clock(st.duration)}`}</Txt>
       </Card>
 
+      {r.autoReasons?.length ? (
+        <Section title={t('auto_chosen')}>
+          {r.autoReasons.map((x, i) => (
+            <Txt key={i} size="sm" testID={`reason-${x.key}`}>{`• ${t(x.key, x.vars)}`}</Txt>
+          ))}
+        </Section>
+      ) : null}
+
       <Section title={t('measured')}>
         <Txt size="sm" muted>{`${t('input')} → ${t('output')}`}</Txt>
         <LevelRow label={t('speech_loudness')} a={lv(r.input.speechLufs, 'LUFS')} b={lv(r.output.speechLufs, 'LUFS')} />
@@ -297,6 +324,8 @@ function Review({ rec, result, previewUri, onKeep, onDiscard }: { rec: Recording
         <KeyValue k={t('gain_applied')} v={`${formatDb(r.appliedGainDb)} (${pct(r.appliedGainDb)})`} />
         <KeyValue k={t('snr')} v={Number.isFinite(r.snrDb) ? `${r.snrDb.toFixed(0)} dB` : '—'} />
         {r.humHz ? <Txt size="sm">{t('hum_found', { hz: r.humHz })}</Txt> : null}
+        {r.whisperSections > 0 ? <KeyValue k={t('whisper_sections')} v={String(r.whisperSections)} /> : null}
+        {r.levelerMaxBoostDb > 0.5 ? <KeyValue k={t('leveller_boost')} v={formatDb(r.levelerMaxBoostDb, 0)} /> : null}
         <KeyValue k={t('duration')} v={`${clock(r.durationSec)} → ${clock(r.outputDurationSec)}`} />
       </Section>
 

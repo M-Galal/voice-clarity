@@ -109,3 +109,84 @@ export function detectClipping(samples: Float32Array, sampleRate: number): ClipR
   }
   return { events, times };
 }
+
+export interface LevelerOptions {
+  /** Most a quiet speech window may be raised, dB. */
+  maxBoostDb: number;
+  /** Length of the windows speech is measured in, seconds. */
+  windowSec?: number;
+  /** Level that quiet speech is raised towards: this percentile of all speech windows. */
+  refPercentile?: number;
+}
+
+export interface LevelerResult {
+  output: Float32Array;
+  /** Boost applied to each window, for reporting. */
+  boostsDb: number[];
+  /** Level spread between loud and quiet speech before levelling (p90 − p10), dB. */
+  spreadDb: number;
+}
+
+/**
+ * Speech leveller: raises quiet speech (whispers, distant talkers) towards the level of the
+ * louder speech in the same file. Speech is measured in ~1 s windows on a K-weighted copy
+ * (BS.1770 weighting, which counts the 1.5–7 kHz whisper region more than the low end);
+ * each window gets a boost of (reference − its level), between 0 and `maxBoostDb`. Nothing is
+ * ever turned down and pauses get no boost. Gains change smoothly over ~80 ms.
+ */
+export function levelSpeech(
+  input: Float32Array,
+  sampleRate: number,
+  segments: Segment[],
+  opts: LevelerOptions,
+  weighted?: Float32Array,
+): LevelerResult {
+  const win = opts.windowSec ?? 1.0;
+  const refP = opts.refPercentile ?? 0.8;
+  const w = weighted ?? input;
+  const windows: { a: number; b: number; db: number }[] = [];
+  for (const s of segments) {
+    const a0 = Math.round(s.start * sampleRate), b0 = Math.min(input.length, Math.round(s.end * sampleRate));
+    const n = Math.max(1, Math.round((b0 - a0) / (win * sampleRate)));
+    const step = (b0 - a0) / n;
+    for (let k = 0; k < n; k++) {
+      const a = Math.round(a0 + k * step), b = Math.round(a0 + (k + 1) * step);
+      let acc = 0;
+      for (let i = a; i < b; i++) acc += w[i] * w[i];
+      const ms = acc / Math.max(1, b - a);
+      windows.push({ a, b, db: ms > 1e-12 ? 10 * Math.log10(ms) : -120 });
+    }
+  }
+  if (windows.length === 0) return { output: Float32Array.from(input), boostsDb: [], spreadDb: 0 };
+  const levels = windows.map((x) => x.db).sort((p, q) => p - q);
+  const pick = (p: number) => levels[Math.min(levels.length - 1, Math.floor(p * levels.length))];
+  const ref = pick(refP);
+  const spreadDb = pick(0.9) - pick(0.1);
+  const boostsDb = windows.map((x) => Math.max(0, Math.min(opts.maxBoostDb, ref - x.db)));
+
+  // gain envelope in 10 ms blocks, then smoothed
+  const block = Math.max(1, Math.round(0.01 * sampleRate));
+  const nb = Math.ceil(input.length / block);
+  const env = new Float32Array(nb);
+  windows.forEach((x, i) => {
+    for (let k = Math.floor(x.a / block); k < Math.min(nb, Math.ceil(x.b / block)); k++) env[k] = boostsDb[i];
+  });
+  const smooth = new Float32Array(nb);
+  const R = 4; // ±40 ms → ~80 ms transitions
+  for (let k = 0; k < nb; k++) {
+    let s = 0, c = 0;
+    for (let j = Math.max(0, k - R); j <= Math.min(nb - 1, k + R); j++) { s += env[j]; c++; }
+    smooth[k] = s / c;
+  }
+  const lin = new Float32Array(nb);
+  for (let k = 0; k < nb; k++) lin[k] = Math.pow(10, smooth[k] / 20);
+  const out = new Float32Array(input.length);
+  for (let i = 0; i < input.length; i++) {
+    const pos = i / block - 0.5;
+    const k0 = Math.max(0, Math.min(nb - 1, Math.floor(pos)));
+    const k1 = Math.min(nb - 1, k0 + 1);
+    const f = Math.max(0, Math.min(1, pos - k0));
+    out[i] = input[i] * (lin[k0] * (1 - f) + lin[k1] * f);
+  }
+  return { output: out, boostsDb, spreadDb };
+}

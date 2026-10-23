@@ -9,6 +9,7 @@ export interface Palette {
   primary: string;
   onPrimary: string;
   speech: string;
+  whisper: string;
   bookmark: string;
   playhead: string;
   wave: string;
@@ -29,6 +30,7 @@ export const LIGHT: Palette = {
   primary: '#0B5FCC',
   onPrimary: '#FFFFFF',
   speech: 'rgba(11,95,204,0.18)',
+  whisper: 'rgba(122,74,0,0.22)',
   bookmark: '#B3261E',
   playhead: '#121417',
   wave: '#0B5FCC',
@@ -49,6 +51,7 @@ export const DARK: Palette = {
   primary: '#7FB2FF',
   onPrimary: '#06203F',
   speech: 'rgba(127,178,255,0.20)',
+  whisper: 'rgba(255,210,122,0.24)',
   bookmark: '#FF8A80',
   playhead: '#F1F3F6',
   wave: '#7FB2FF',
