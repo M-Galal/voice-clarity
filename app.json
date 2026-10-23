@@ -57,7 +57,8 @@
       ],
       "expo-document-picker",
       "./plugins/withMainActivityDelegate",
-      "./plugins/withGradleAssignments"
+      "./plugins/withGradleAssignments",
+      "./plugins/withGradleWrapperVersion"
     ]
   }
 }
