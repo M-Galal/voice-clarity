@@ -65,6 +65,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   auto: { detectSpeech: true, enhance: true, transcribe: false, runOnImport: false },
   transcription: { language: 'ar', modelId: 'small', useEnhancedAudio: true, prompt: '' },
   export: { transcriptFormat: 'srt' },
+  playlist: { folderUri: '', includeSubfolders: false, nameFilter: '', extensions: '', sort: 'name', autoNext: true },
   privacyAcknowledged: false,
 };
 
@@ -90,6 +91,7 @@ export async function loadSettings(): Promise<AppSettings> {
     auto: { ...DEFAULT_APP_SETTINGS.auto, ...s.auto },
     transcription: { ...DEFAULT_APP_SETTINGS.transcription, ...s.transcription },
     export: { ...DEFAULT_APP_SETTINGS.export, ...s.export },
+    playlist: { ...DEFAULT_APP_SETTINGS.playlist, ...s.playlist },
   };
 }
 

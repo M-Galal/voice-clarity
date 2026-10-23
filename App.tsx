@@ -10,6 +10,7 @@ import { EnhanceScreen } from './src/screens/EnhanceScreen';
 import { TranscriptScreen } from './src/screens/TranscriptScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { EditScreen } from './src/screens/EditScreen';
+import { PlaylistScreen } from './src/screens/PlaylistScreen';
 
 function Router() {
   const { ready, route, goBack, colors, settings, updateSettings, t } = useApp();
@@ -47,7 +48,8 @@ function Router() {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top', 'bottom', 'left', 'right']}>
       <StatusBar style={dark ? 'light' : 'dark'} />
       {route.name === 'library' && <LibraryScreen />}
-      {route.name === 'player' && <PlayerScreen id={route.id} />}
+      {route.name === 'player' && <PlayerScreen id={route.id} queueIndex={route.queueIndex} autoplay={route.autoplay} />}
+      {route.name === 'playlist' && <PlaylistScreen />}
       {route.name === 'enhance' && <EnhanceScreen id={route.id} auto={route.auto} />}
       {route.name === 'transcript' && <TranscriptScreen id={route.id} />}
       {route.name === 'settings' && <SettingsScreen />}

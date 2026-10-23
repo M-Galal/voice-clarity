@@ -1,6 +1,7 @@
 import type { EnhanceReport, EnhanceSettings } from './dsp/pipeline';
 import type { Segment } from './dsp/vad';
 import type { Transcript } from './transcript/format';
+import type { PlaylistSort } from './playlist/filter';
 
 export interface Bookmark {
   id: string;
@@ -35,6 +36,8 @@ export interface Recording {
   sampleRate?: number;
   channels?: number;
   importedAt: string;
+  /** Where a play-list file was copied from, so it is not imported twice. */
+  sourceUri?: string;
   lastPositionSec: number;
   lastPlayedSource: 'original' | 'enhanced';
   bookmarks: Bookmark[];
@@ -87,5 +90,19 @@ export interface AppSettings {
   export: {
     transcriptFormat: 'txt' | 'srt' | 'vtt' | 'json';
   };
+  playlist: PlaylistSettings;
   privacyAcknowledged: boolean;
+}
+
+export interface PlaylistSettings {
+  /** Folder the play list is read from ('' = none chosen yet). */
+  folderUri: string;
+  includeSubfolders: boolean;
+  /** Part of the file name, or patterns with * and ?, separated by ; */
+  nameFilter: string;
+  /** Extensions as typed, e.g. "m4a, mp3"; empty = all supported. */
+  extensions: string;
+  sort: PlaylistSort;
+  /** Start the next file when one ends. */
+  autoNext: boolean;
 }

@@ -7,11 +7,14 @@ import {
   DEFAULT_APP_SETTINGS, clearTemp, deleteRecordingFiles, loadLibrary, loadSettings, saveLibrary, saveSettings,
 } from '../services/storage';
 import type { AppSettings, Recording } from '../types';
+import type { PlaylistItem } from '../playlist/filter';
+import { FolderUnavailableError } from '../services/playlist';
 import { DARK, LIGHT, fontSizes, type Palette } from '../ui/theme';
 
 export type Route =
   | { name: 'library' }
-  | { name: 'player'; id: string }
+  | { name: 'player'; id: string; queueIndex?: number; autoplay?: boolean }
+  | { name: 'playlist' }
   | { name: 'enhance'; id: string; auto?: boolean }
   | { name: 'transcript'; id: string }
   | { name: 'edit'; id: string }
@@ -23,7 +26,15 @@ interface Ctx {
   settings: AppSettings;
   route: Route;
   navigate: (r: Route) => void;
+  /** Swaps the current screen (used to move between play-list files without growing the back stack). */
+  replace: (r: Route) => void;
   goBack: () => void;
+  /** Files of the play list being played, in order; null when none. */
+  queue: PlaylistItem[] | null;
+  /** Index of the play-list file being opened (copied in), or null. */
+  queueOpening: number | null;
+  /** Plays play-list file `index` (copies it into the library the first time). */
+  playFromQueue: (items: PlaylistItem[] | null, index: number, opts?: { replace?: boolean; autoplay?: boolean }) => Promise<void>;
   t: (k: StringKey, vars?: Record<string, string | number>) => string;
   colors: Palette;
   fs: ReturnType<typeof fontSizes>;
@@ -55,6 +66,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [library, setLibrary] = useState<Recording[]>([]);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_APP_SETTINGS);
   const [stack, setStack] = useState<Route[]>([{ name: 'library' }]);
+  const [queue, setQueue] = useState<PlaylistItem[] | null>(null);
+  const [queueOpening, setQueueOpening] = useState<number | null>(null);
+  const queueRef = useRef<PlaylistItem[] | null>(null);
   const libRef = useRef<Recording[]>([]);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scheme = useColorScheme();
@@ -130,6 +144,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       else if (e instanceof Error && e.name === 'CancelledError') msg = t('err_cancelled');
       else if (e instanceof Error && e.message === 'model_missing') msg = t('model_missing');
       else if (e instanceof Error && e.message === 'sharing_unavailable') msg = t('err_share');
+      else if (e instanceof FolderUnavailableError) msg = t('pl_folder_unavailable');
       else if (e instanceof Error && /decode|codec|format/i.test(e.message)) msg = t('err_decode');
       else msg = t('err_generic', { msg: e instanceof Error ? e.message : String(e) });
       Alert.alert(t('err_title'), msg);
@@ -204,6 +219,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [setLib],
   );
 
+  const playFromQueue = useCallback<Ctx['playFromQueue']>(
+    async (items, index, opts = {}) => {
+      const list = items ?? queueRef.current;
+      const item = list?.[index];
+      if (!list || !item) return;
+      if (items) { queueRef.current = items; setQueue(items); }
+      setQueueOpening(index);
+      try {
+        let rec = libRef.current.find((r) => r.sourceUri === item.uri && (!item.size || r.sizeBytes === item.size));
+        if (!rec) {
+          rec = { ...(await importAsset({ uri: item.uri, name: item.name, size: item.size })), sourceUri: item.uri };
+          const added = rec;
+          setLib((l) => [added, ...l]);
+          void runAnalysis(added); // the player opens right away; speech sections appear when ready
+        }
+        const route: Route = { name: 'player', id: rec.id, queueIndex: index, autoplay: opts.autoplay };
+        setStack((s) => (opts.replace && s[s.length - 1]?.name === 'player' ? [...s.slice(0, -1), route] : [...s, route]));
+      } catch (e) {
+        showError(e);
+      } finally {
+        setQueueOpening(null);
+      }
+    },
+    [runAnalysis, setLib, showError],
+  );
+
   const resetAll = useCallback((lib: Recording[]) => { setLib(() => lib); setStack([{ name: 'library' }]); }, [setLib]);
 
   const dark = settings.theme === 'dark' || (settings.theme === 'system' && scheme === 'dark');
@@ -214,6 +255,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       settings,
       route: stack[stack.length - 1],
       navigate: (r) => setStack((s) => [...s, r]),
+      replace: (r) => setStack((s) => [...s.slice(0, -1), r]),
+      queue,
+      queueOpening,
+      playFromQueue,
       goBack: () => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s)),
       t,
       colors: dark ? DARK : LIGHT,
@@ -229,7 +274,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       showError,
       resetAll,
     }),
-    [ready, library, settings, stack, t, dark, updateSettings, updateRecording, getRecording, importFromPicker, reanalyse, addRecording, deleteRecording, showError, resetAll],
+    [ready, library, settings, stack, queue, queueOpening, playFromQueue, t, dark, updateSettings, updateRecording, getRecording, importFromPicker, reanalyse, addRecording, deleteRecording, showError, resetAll],
   );
 
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;

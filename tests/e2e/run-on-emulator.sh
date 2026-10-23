@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Runs inside the emulator step. Never exits non-zero so results always get published;
-# the outcome is written to results/STATUS.
+# Runs inside the emulator step. Exits non-zero when the flow fails or the app crashes;
+# the outcome is also written to results/STATUS (results are published by a later step).
 set -uo pipefail
 APK=$(ls apk/*.apk | head -1)
 RES=results
@@ -9,8 +9,12 @@ adb wait-for-device
 adb shell settings put global window_animation_scale 0
 adb shell settings put global transition_animation_scale 0
 adb shell settings put global animator_duration_scale 0
-adb install -r -g "$APK" > "$RES/install.txt" 2>&1 || { echo "INSTALL_FAILED" > "$RES/STATUS"; exit 0; }
+adb install -r -g "$APK" > "$RES/install.txt" 2>&1 || { echo "INSTALL_FAILED" > "$RES/STATUS"; exit 1; }
 for f in e2e-audio/*; do adb push "$f" /sdcard/Download/ >/dev/null; done
+# play-list folder (Android 11+ does not allow picking Download itself)
+adb shell mkdir -p /sdcard/Music/vc-playlist
+for f in arabic_noisy.m4a english_stereo.mp3 whisper_mix.m4a; do adb push "e2e-audio/$f" /sdcard/Music/vc-playlist/ >/dev/null; done
+adb shell "echo notes > /sdcard/Music/vc-playlist/notes.txt"
 adb shell content call --method scan_volume --uri content://media --arg external_primary > /dev/null 2>&1 || true
 adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/Download/ > /dev/null 2>&1 || true
 adb logcat -c

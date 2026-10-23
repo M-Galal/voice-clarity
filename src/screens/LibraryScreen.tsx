@@ -12,6 +12,7 @@ export function LibraryScreen() {
       <Header title={t('library')} right={<IconButton testID="open-settings" icon="⚙︎" label={t('settings')} onPress={() => navigate({ name: 'settings' })} />} />
       <View style={{ padding: space.lg, gap: space.xs }}>
         <Button testID="import" label={t('import')} icon="＋" onPress={importFromPicker} />
+        <Button testID="open-playlist" kind="secondary" label={t('pl_open')} icon="📁" onPress={() => navigate({ name: 'playlist' })} />
         <Txt size="sm" muted>{t('import_hint')}</Txt>
       </View>
       <FlatList

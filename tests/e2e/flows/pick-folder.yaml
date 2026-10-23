@@ -1,0 +1,24 @@
+# Chooses Music/vc-playlist in the Android folder picker (ACTION_OPEN_DOCUMENT_TREE).
+appId: com.example.voiceclarity
+---
+- extendedWaitUntil:
+    visible: "(?i)use this folder"
+    timeout: 20000
+- takeScreenshot: 50_folder_picker
+- runFlow:
+    when:
+      notVisible: "Music"
+    commands:
+      - tapOn:
+          text: "Show roots"
+          optional: true
+      - takeScreenshot: 50b_folder_roots
+      # the internal storage root is named after the device on emulators
+      - tapOn:
+          text: "(?i).*(built for x86|sdk_gphone|internal storage|Android SDK).*"
+          optional: true
+- tapOn: "Music"
+- tapOn: "vc-playlist"
+- takeScreenshot: 51_folder_chosen
+- tapOn: "(?i)use this folder"
+- tapOn: "(?i)allow"

@@ -154,7 +154,7 @@ export function deleteEnhanced(rec: Recording) {
 export const audioUri = (rec: Recording, which: 'original' | 'enhanced') =>
   fileIn(rec.id, which === 'enhanced' && rec.enhanced ? rec.enhanced.fileName : rec.originalFileName).uri;
 
-export async function shareAudio(rec: Recording, which: 'original' | 'enhanced') {
+export async function shareAudio(rec: Recording, which: 'original' | 'enhanced', dialogTitle?: string) {
   const uri = audioUri(rec, which);
   const mime = which === 'enhanced' ? 'audio/wav' : rec.mimeType ?? 'audio/*';
   if (!(await Sharing.isAvailableAsync())) throw new Error('sharing_unavailable');
@@ -163,7 +163,7 @@ export async function shareAudio(rec: Recording, which: 'original' | 'enhanced')
   const named = new File(tempDir(), `${safeName(rec.name)}${which === 'enhanced' ? '-enhanced' : ''}.${ext}`);
   if (named.exists) named.delete();
   await new File(uri).copy(named);
-  await Sharing.shareAsync(named.uri, { mimeType: mime, dialogTitle: rec.name });
+  await Sharing.shareAsync(named.uri, { mimeType: mime, dialogTitle: dialogTitle ?? rec.name });
 }
 
 export async function shareTranscript(rec: Recording, t: Transcript, format: 'txt' | 'srt' | 'vtt' | 'json') {

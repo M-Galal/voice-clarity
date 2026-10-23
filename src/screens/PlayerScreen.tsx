@@ -12,18 +12,28 @@ import { radius, space, TOUCH } from '../ui/theme';
 import { Waveform } from '../ui/Waveform';
 import { statusText } from './LibraryScreen';
 import { newId } from '../services/storage';
+import { secureFolderLikely } from '../services/playlist';
+import { stepIndex } from '../playlist/filter';
 
 
-export function PlayerScreen({ id }: { id: string }) {
+export function PlayerScreen({ id, queueIndex, autoplay }: { id: string; queueIndex?: number; autoplay?: boolean }) {
   const { library } = useApp();
   const rec = library.find((r) => r.id === id);
   if (!rec) return null;
-  return <Player key={rec.id} rec={rec} />;
+  return <Player key={rec.id} rec={rec} queueIndex={queueIndex} autoplay={autoplay} />;
 }
 
-function Player({ rec }: { rec: Recording }) {
+function Player({ rec, queueIndex, autoplay }: { rec: Recording; queueIndex?: number; autoplay?: boolean }) {
     const app = useApp();
-    const { t, goBack, navigate, settings, updateSettings, updateRecording, colors } = app;
+    const { t, goBack, navigate, settings, updateSettings, updateRecording, colors, queue, queueOpening, playFromQueue } = app;
+    const inQueue = queue && queueIndex !== undefined && queue[queueIndex] ? queueIndex : null;
+    const prevIndex = inQueue !== null ? stepIndex(inQueue, queue!.length, -1) : null;
+    const nextIndex = inQueue !== null ? stepIndex(inQueue, queue!.length, 1) : null;
+    const openQueue = (i: number | null, play: boolean) => {
+      if (i === null || queueOpening !== null) return;
+      player.pause();
+      void playFromQueue(null, i, { replace: true, autoplay: play });
+    };
     const [source, setSource] = useState<'original' | 'enhanced'>(rec.enhanced ? rec.lastPlayedSource : 'original');
     // fixed initial source; later switches go through player.replace()
     const [initialUri] = useState(() => audioUri(rec, source));
@@ -52,6 +62,10 @@ function Player({ rec }: { rec: Recording }) {
         // 'medium' = AVFoundation timeDomain on iOS (voice-oriented, 1/32x-32x); ignored on Android
         player.setPlaybackRate(clampRate(settings.playbackRate), 'medium');
         if (rec.lastPositionSec > 0 && rec.lastPositionSec < duration - 1) player.seekTo(rec.lastPositionSec);
+        if (autoplay) {
+          player.setActiveForLockScreen(true, { title: rec.name, artist: t('app_name') }, { showSeekBackward: true, showSeekForward: true });
+          player.play();
+        }
       }
     }, [status.isLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -72,6 +86,11 @@ function Player({ rec }: { rec: Recording }) {
       const target = skipSilenceTarget(segments, position, settings.skipSilenceMinGapSec);
       if (target !== null) player.seekTo(Math.max(0, target - 0.15));
     }, [position, settings.skipSilence]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // play list: start the next file when this one ends
+    useEffect(() => {
+      if (status.didJustFinish && settings.playlist.autoNext && nextIndex !== null) openQueue(nextIndex, true);
+    }, [status.didJustFinish]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Relative jumps (±10 s, next/previous) start from the last requested position for a moment
     // after a seek, because the reported position lags by up to one status update.
@@ -132,6 +151,12 @@ function Player({ rec }: { rec: Recording }) {
         { text: t('delete'), style: 'destructive', onPress: () => { player.pause(); app.deleteRecording(rec.id); } },
       ]);
 
+    const sendToSecureFolder = (which: 'original' | 'enhanced') =>
+      Alert.alert(t('secure_folder'), t('secure_folder_steps'), [
+        { text: t('cancel'), style: 'cancel' },
+        { text: t('continue'), onPress: () => { shareAudio(rec, which, t('secure_folder')).catch(app.showError); } },
+      ]);
+
     const busy = rec.status === 'analyzing' || rec.status === 'enhancing' || rec.status === 'transcribing';
 
     return (
@@ -148,6 +173,14 @@ function Player({ rec }: { rec: Recording }) {
             ) : null}
             {rec.status === 'error' ? <Button testID="retry" kind="secondary" label={t('retry')} onPress={() => app.reanalyse(rec.id)} /> : null}
           </Card>
+
+          {inQueue !== null ? (
+            <Row style={{ justifyContent: 'space-between', direction: 'ltr' }}>
+              <IconButton testID="pl-prev" icon="⏪" label={t('pl_prev')} onPress={() => openQueue(prevIndex, status.playing)} disabled={prevIndex === null || queueOpening !== null} />
+              <Txt testID="pl-track" muted>{queueOpening !== null ? t('pl_opening') : t('pl_track', { i: inQueue + 1, n: queue!.length })}</Txt>
+              <IconButton testID="pl-next" icon="⏩" label={t('pl_next')} onPress={() => openQueue(nextIndex, status.playing)} disabled={nextIndex === null || queueOpening !== null} />
+            </Row>
+          ) : null}
 
           {rec.enhanced ? (
             <Choice
@@ -264,6 +297,15 @@ function Player({ rec }: { rec: Recording }) {
               <Txt muted>{t('export_audio')}</Txt>
               <Button kind="secondary" label={`${t('export_original')} (${rec.format})`} onPress={() => shareAudio(rec, 'original').catch(app.showError)} />
               {rec.enhanced ? <Button kind="secondary" label={t('export_enhanced')} onPress={() => shareAudio(rec, 'enhanced').catch(app.showError)} /> : <Txt size="sm" muted>{t('no_enhanced_yet')}</Txt>}
+              {secureFolderLikely() ? (
+                <>
+                  <Txt muted>{t('secure_folder')}</Txt>
+                  <Row wrap>
+                    <Button testID="secure-original" compact kind="secondary" icon="🔒" label={`${t('original')} (${rec.format})`} onPress={() => sendToSecureFolder('original')} />
+                    {rec.enhanced ? <Button testID="secure-enhanced" compact kind="secondary" icon="🔒" label={`${t('enhanced')} (WAV)`} onPress={() => sendToSecureFolder('enhanced')} /> : null}
+                  </Row>
+                </>
+              ) : null}
               <Txt muted>{t('export_transcript')}</Txt>
               {rec.transcript ? (
                 <Row wrap>

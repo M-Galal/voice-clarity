@@ -424,6 +424,72 @@ appId: com.example.voiceclarity
 - assertVisible: ".*arabic_noisy-v1.*Ready.*"
 - takeScreenshot: 23_library_four_files
 
+# ---- Play list from a folder: filters, play, next file ----
+- tapOn:
+    id: "open-playlist"
+- tapOn:
+    id: "pl-pick"
+- runFlow:
+    file: pick-folder.yaml
+- extendedWaitUntil:
+    visible: "3 of 3 audio files match"
+    timeout: 20000
+- assertVisible: ".*Music/vc-playlist"
+- assertNotVisible: "notes.txt"
+- takeScreenshot: 52_playlist
+- tapOn:
+    id: "pl-ext"
+- inputText: "m4a"
+- hideKeyboard
+- assertVisible: "2 of 3 audio files match"
+- tapOn:
+    id: "pl-name"
+- inputText: "whisper"
+- hideKeyboard
+- assertVisible: "1 of 3 audio files match"
+- takeScreenshot: 53_playlist_filtered
+- eraseText:
+    charactersToErase: 20
+- hideKeyboard
+- tapOn:
+    id: "pl-ext"
+- eraseText:
+    charactersToErase: 10
+- hideKeyboard
+- assertVisible: "3 of 3 audio files match"
+- tapOn:
+    id: "pl-sort-oldest"
+- tapOn:
+    id: "pl-sort-name"
+- scrollUntilVisible:
+    element:
+      id: "pl-item-arabic_noisy.m4a"
+- tapOn:
+    id: "pl-item-arabic_noisy.m4a"
+- extendedWaitUntil:
+    visible: "File 1 of 3"
+    timeout: 30000
+# it starts playing on its own
+- extendedWaitUntil:
+    notVisible:
+      id: "elapsed"
+      text: "0:00"
+    timeout: 15000
+- takeScreenshot: 54_playlist_player
+- tapOn:
+    id: "pl-next"
+- extendedWaitUntil:
+    visible: "File 2 of 3"
+    timeout: 30000
+- assertVisible: "english_stereo"
+- tapOn:
+    id: "play-pause"
+- takeScreenshot: 55_playlist_next
+- back
+- assertVisible:
+    id: "pl-count"
+- back
+
 # ---- Arabic interface ----
 - tapOn:
     id: "open-settings"
