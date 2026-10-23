@@ -7,12 +7,5 @@ group = 'expo.modules.voiceencoder'
 version = '0.1.0'
 
 android {
-  namespace "expo.modules.voiceencoder"
-  defaultConfig {
-    versionCode 1
-    versionName "0.1.0"
-  }
-  lintOptions {
-    abortOnError false
-  }
+  namespace = 'expo.modules.voiceencoder'
 }
