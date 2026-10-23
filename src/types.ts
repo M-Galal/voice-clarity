@@ -1,0 +1,86 @@
+import type { EnhanceReport, EnhanceSettings } from './dsp/pipeline';
+import type { Segment } from './dsp/vad';
+import type { Transcript } from './transcript/format';
+
+export interface Bookmark {
+  id: string;
+  time: number; // seconds
+  label: string;
+  note?: string;
+  createdAt: string;
+}
+
+export type ProcessingStatus = 'ready' | 'analyzing' | 'enhancing' | 'transcribing' | 'error';
+
+export interface EnhancedCopy {
+  fileName: string; // inside the recording folder
+  sizeBytes: number;
+  sampleRate: number;
+  createdAt: string;
+  settings: EnhanceSettings;
+  report: Omit<EnhanceReport, 'segments'>;
+  /** Speech segments on the enhanced timeline (differs from the original when silence was removed). */
+  segments: Segment[];
+}
+
+export interface Recording {
+  id: string;
+  name: string;
+  /** File name of the untouched original inside the recording folder. */
+  originalFileName: string;
+  format: string; // upper-case extension, e.g. "M4A"
+  mimeType?: string;
+  sizeBytes: number;
+  durationSec: number;
+  sampleRate?: number;
+  channels?: number;
+  importedAt: string;
+  lastPositionSec: number;
+  lastPlayedSource: 'original' | 'enhanced';
+  bookmarks: Bookmark[];
+  /** Speech segments on the original timeline. */
+  segments?: Segment[];
+  waveform?: number[];
+  noiseFloorDb?: number;
+  enhanced?: EnhancedCopy;
+  transcript?: Transcript;
+  status: ProcessingStatus;
+  statusDetail?: string;
+  error?: string;
+}
+
+export type UiLanguage = 'en' | 'ar';
+
+export interface AppSettings {
+  uiLanguage: UiLanguage;
+  theme: 'system' | 'light' | 'dark';
+  /** Extra text scale on top of the OS setting. */
+  textScale: number;
+  playbackRate: number;
+  skipSilence: boolean;
+  /** Pauses shorter than this are not skipped (seconds). */
+  skipSilenceMinGapSec: number;
+  /** dB above the noise floor that counts as speech. */
+  vadThresholdDb: number;
+  /** Processing sample rate for enhancement. */
+  processingRate: 16000 | 24000 | 48000;
+  enhance: EnhanceSettings;
+  auto: {
+    detectSpeech: boolean;
+    enhance: boolean;
+    transcribe: boolean;
+    /** Run the auto workflow right after import (still asks before saving). */
+    runOnImport: boolean;
+  };
+  transcription: {
+    language: string; // 'auto' or ISO code
+    modelId: string;
+    useEnhancedAudio: boolean;
+    /** Optional prompt to bias vocabulary/dialect, e.g. place names. */
+    prompt: string;
+  };
+  export: {
+    transcriptFormat: 'txt' | 'srt' | 'vtt' | 'json';
+  };
+  privacyAcknowledged: boolean;
+}

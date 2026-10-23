@@ -3,20 +3,39 @@
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
+    "@react-native-community/slider": "^5.2.1",
+    "buffer": "^6.0.3",
     "expo": "~58.0.17",
+    "expo-audio": "~58.0.10",
+    "expo-clipboard": "~58.0.4",
+    "expo-document-picker": "~58.0.4",
+    "expo-file-system": "~58.0.10",
+    "expo-keep-awake": "~58.0.3",
+    "expo-sharing": "~58.0.20",
     "expo-status-bar": "~58.0.4",
+    "expo-system-ui": "~58.0.6",
     "react": "19.3.0",
-    "react-native": "0.88.0"
+    "react-native": "0.88.0",
+    "react-native-audio-api": "^0.13.6",
+    "react-native-safe-area-context": "~5.10.1",
+    "whisper.rn": "^0.7.4"
   },
   "devDependencies": {
+    "@types/node": "^22.20.5",
     "@types/react": "~19.3.0",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.3"
   },
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "test": "tsx --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit -p .",
+    "prebuild": "expo prebuild",
+    "android:dev": "expo run:android",
+    "ios:dev": "expo run:ios"
   },
   "private": true
 }

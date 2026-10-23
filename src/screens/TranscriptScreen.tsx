@@ -1,0 +1,245 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { FlatList, Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
+import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
+import { useKeepAwake } from 'expo-keep-awake';
+import { audioUri, shareTranscript } from '../services/processing';
+import { downloadModel, isModelReady, MODELS, startTranscription, type TranscribeJob } from '../services/transcription';
+import { useApp } from '../state/AppContext';
+import { clock, isMostlyArabic, searchTranscript, toTxt, type TranscriptSegment } from '../transcript/format';
+import type { Recording } from '../types';
+import { Button, Card, Choice, Header, IconButton, ProgressBar, Row, Section, Toggle, Txt, Warning } from '../ui/components';
+import { radius, space, TOUCH } from '../ui/theme';
+
+export const LANGS = ['auto', 'ar', 'en', 'fr', 'ur', 'hi'] as const;
+
+export function TranscriptScreen({ id }: { id: string }) {
+  const { library } = useApp();
+  const rec = library.find((r) => r.id === id);
+  if (!rec) return null;
+  return <TranscriptView rec={rec} />;
+}
+
+function TranscriptView({ rec }: { rec: Recording }) {
+  const { t, goBack, settings, updateSettings, updateRecording, showError, colors, fs } = useApp();
+  const [running, setRunning] = useState<number | null>(null);
+  const [redo, setRedo] = useState(false);
+  const job = useRef<TranscribeJob | null>(null);
+  const tr = settings.transcription;
+  const model = MODELS.find((m) => m.id === tr.modelId) ?? MODELS[1];
+  const [dl, setDl] = useState<number | null>(null);
+  const [modelReady, setModelReady] = useState(() => isModelReady(model));
+  useEffect(() => setModelReady(isModelReady(model)), [model]);
+
+  const start = async () => {
+    setRunning(0);
+    updateRecording(rec.id, { status: 'transcribing' });
+    try {
+      job.current = await startTranscription(rec, { modelId: tr.modelId, language: tr.language, useEnhanced: tr.useEnhancedAudio, prompt: tr.prompt }, (p) => setRunning(p));
+      const transcript = await job.current.promise;
+      updateRecording(rec.id, { transcript, status: 'ready' });
+      setRedo(false);
+    } catch (e) {
+      updateRecording(rec.id, { status: 'ready' });
+      if (!(e instanceof Error && e.message === 'aborted')) showError(e);
+    } finally {
+      job.current = null;
+      setRunning(null);
+    }
+  };
+
+  const download = async () => {
+    setDl(0);
+    try {
+      await downloadModel(model, setDl);
+      setModelReady(true);
+    } catch (e) {
+      showError(e);
+    } finally {
+      setDl(null);
+    }
+  };
+
+  const showSetup = !rec.transcript || redo;
+  return (
+    <View style={{ flex: 1 }}>
+      <Header title={`${t('transcript')} · ${rec.name}`} onBack={() => { job.current?.stop(); goBack(); }} />
+      {running !== null ? (
+        <RunningView progress={running} onCancel={() => job.current?.stop()} />
+      ) : showSetup ? (
+        <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.lg }}>
+            <View style={{ gap: space.lg }}>
+              <Txt size="sm" muted>{t('processing_local')}</Txt>
+              <Section title={t('transcript_language')}>
+                <Choice value={tr.language} onChange={(v) => updateSettings({ transcription: { ...tr, language: v } })} options={LANGS.map((l) => ({ value: l, label: t(`lang_${l}` as 'lang_ar') }))} />
+                <Txt size="sm" muted>{t('dialect_note')}</Txt>
+                <Txt size="sm" muted>{t('speakers_note')}</Txt>
+              </Section>
+              <Section title={t('model')}>
+                <Choice value={tr.modelId} onChange={(v) => updateSettings({ transcription: { ...tr, modelId: v } })} options={MODELS.map((m) => ({ value: m.id, label: t(m.labelKey) }))} />
+                {modelReady ? <Txt size="sm" style={{ color: colors.ok }}>✓ {t('downloaded')}</Txt> : dl !== null ? <ProgressBar value={dl} label={t('downloading')} /> : (
+                  <>
+                    <Txt size="sm" muted>{t('model_download_note')}</Txt>
+                    <Button kind="secondary" label={`${t('download')} (${model.sizeMB} MB)`} onPress={download} />
+                  </>
+                )}
+              </Section>
+              <Section title={t('transcription')}>
+                <Toggle label={t('use_enhanced_audio')} value={tr.useEnhancedAudio} onChange={(v) => updateSettings({ transcription: { ...tr, useEnhancedAudio: v } })} disabled={!rec.enhanced} />
+                <Txt>{t('prompt')}</Txt>
+                <TextInput
+                  value={tr.prompt}
+                  onChangeText={(v) => updateSettings({ transcription: { ...tr, prompt: v } })}
+                  placeholder={t('prompt_hint')}
+                  placeholderTextColor={colors.textMuted}
+                  multiline
+                  accessibilityLabel={t('prompt')}
+                  style={{ minHeight: TOUCH * 1.5, borderWidth: 1, borderColor: colors.border, borderRadius: radius, padding: space.md, color: colors.text, fontSize: fs.md, textAlign: 'auto' }}
+                />
+              </Section>
+              <Button label={t('transcribe')} icon="📝" onPress={start} disabled={!modelReady} />
+              {rec.transcript ? <Button kind="ghost" label={t('cancel')} onPress={() => setRedo(false)} /> : null}
+            </View>
+        </ScrollView>
+      ) : (
+        <TranscriptBody rec={rec} onRedo={() => setRedo(true)} />
+      )}
+    </View>
+  );
+}
+
+function RunningView({ progress, onCancel }: { progress: number; onCancel: () => void }) {
+  const { t } = useApp();
+  useKeepAwake();
+  return (
+    <View style={{ padding: space.lg, gap: space.lg }}>
+      <ProgressBar value={progress} label={t('stage_transcribe')} />
+      <Txt size="sm" muted>{t('processing_local')}</Txt>
+      <Button kind="danger" label={t('cancel')} onPress={onCancel} />
+    </View>
+  );
+}
+
+function TranscriptBody({ rec, onRedo }: { rec: Recording; onRedo: () => void }) {
+  const { t, settings, updateSettings, updateRecording, showError, colors, fs } = useApp();
+  const transcript = rec.transcript!;
+  const src = transcript.fromEnhanced && rec.enhanced ? 'enhanced' : 'original';
+  const [initial] = useState(() => audioUri(rec, src));
+  const player = useAudioPlayer({ uri: initial }, { updateInterval: 150 });
+  const status = useAudioPlayerStatus(player);
+  const [query, setQuery] = useState('');
+  const [editing, setEditing] = useState<TranscriptSegment | null>(null);
+  const [copied, setCopied] = useState(false);
+  const matches = useMemo(() => new Set(searchTranscript(transcript, query)), [transcript, query]);
+  const visible = query.trim() ? transcript.segments.filter((s) => matches.has(s.id)) : transcript.segments;
+  const flagged = transcript.segments.filter((s) => s.flag && s.flag !== 'edited').length;
+
+  const playSeg = (s: TranscriptSegment) => {
+    player.seekTo(s.start);
+    player.play();
+  };
+  useEffect(() => () => { try { player.pause(); } catch { /* released */ } }, [player]);
+
+  const saveEdit = (text: string) => {
+    if (!editing) return;
+    updateRecording(rec.id, (r) => ({
+      transcript: r.transcript && { ...r.transcript, segments: r.transcript.segments.map((s) => (s.id === editing.id ? { ...s, text, flag: 'edited', edited: true } : s)) },
+    }));
+    setEditing(null);
+  };
+
+  const langName = (code: string) => (LANGS as readonly string[]).includes(code) ? t(`lang_${code}` as 'lang_ar') : code;
+
+  return (
+    <View style={{ flex: 1 }}>
+      <View style={{ padding: space.lg, gap: space.sm }}>
+        <Txt size="sm" muted>{t('detected_language', { lang: langName(transcript.language) })} · {t('transcript_from', { src: t(src), model: transcript.model })}</Txt>
+        {flagged ? <Warning text={`${t('uncertain')}: ${flagged}`} /> : null}
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder={t('search')}
+          placeholderTextColor={colors.textMuted}
+          accessibilityLabel={t('search')}
+          style={{ minHeight: TOUCH, borderWidth: 1, borderColor: colors.border, borderRadius: radius, paddingHorizontal: space.md, color: colors.text, fontSize: fs.md, textAlign: 'auto' }}
+        />
+        {query.trim() ? <Txt size="sm" muted>{t('results', { n: matches.size })}</Txt> : <Txt size="sm" muted>{t('tap_to_play')}</Txt>}
+      </View>
+      <FlatList
+        data={visible}
+        keyExtractor={(s) => s.id}
+        contentContainerStyle={{ paddingHorizontal: space.lg, gap: space.sm, paddingBottom: space.xl }}
+        ListEmptyComponent={<Txt muted>{t('no_transcript')}</Txt>}
+        renderItem={({ item }) => {
+          const active = status.currentTime >= item.start && status.currentTime < item.end;
+          const rtlText = isMostlyArabic(item.text);
+          const warn = item.flag && item.flag !== 'edited';
+          return (
+            <Pressable
+              onPress={() => playSeg(item)}
+              onLongPress={() => setEditing(item)}
+              accessibilityRole="button"
+              accessibilityLabel={`${clock(item.start)}. ${item.text}${warn ? `. ${t('uncertain')}` : ''}`}
+              accessibilityHint={t('tap_to_play')}
+              style={{
+                padding: space.md, borderRadius: radius, gap: space.xs,
+                backgroundColor: active ? colors.speech : colors.surface,
+                borderWidth: warn ? 2 : 1, borderColor: warn ? colors.warn : colors.border,
+                borderStyle: warn ? 'dashed' : 'solid',
+              }}
+            >
+              <Row style={{ justifyContent: 'space-between', direction: 'ltr' }}>
+                <Txt size="xs" muted>{`${clock(item.start)} – ${clock(item.end)}`}</Txt>
+                {item.flag ? <Txt size="xs" style={{ color: item.flag === 'edited' ? colors.textMuted : colors.warn }}>{item.flag === 'edited' ? t('flag_edited') : t('uncertain')}</Txt> : null}
+              </Row>
+              <Txt size="lg" selectable style={{ writingDirection: rtlText ? 'rtl' : 'ltr', textAlign: rtlText ? 'right' : 'left', lineHeight: fs.lg * 1.6 }}>{item.text}</Txt>
+              {warn ? <Txt size="xs" style={{ color: colors.warn }}>{t(`flag_${item.flag}` as 'flag_low_audio_quality')}</Txt> : null}
+            </Pressable>
+          );
+        }}
+      />
+      <Card style={{ margin: space.md }}>
+        <Row style={{ justifyContent: 'center', direction: 'ltr' }}>
+          <IconButton icon={status.playing ? '❚❚' : '▶'} label={status.playing ? t('pause') : t('play')} onPress={() => (status.playing ? player.pause() : player.play())} />
+          <Txt size="sm" muted>{`${clock(status.currentTime)} / ${clock(status.duration)}`}</Txt>
+        </Row>
+        <Row wrap>
+          <Button compact kind="secondary" label={copied ? t('copied') : t('copy')} onPress={async () => { await Clipboard.setStringAsync(toTxt(transcript, false)); setCopied(true); setTimeout(() => setCopied(false), 1500); }} />
+          <Choice value={settings.export.transcriptFormat} onChange={(v) => updateSettings({ export: { transcriptFormat: v } })} options={(['txt', 'srt', 'vtt', 'json'] as const).map((f) => ({ value: f, label: f.toUpperCase() }))} />
+          <Button compact kind="secondary" label={t('export')} onPress={() => shareTranscript(rec, transcript, settings.export.transcriptFormat).catch(showError)} />
+          <Button compact kind="secondary" label={t('transcribe')} onPress={onRedo} />
+          <Button compact kind="danger" label={t('delete_transcript')} onPress={() => updateRecording(rec.id, { transcript: undefined })} />
+        </Row>
+      </Card>
+      <EditModal seg={editing} onClose={() => setEditing(null)} onSave={saveEdit} />
+    </View>
+  );
+}
+
+function EditModal({ seg, onClose, onSave }: { seg: TranscriptSegment | null; onClose: () => void; onSave: (text: string) => void }) {
+  const { t, colors, fs } = useApp();
+  const [text, setText] = useState('');
+  useEffect(() => { if (seg) setText(seg.text); }, [seg]);
+  const rtl = isMostlyArabic(text);
+  return (
+    <Modal visible={!!seg} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={{ flex: 1, justifyContent: 'center', padding: space.xl, backgroundColor: 'rgba(0,0,0,0.4)' }}>
+        <Card>
+          <Txt bold>{seg ? `${t('edit')} · ${clock(seg.start)}` : ''}</Txt>
+          <TextInput
+            value={text}
+            onChangeText={setText}
+            multiline
+            autoFocus
+            accessibilityLabel={t('edit')}
+            style={{ minHeight: 120, borderWidth: 1, borderColor: colors.border, borderRadius: radius, padding: space.md, color: colors.text, fontSize: fs.lg, writingDirection: rtl ? 'rtl' : 'ltr', textAlign: rtl ? 'right' : 'left', textAlignVertical: 'top' }}
+          />
+          <Row>
+            <Button kind="ghost" label={t('cancel')} onPress={onClose} style={{ flex: 1 }} />
+            <Button label={t('save')} onPress={() => onSave(text.trim())} style={{ flex: 1 }} />
+          </Row>
+        </Card>
+      </View>
+    </Modal>
+  );
+}
