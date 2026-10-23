@@ -1,9 +1,9 @@
-import { FlatList, Pressable, View } from 'react-native';
+import { FlatList, Pressable, Text, View } from 'react-native';
 import { clock } from '../transcript/format';
 import { formatBytes, useApp } from '../state/AppContext';
 import type { Recording } from '../types';
-import { Button, Header, IconButton, Row, Txt } from '../ui/components';
-import { radius, space } from '../ui/theme';
+import { Button, Header, IconButton, Txt } from '../ui/components';
+import { radius, space, TOUCH } from '../ui/theme';
 
 export function LibraryScreen() {
   const { t, library, importFromPicker, navigate, colors } = useApp();
@@ -18,7 +18,7 @@ export function LibraryScreen() {
       <FlatList
         data={library}
         keyExtractor={(r) => r.id}
-        contentContainerStyle={{ padding: space.lg, paddingTop: 0, gap: space.md }}
+        contentContainerStyle={{ padding: space.lg, paddingTop: 0, gap: space.sm }}
         ListEmptyComponent={<Txt muted>{t('empty_library')}</Txt>}
         renderItem={({ item }) => <RecordingRow rec={item} onOpen={() => navigate({ name: 'player', id: item.id })} colorsBg={colors.surface} border={colors.border} />}
       />
@@ -46,20 +46,18 @@ function RecordingRow({ rec, onOpen, colorsBg, border }: { rec: Recording; onOpe
       testID={`rec-${rec.name}`}
       accessibilityRole="button"
       accessibilityLabel={summary}
-      style={({ pressed }) => ({ backgroundColor: colorsBg, borderRadius: radius, borderWidth: 1, borderColor: border, padding: space.lg, gap: space.xs, opacity: pressed ? 0.85 : 1 })}
+      style={({ pressed }) => ({
+        backgroundColor: colorsBg, borderRadius: radius, borderWidth: 1, borderColor: border,
+        paddingHorizontal: space.md, paddingVertical: space.sm, minHeight: TOUCH, justifyContent: 'center', gap: 2,
+        opacity: pressed ? 0.85 : 1,
+      })}
     >
-      <Txt bold size="lg" numberOfLines={2}>{rec.name}</Txt>
-      <Row wrap>
-        <Txt size="sm" muted>{clock(rec.durationSec)}</Txt>
-        <Txt size="sm" muted>·</Txt>
-        <Txt size="sm" muted>{rec.format}</Txt>
-        <Txt size="sm" muted>·</Txt>
-        <Txt size="sm" muted>{formatBytes(rec.sizeBytes)}</Txt>
-      </Row>
-      <Row wrap>
-        <Txt size="sm" style={{ color: rec.status === 'error' ? colors.danger : rec.status === 'ready' ? colors.ok : colors.primary }}>{statusText(rec, t)}</Txt>
-        {badges ? <Txt size="sm" muted>· {badges}</Txt> : null}
-      </Row>
+      <Txt bold numberOfLines={1}>{rec.name}</Txt>
+      <Txt size="sm" muted numberOfLines={1}>
+        {`${clock(rec.durationSec)} · ${rec.format} · ${formatBytes(rec.sizeBytes)} · `}
+        <Text style={{ color: rec.status === 'error' ? colors.danger : rec.status === 'ready' ? colors.ok : colors.primary }}>{statusText(rec, t)}</Text>
+        {badges ? ` · ${badges}` : ''}
+      </Txt>
     </Pressable>
   );
 }

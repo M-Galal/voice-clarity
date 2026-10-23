@@ -161,7 +161,7 @@ export function PlaylistScreen() {
         data={loading ? [] : files}
         keyExtractor={(f) => f.uri}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ padding: space.lg, gap: space.sm }}
+        contentContainerStyle={{ padding: space.lg, gap: space.xs }}
         ListHeaderComponent={header}
         ListEmptyComponent={pl.folderUri && !loading && !scan?.error ? <Txt muted>{t('pl_empty')}</Txt> : undefined}
         renderItem={({ item, index }) => {
@@ -178,16 +178,17 @@ export function PlaylistScreen() {
               accessibilityActions={[{ name: 'delete', label: t('pl_delete', { file: item.name }) }]}
               onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'delete') confirmDelete(item); }}
               style={({ pressed }) => ({
-                minHeight: TOUCH, padding: space.md, borderRadius: radius, borderWidth: 1, borderColor: colors.border,
-                backgroundColor: colors.surface, opacity: pressed ? 0.85 : 1, gap: 2,
+                minHeight: TOUCH, paddingHorizontal: space.md, paddingVertical: space.xs, borderRadius: radius, borderWidth: 1,
+                borderColor: colors.border, backgroundColor: colors.surface, opacity: pressed ? 0.85 : 1,
+                flexDirection: 'row', alignItems: 'center', gap: space.sm,
               })}
             >
-              <Row>
-                <Txt bold numberOfLines={2} style={{ flex: 1, writingDirection: 'auto' }}>{item.name}</Txt>
-                {opening ? <ActivityIndicator color={colors.primary} /> : inLibrary.has(item.uri) ? <Txt size="sm" style={{ color: colors.ok }}>✓</Txt> : null}
-                <IconButton testID={`pl-del-${item.name}`} icon="🗑" label={t('pl_delete', { file: item.name })} onPress={() => confirmDelete(item)} disabled={queueOpening !== null} />
-              </Row>
-              <Txt size="sm" muted>{opening ? t('pl_opening') : meta}</Txt>
+              <View style={{ flex: 1 }}>
+                <Txt bold numberOfLines={1} style={{ writingDirection: 'auto' }}>{item.name}</Txt>
+                <Txt size="sm" muted numberOfLines={1}>{opening ? t('pl_opening') : meta}</Txt>
+              </View>
+              {opening ? <ActivityIndicator color={colors.primary} /> : inLibrary.has(item.uri) ? <Txt size="sm" style={{ color: colors.ok }}>✓</Txt> : null}
+              <IconButton testID={`pl-del-${item.name}`} icon="🗑" label={t('pl_delete', { file: item.name })} onPress={() => confirmDelete(item)} disabled={queueOpening !== null} />
             </Pressable>
           );
         }}
