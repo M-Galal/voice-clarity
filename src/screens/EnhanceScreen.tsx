@@ -170,11 +170,13 @@ function summary(s: EnhanceSettings, rate: number, t: ReturnType<typeof useApp>[
 
 function LoudnessSection({ s, patch }: { s: EnhanceSettings; patch: (p: Partial<EnhanceSettings>) => void }) {
   const { t, colors, fs } = useApp();
-  const [pctText, setPctText] = useState(dbToPercent(s.manualGainDb).toFixed(0));
-  useEffect(() => setPctText(dbToPercent(s.manualGainDb).toFixed(0)), [s.manualGainDb]);
+  // null = not editing; the field then shows the current gain as a percentage
+  const [pctDraft, setPctDraft] = useState<string | null>(null);
+  const pctText = pctDraft ?? dbToPercent(s.manualGainDb).toFixed(0);
   const applyPct = () => {
     const n = Number(pctText.replace(',', '.').replace('%', ''));
-    if (!isFinite(n) || n <= -100) { setPctText(dbToPercent(s.manualGainDb).toFixed(0)); return; }
+    setPctDraft(null);
+    if (!isFinite(n) || n <= -100) return;
     patch({ manualGainDb: Math.max(-24, Math.min(30, Math.round(percentToDb(n) * 10) / 10)) });
   };
   return (
@@ -197,7 +199,7 @@ function LoudnessSection({ s, patch }: { s: EnhanceSettings; patch: (p: Partial<
             <Txt style={{ flex: 1 }}>%</Txt>
             <TextInput
               value={pctText}
-              onChangeText={setPctText}
+              onChangeText={setPctDraft}
               onEndEditing={applyPct}
               onSubmitEditing={applyPct}
               keyboardType="numbers-and-punctuation"

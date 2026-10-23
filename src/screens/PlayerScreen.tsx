@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { AccessibilityInfo, Alert, Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { nextSegmentStart, previousSegmentStart, skipSilenceTarget } from '../dsp/vad';
 import { audioUri, shareAudio, shareTranscript } from '../services/processing';
@@ -31,6 +31,7 @@ function Player({ rec }: { rec: Recording }) {
     const status = useAudioPlayerStatus(player);
     const [editing, setEditing] = useState<Bookmark | null>(null);
     const [exportOpen, setExportOpen] = useState(false);
+    const [notice, setNotice] = useState<string | null>(null);
     const restored = useRef(false);
     const lastSaved = useRef(0);
 
@@ -94,7 +95,10 @@ function Player({ rec }: { rec: Recording }) {
     const addBookmark = () => {
       const b: Bookmark = { id: newId(), time: Math.round(position * 10) / 10, label: t('bookmark_n', { n: rec.bookmarks.length + 1 }), createdAt: new Date().toISOString() };
       updateRecording(rec.id, (r) => ({ bookmarks: [...r.bookmarks, b] }));
-      Alert.alert(t('add_bookmark'), `${b.label} · ${clock(b.time)}`);
+      const msg = t('bookmark_added', { label: b.label, time: clock(b.time) });
+      setNotice(msg);
+      AccessibilityInfo.announceForAccessibility(msg);
+      setTimeout(() => setNotice(null), 2500);
     };
     const nextBookmark = () => { const b = bookmarks.find((x) => x.time > position + 0.3); if (b) seek(b.time); };
     const prevBookmark = () => { const b = [...bookmarks].reverse().find((x) => x.time < position - 1); if (b) seek(b.time); };
@@ -157,6 +161,7 @@ function Player({ rec }: { rec: Recording }) {
             <IconButton testID="next-bookmark" icon="⚑▶︎" label={t('next_bookmark')} onPress={nextBookmark} disabled={!bookmarks.length || !bookmarksVisible} />
           </Row>
 
+          {notice ? <Txt testID="bookmark-notice" style={{ textAlign: 'center', color: colors.ok }}>{notice}</Txt> : null}
           <Choice
             testID="speed"
             label={t('speed')}
@@ -209,12 +214,13 @@ function Player({ rec }: { rec: Recording }) {
           </Section>
         </ScrollView>
 
-        <BookmarkEditor
+        {editing ? <BookmarkEditor
+          key={editing.id}
           bookmark={editing}
           onClose={() => setEditing(null)}
           onSave={(b) => { updateRecording(rec.id, (r) => ({ bookmarks: r.bookmarks.map((x) => (x.id === b.id ? b : x)) })); setEditing(null); }}
           duration={duration}
-        />
+        /> : null}
         <Modal visible={exportOpen} transparent animationType="slide" onRequestClose={() => setExportOpen(false)}>
           <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }}>
             <View style={{ backgroundColor: colors.surface, padding: space.lg, gap: space.md, borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
@@ -244,18 +250,16 @@ function parseClock(s: string): number | null {
   return parts.reduce((acc, p) => acc * 60 + Number(p), 0);
 }
 
-function BookmarkEditor({ bookmark, onClose, onSave, duration }: { bookmark: Bookmark | null; onClose: () => void; onSave: (b: Bookmark) => void; duration: number }) {
+/** Mounted per bookmark (keyed by id), so its fields start from that bookmark. */
+function BookmarkEditor({ bookmark, onClose, onSave, duration }: { bookmark: Bookmark; onClose: () => void; onSave: (b: Bookmark) => void; duration: number }) {
   const { t, colors, fs } = useApp();
-  const [label, setLabel] = useState('');
-  const [time, setTime] = useState('');
-  useEffect(() => {
-    if (bookmark) { setLabel(bookmark.label); setTime(clock(bookmark.time)); }
-  }, [bookmark]);
+  const [label, setLabel] = useState(bookmark.label);
+  const [time, setTime] = useState(clock(bookmark.time));
   const parsed = parseClock(time);
   const valid = label.trim().length > 0 && parsed !== null && parsed >= 0 && parsed <= duration;
   const input = { borderWidth: 1, borderColor: colors.border, borderRadius: radius, padding: space.md, color: colors.text, fontSize: fs.md, minHeight: TOUCH, textAlign: 'auto' as const };
   return (
-    <Modal visible={!!bookmark} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <View style={{ flex: 1, justifyContent: 'center', padding: space.xl, backgroundColor: 'rgba(0,0,0,0.4)' }}>
         <Card>
           <Txt size="lg" bold>{t('edit')}</Txt>
@@ -265,7 +269,7 @@ function BookmarkEditor({ bookmark, onClose, onSave, duration }: { bookmark: Boo
           <TextInput value={time} onChangeText={setTime} style={[input, { writingDirection: 'ltr' }]} keyboardType="numbers-and-punctuation" accessibilityLabel={t('bookmark_time')} />
           <Row>
             <Button kind="ghost" label={t('cancel')} onPress={onClose} style={{ flex: 1 }} />
-            <Button testID="bm-save" label={t('save')} disabled={!valid} onPress={() => bookmark && parsed !== null && onSave({ ...bookmark, label: label.trim(), time: parsed })} style={{ flex: 1 }} />
+            <Button testID="bm-save" label={t('save')} disabled={!valid} onPress={() => parsed !== null && onSave({ ...bookmark, label: label.trim(), time: parsed })} style={{ flex: 1 }} />
           </Row>
         </Card>
       </View>

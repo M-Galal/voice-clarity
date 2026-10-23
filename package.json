@@ -23,6 +23,8 @@
   "devDependencies": {
     "@types/node": "^22.20.5",
     "@types/react": "~19.3.0",
+    "eslint": "^9.39.5",
+    "eslint-config-expo": "^58.0.4",
     "tsx": "^4.23.15",
     "typescript": "~6.0.3"
   },
@@ -35,7 +37,8 @@
     "typecheck": "tsc --noEmit -p .",
     "prebuild": "expo prebuild",
     "android:dev": "expo run:android",
-    "ios:dev": "expo run:ios"
+    "ios:dev": "expo run:ios",
+    "lint": "eslint ."
   },
   "private": true
 }

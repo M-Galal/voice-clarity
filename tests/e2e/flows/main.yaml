@@ -51,7 +51,7 @@ appId: com.example.voiceclarity
 # ---- Bookmarks ----
 - tapOn:
     id: "add-bookmark"
-- tapOn: "OK"
+- assertVisible: "Added Bookmark 1 at .*"
 - scrollUntilVisible:
     element: "Bookmark 1"
 - tapOn:

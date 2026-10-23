@@ -42,6 +42,7 @@ jobs:
         run: |
           mkdir -p build-results
           npm run typecheck 2>&1 | tee build-results/typecheck.txt
+          npm run lint 2>&1 | tee build-results/lint.txt
           npm test 2>&1 | tee build-results/unit-tests.txt
 
       - name: Generate native Android project

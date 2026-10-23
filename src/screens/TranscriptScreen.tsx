@@ -28,8 +28,9 @@ function TranscriptView({ rec }: { rec: Recording }) {
   const tr = settings.transcription;
   const model = MODELS.find((m) => m.id === tr.modelId) ?? MODELS[1];
   const [dl, setDl] = useState<number | null>(null);
-  const [modelReady, setModelReady] = useState(() => isModelReady(model));
-  useEffect(() => setModelReady(isModelReady(model)), [model]);
+  // bumped after a download so the file check runs again
+  const [modelCheck, setModelCheck] = useState(0);
+  const modelReady = useMemo(() => isModelReady(model), [model, modelCheck]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const start = async () => {
     setRunning(0);
@@ -52,7 +53,7 @@ function TranscriptView({ rec }: { rec: Recording }) {
     setDl(0);
     try {
       await downloadModel(model, setDl);
-      setModelReady(true);
+      setModelCheck((n) => n + 1);
     } catch (e) {
       showError(e);
     } finally {
@@ -213,21 +214,20 @@ function TranscriptBody({ rec, onRedo }: { rec: Recording; onRedo: () => void })
           <Button compact kind="danger" label={t('delete_transcript')} onPress={() => updateRecording(rec.id, { transcript: undefined })} />
         </Row>
       </Card>
-      <EditModal seg={editing} onClose={() => setEditing(null)} onSave={saveEdit} />
+      {editing ? <EditModal key={editing.id} seg={editing} onClose={() => setEditing(null)} onSave={saveEdit} /> : null}
     </View>
   );
 }
 
-function EditModal({ seg, onClose, onSave }: { seg: TranscriptSegment | null; onClose: () => void; onSave: (text: string) => void }) {
+function EditModal({ seg, onClose, onSave }: { seg: TranscriptSegment; onClose: () => void; onSave: (text: string) => void }) {
   const { t, colors, fs } = useApp();
-  const [text, setText] = useState('');
-  useEffect(() => { if (seg) setText(seg.text); }, [seg]);
+  const [text, setText] = useState(seg.text);
   const rtl = isMostlyArabic(text);
   return (
-    <Modal visible={!!seg} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <View style={{ flex: 1, justifyContent: 'center', padding: space.xl, backgroundColor: 'rgba(0,0,0,0.4)' }}>
         <Card>
-          <Txt bold>{seg ? `${t('edit')} · ${clock(seg.start)}` : ''}</Txt>
+          <Txt bold>{`${t('edit')} · ${clock(seg.start)}`}</Txt>
           <TextInput
             value={text}
             onChangeText={setText}

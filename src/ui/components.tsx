@@ -7,8 +7,9 @@ import { useApp } from '../state/AppContext';
 import { radius, space, TOUCH } from './theme';
 
 export function Txt({
-  children, size = 'md', muted, bold, style, numberOfLines, selectable,
+  children, size = 'md', muted, bold, style, numberOfLines, selectable, testID,
 }: {
+  testID?: string;
   children: React.ReactNode;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl';
   muted?: boolean;
@@ -20,6 +21,7 @@ export function Txt({
   const { colors, fs } = useApp();
   return (
     <Text
+      testID={testID}
       selectable={selectable}
       numberOfLines={numberOfLines}
       style={[{ color: muted ? colors.textMuted : colors.text, fontSize: fs[size], fontWeight: bold ? '700' : '400', textAlign: 'auto' }, style as TextStyle]}
