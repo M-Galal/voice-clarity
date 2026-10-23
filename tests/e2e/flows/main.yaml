@@ -128,8 +128,10 @@ appId: com.example.voiceclarity
 - takeScreenshot: 12_enhance_running
 - extendedWaitUntil:
     visible:
-      id: "keep-enhanced"
+      id: "ab-original"
     timeout: 600000
+- assertVisible:
+    id: "keep-enhanced"
 - takeScreenshot: 13_review_top
 - tapOn:
     id: "ab-original"
@@ -140,8 +142,7 @@ appId: com.example.voiceclarity
 - tapOn:
     id: "review-play"
 - scrollUntilVisible:
-    element:
-      id: "keep-enhanced"
+    element: "Mains hum found at 50 Hz"
 - takeScreenshot: 14_review_levels
 - tapOn:
     id: "keep-enhanced"
@@ -170,6 +171,9 @@ appId: com.example.voiceclarity
 - tapOn:
     id: "model-base"
 - takeScreenshot: 16_transcript_setup
+- scrollUntilVisible:
+    element: ".*(Download \\(148 MB\\)|On device).*"
+    timeout: 20000
 - runFlow:
     when:
       visible:
@@ -225,9 +229,14 @@ appId: com.example.voiceclarity
 - extendedWaitUntil:
     visible: "0:10.0 / .*"
     timeout: 10000
+- scrollUntilVisible:
+    element:
+      id: "play-selection"
 - tapOn:
     id: "set-end"
-- assertVisible: "0:10.0"
+- assertVisible:
+    id: "sel-end-value"
+    text: "0:10.0"
 - tapOn:
     id: "start-plus"
 - tapOn:
@@ -238,12 +247,17 @@ appId: com.example.voiceclarity
     id: "start-plus"
 - tapOn:
     id: "start-plus"
-- assertVisible: "0:00.5"
+- assertVisible:
+    id: "sel-start-value"
+    text: "0:00.5"
 - scrollUntilVisible:
     element:
       id: "edit-speed-1.5"
 - tapOn:
     id: "edit-speed-1.5"
+- scrollUntilVisible:
+    element:
+      id: "edit-save-as"
 - assertVisible: "New length: 0:06.*"
 - assertVisible: "Saved as M4A, the same type as the original."
 - takeScreenshot: 30_edit_setup
@@ -298,6 +312,9 @@ appId: com.example.voiceclarity
       id: "edit-audio"
 - tapOn:
     id: "edit-audio"
+- scrollUntilVisible:
+    element:
+      id: "trim-mode-none"
 - tapOn:
     id: "trim-mode-none"
 - scrollUntilVisible:
@@ -305,10 +322,10 @@ appId: com.example.voiceclarity
       id: "edit-speed-1.25"
 - tapOn:
     id: "edit-speed-1.25"
-- assertVisible: "This phone cannot write MP3 files, so the edit is saved as M4A."
 - scrollUntilVisible:
     element:
       id: "edit-save"
+- assertVisible: "This phone cannot write MP3 files, so the edit is saved as M4A."
 - tapOn:
     id: "edit-save"
 - takeScreenshot: 33_replace_confirm

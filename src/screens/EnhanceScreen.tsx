@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ScrollView, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useKeepAwake } from 'expo-keep-awake';
 import { settingsForPreset, type EnhanceResult, type EnhanceSettings, type Strength, type WarningCode } from '../dsp/pipeline';
@@ -240,7 +240,7 @@ const WARN_KEY: Record<WarningCode, 'w_low_snr' | 'w_very_low_snr' | 'w_input_cl
 };
 
 function Review({ rec, result, previewUri, onKeep, onDiscard }: { rec: Recording; result: EnhanceResult; previewUri: string; onKeep: () => void; onDiscard: () => void }) {
-  const { t, settings } = useApp();
+  const { t, settings, colors } = useApp();
   const r = result.report;
   const [which, setWhich] = useState<'original' | 'enhanced'>('enhanced');
   const [initial] = useState(previewUri);
@@ -260,6 +260,7 @@ function Review({ rec, result, previewUri, onKeep, onDiscard }: { rec: Recording
 
   const lv = (v: number, u: 'LUFS' | 'dBFS' | 'dBTP') => formatLevel(v, u);
   return (
+    <View style={{ flex: 1 }}>
     <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.lg }}>
       <Txt size="lg" bold>{t('review')}</Txt>
       {r.warnings.length ? (
@@ -288,7 +289,7 @@ function Review({ rec, result, previewUri, onKeep, onDiscard }: { rec: Recording
       </Card>
 
       <Section title={t('measured')}>
-        <Row><Txt style={{ flex: 1 }} muted> </Txt><Txt bold style={{ width: 100 }}>{t('input')}</Txt><Txt bold style={{ width: 100 }}>{t('output')}</Txt></Row>
+        <Txt size="sm" muted>{`${t('input')} → ${t('output')}`}</Txt>
         <LevelRow label={t('speech_loudness')} a={lv(r.input.speechLufs, 'LUFS')} b={lv(r.output.speechLufs, 'LUFS')} />
         <LevelRow label={t('integrated_loudness')} a={lv(r.input.integratedLufs, 'LUFS')} b={lv(r.output.integratedLufs, 'LUFS')} />
         <LevelRow label={t('sample_peak')} a={lv(r.input.samplePeakDb, 'dBFS')} b={lv(r.output.samplePeakDb, 'dBFS')} />
@@ -299,19 +300,27 @@ function Review({ rec, result, previewUri, onKeep, onDiscard }: { rec: Recording
         <KeyValue k={t('duration')} v={`${clock(r.durationSec)} → ${clock(r.outputDurationSec)}`} />
       </Section>
 
-      <Button testID="keep-enhanced" label={t('keep_enhanced')} icon="✓" onPress={() => { player.pause(); onKeep(); }} />
-      <Button testID="discard-enhanced" kind="secondary" label={t('discard')} onPress={() => { player.pause(); onDiscard(); }} />
     </ScrollView>
+      {/* the decision stays on screen while reading the levels */}
+      <Row style={{ padding: space.md, gap: space.sm, borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.border, backgroundColor: colors.surface }}>
+        <Button testID="discard-enhanced" kind="secondary" label={t('discard')} onPress={() => { player.pause(); onDiscard(); }} style={{ flex: 1 }} />
+        <Button testID="keep-enhanced" label={t('keep_enhanced')} icon="✓" onPress={() => { player.pause(); onKeep(); }} style={{ flex: 1.4 }} />
+      </Row>
+    </View>
   );
 }
 
+/** Label on its own line, then "input → output", so nothing wraps mid-word on narrow phones. */
 function LevelRow({ label, a, b }: { label: string; a: string; b: string }) {
   return (
-    <Row accessible accessibilityLabel={`${label}: ${a} → ${b}`}>
-      <Txt style={{ flex: 1 }} size="sm">{label}</Txt>
-      <Txt size="sm" style={{ width: 100, writingDirection: 'ltr' }}>{a}</Txt>
-      <Txt size="sm" bold style={{ width: 100, writingDirection: 'ltr' }}>{b}</Txt>
-    </Row>
+    <View accessible accessibilityLabel={`${label}: ${a} → ${b}`} style={{ gap: 2 }}>
+      <Txt size="sm" muted>{label}</Txt>
+      <Row wrap style={{ direction: 'ltr' }}>
+        <Txt>{a}</Txt>
+        <Txt muted>→</Txt>
+        <Txt bold>{b}</Txt>
+      </Row>
+    </View>
   );
 }
 
