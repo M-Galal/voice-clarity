@@ -456,6 +456,9 @@ appId: com.example.voiceclarity
     direction: UP
     timeout: 20000
 - takeScreenshot: 53_playlist_filtered
+# tap each field first so the keyboard is open; hideKeyboard with no keyboard acts as Back
+- tapOn:
+    id: "pl-name"
 - eraseText:
     charactersToErase: 20
 - hideKeyboard
