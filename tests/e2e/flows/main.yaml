@@ -471,6 +471,9 @@ appId: com.example.voiceclarity
     element: "3 of 3 audio files match"
     direction: UP
     timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "pl-sort-oldest"
 - tapOn:
     id: "pl-sort-oldest"
 - tapOn:
