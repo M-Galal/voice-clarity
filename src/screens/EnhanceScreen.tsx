@@ -189,7 +189,7 @@ function PreviewPanel({ rec, settings, rate }: { rec: Recording; settings: Enhan
   useEffect(() => () => { try { player.pause(); } catch { /* released */ } }, [player]);
   // loop the 15 s part so it can be heard while settings change
   useEffect(() => {
-    if (status.didJustFinish) { player.seekTo(0); player.play(); }
+    if (status.didJustFinish) { void player.seekTo(0); player.play(); }
   }, [status.didJustFinish]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const renderNow = async () => {
@@ -207,7 +207,7 @@ function PreviewPanel({ rec, settings, rate }: { rec: Recording; settings: Enhan
       const pos = player.currentTime;
       player.replace({ uri: which === 'enhanced' ? r.enhancedUri : r.originalUri, name: rec.name });
       setTimeout(() => {
-        if (pos > 0) player.seekTo(pos);
+        if (pos > 0) void player.seekTo(pos);
         if (wasPlaying) player.play();
       }, 150);
       setState({ kind: 'ready', ...r });
@@ -232,7 +232,7 @@ function PreviewPanel({ rec, settings, rate }: { rec: Recording; settings: Enhan
     const wasPlaying = player.playing;
     setWhich(w);
     player.replace({ uri: w === 'enhanced' ? state.enhancedUri : state.originalUri, name: rec.name });
-    setTimeout(() => { player.seekTo(pos); if (wasPlaying) player.play(); }, 150);
+    setTimeout(() => { void player.seekTo(pos); if (wasPlaying) player.play(); }, 150);
   };
 
   const r = state.kind === 'ready' ? state.report : null;
@@ -399,7 +399,7 @@ function Review({ rec, result, previewUri, onKeep, onDiscard }: { rec: Recording
     const playing = st.playing;
     setWhich(w);
     player.replace({ uri: w === 'enhanced' ? previewUri : audioUri(rec, 'original') });
-    setTimeout(() => { if (sameTimeline) player.seekTo(keep); if (playing) player.play(); }, 150);
+    setTimeout(() => { if (sameTimeline) void player.seekTo(keep); if (playing) player.play(); }, 150);
   };
   useEffect(() => () => { try { player.pause(); } catch { /* released */ } }, [player]);
 

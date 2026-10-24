@@ -5,19 +5,23 @@ appId: com.example.voiceclarity
     visible: ".*(Recent|Downloads|Files|Audio|Search).*"
     timeout: 20000
 - takeScreenshot: ${SHOT}_picker
-- runFlow:
-    when:
-      notVisible: ${FILE}
+# The picker sometimes opens on an empty "Recent" view or before its list has loaded:
+# open Downloads from the roots drawer and look for the file, up to three times.
+- retry:
+    maxRetries: 3
     commands:
-      - tapOn:
-          text: "Show roots"
-          optional: true
-      - tapOn:
-          text: "Downloads"
-          optional: true
-      - takeScreenshot: ${SHOT}_picker_downloads
-# the Downloads list can be longer than the screen
-- scrollUntilVisible:
-    element: ${FILE}
-    timeout: 20000
+      - runFlow:
+          when:
+            notVisible: ${FILE}
+          commands:
+            - tapOn:
+                text: "Show roots"
+                optional: true
+            - tapOn:
+                text: "Downloads"
+                optional: true
+            - takeScreenshot: ${SHOT}_picker_downloads
+      - scrollUntilVisible:
+          element: ${FILE}
+          timeout: 10000
 - tapOn: ${FILE}

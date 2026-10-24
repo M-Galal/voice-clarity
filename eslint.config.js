@@ -18,6 +18,12 @@ module.exports = defineConfig([
     },
   },
   {
+    // unawaited promises (an unawaited File.write once made analysis read a half-written file)
+    files: ['src/**/*.{ts,tsx}', 'App.tsx'],
+    languageOptions: { parserOptions: { projectService: true, tsconfigRootDir: __dirname } },
+    rules: { '@typescript-eslint/no-floating-promises': 'error' },
+  },
+  {
     files: ['**/*.js'],
     rules: { '@typescript-eslint/no-require-imports': 'off' },
   },

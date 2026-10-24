@@ -59,7 +59,7 @@ function Editor({ rec }: { rec: Recording }) {
     const to = Math.max(0, Math.min(Math.max(0, duration - 0.25), v));
     lastSeek.current = { to, at: Date.now() };
     setPausedAt(to);
-    player.seekTo(to);
+    void player.seekTo(to);
   };
 
   const spec = normalizeSpec({ mode, start, end, speed }, sourceDuration);
@@ -155,7 +155,7 @@ function Editor({ rec }: { rec: Recording }) {
             setRender(null);
             updateRecording(rec.id, patch);
             goBack();
-            reanalyse(rec.id);
+            void reanalyse(rec.id);
           } catch (e) {
             showError(e);
           } finally {

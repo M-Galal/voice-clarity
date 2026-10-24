@@ -67,7 +67,7 @@ function TranscriptView({ rec }: { rec: Recording }) {
   const showSetup = !rec.transcript || redo;
   return (
     <View style={{ flex: 1 }}>
-      <Header title={`${t('transcript')} · ${rec.name}`} onBack={() => { job.current?.stop(); goBack(); }} />
+      <Header title={`${t('transcript')} · ${rec.name}`} onBack={() => { void job.current?.stop(); goBack(); }} />
       {running !== null ? (
         <RunningView progress={running} onCancel={() => job.current?.stop()} />
       ) : showSetup ? (
@@ -140,7 +140,7 @@ function TranscriptBody({ rec, onRedo }: { rec: Recording; onRedo: () => void })
   const flagged = transcript.segments.filter((s) => s.flag && s.flag !== 'edited').length;
 
   const playSeg = (s: TranscriptSegment) => {
-    player.seekTo(s.start);
+    void player.seekTo(s.start);
     player.play();
   };
   useEffect(() => () => { try { player.pause(); } catch { /* released */ } }, [player]);

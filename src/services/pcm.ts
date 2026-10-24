@@ -186,7 +186,7 @@ export async function decodeToPcmFile(
     s[i] = Math.round(v * 32767);
   }
   file.create({ overwrite: true });
-  file.write(new Uint8Array(s.buffer));
+  await file.write(new Uint8Array(s.buffer)); // async: reading before it finishes gave silence
   const source = new PcmFileSource(file, d.sampleRate, n, 'i16');
   return { source, file, channels: d.channels.length, dispose: () => { source.close(); dispose(); } };
 }

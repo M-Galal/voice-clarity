@@ -84,7 +84,7 @@ function Player({ rec, queueIndex, autoplay }: { rec: Recording; queueIndex?: nu
         restored.current = true;
         // 'medium' = AVFoundation timeDomain on iOS (voice-oriented, 1/32x-32x); ignored on Android
         player.setPlaybackRate(clampRate(settings.playbackRate), 'medium');
-        if (rec.lastPositionSec > 0 && rec.lastPositionSec < duration - 1) player.seekTo(rec.lastPositionSec);
+        if (rec.lastPositionSec > 0 && rec.lastPositionSec < duration - 1) void player.seekTo(rec.lastPositionSec);
         if (autoplay) {
           player.setActiveForLockScreen(true, { title: rec.name, artist: t('app_name') }, { showSeekBackward: true, showSeekForward: true });
           player.play();
@@ -107,7 +107,7 @@ function Player({ rec, queueIndex, autoplay }: { rec: Recording; queueIndex?: nu
     useEffect(() => {
       if (!settings.skipSilence || !status.playing || segments.length === 0) return;
       const target = skipSilenceTarget(segments, position, settings.skipSilenceMinGapSec);
-      if (target !== null) player.seekTo(Math.max(0, target - 0.15));
+      if (target !== null) void player.seekTo(Math.max(0, target - 0.15));
     }, [position, settings.skipSilence]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // play list: start the next file when this one ends
@@ -131,7 +131,7 @@ function Player({ rec, queueIndex, autoplay }: { rec: Recording; queueIndex?: nu
       const to = Math.max(0, Math.min(Math.max(0, duration - 0.25), time));
       lastSeek.current = { to, at: Date.now() };
       setPausedAt(to);
-      player.seekTo(to);
+      void player.seekTo(to);
     };
     const toggle = () => {
       if (status.playing) { setPausedAt(null); player.pause(); }
@@ -152,7 +152,7 @@ function Player({ rec, queueIndex, autoplay }: { rec: Recording; queueIndex?: nu
       // same-length files: keep the spot so the two versions can be compared
       const sameTimeline = !rec.enhanced?.report.silenceMap;
       setTimeout(() => {
-        if (sameTimeline) player.seekTo(keep);
+        if (sameTimeline) void player.seekTo(keep);
         if (wasPlaying) player.play();
       }, 150);
     };

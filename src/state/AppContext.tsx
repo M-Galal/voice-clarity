@@ -78,7 +78,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const scheme = useColorScheme();
 
   useEffect(() => {
-    (async () => {
+    void (async () => {
       try {
         clearTemp();
         const [lib, s] = await Promise.all([loadLibrary(), loadSettings()]);
