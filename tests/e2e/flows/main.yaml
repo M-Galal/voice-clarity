@@ -158,10 +158,18 @@ appId: com.example.voiceclarity
     element:
       id: "pv-spectrum"
 - takeScreenshot: 10b_preview
-- scrollUntilVisible:
-    element:
-      id: "strength-strong"
-    direction: UP
+# Swipe near the left edge: a swipe through the middle lands on a slider and moves it
+# instead of scrolling the page.
+- repeat:
+    while:
+      notVisible:
+        id: "strength-strong"
+    times: 15
+    commands:
+      - swipe:
+          start: 4%, 30%
+          end: 4%, 80%
+          duration: 400
 - tapOn:
     id: "strength-strong"
 - scrollUntilVisible:
@@ -172,10 +180,16 @@ appId: com.example.voiceclarity
     id: "pv-play"
     optional: true
 - takeScreenshot: 10c_preview_strong
-- scrollUntilVisible:
-    element:
-      id: "strength-auto"
-    direction: UP
+- repeat:
+    while:
+      notVisible:
+        id: "strength-auto"
+    times: 15
+    commands:
+      - swipe:
+          start: 4%, 30%
+          end: 4%, 80%
+          duration: 400
 - tapOn:
     id: "strength-auto"
 - scrollUntilVisible:
