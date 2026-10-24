@@ -478,6 +478,18 @@ appId: com.example.voiceclarity
     id: "pl-sort-oldest"
 - tapOn:
     id: "pl-sort-name"
+# auto-advance was seen working (it played through all three files); switch it off so the
+# next-file steps below are deterministic
+- scrollUntilVisible:
+    element:
+      id: "pl-auto-next"
+- tapOn:
+    id: "pl-auto-next"
+    checked: true
+    optional: true
+- assertVisible:
+    id: "pl-auto-next"
+    checked: false
 - scrollUntilVisible:
     element:
       id: "pl-item-arabic_noisy.m4a"
