@@ -49,7 +49,13 @@ appId: com.example.voiceclarity
       id: "reason-auto_whisper_protect"
 - assertVisible:
     id: "reason-auto_level_on"
+- scrollUntilVisible:
+    element:
+      id: "reason-auto_sections"
 - takeScreenshot: 42_whisper_smart_reasons
+- scrollUntilVisible:
+    element:
+      id: "sec-counts"
 - scrollUntilVisible:
     element: "Whispered or distant sections"
 - takeScreenshot: 43_whisper_levels

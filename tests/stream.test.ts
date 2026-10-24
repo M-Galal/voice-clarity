@@ -61,7 +61,8 @@ async function compare(x: Float32Array, sr: number, settings: EnhanceSettings, l
 }
 
 test('chunked Smart enhancement matches the whole-buffer pipeline (24 kHz whisper fixture)', async () => {
-  await compare(X24, 24000, settingsForPreset('auto'), 'auto');
+  // the whole-buffer pipeline has one setting per file, so per-section is compared separately below
+  await compare(X24, 24000, { ...settingsForPreset('auto'), perSection: false }, 'auto');
 });
 
 test('chunked enhancement matches for every preset, manual gain and silence removal', async () => {
@@ -84,7 +85,7 @@ test('odd chunk sizes (joins inside FFT frames and limiter look-ahead) give the 
   for (const n of [12345, 4099]) {
     setChunkSamplesForTests(n);
     try {
-      await compare(X24, 24000, settingsForPreset('auto'), `auto/${n}`);
+      await compare(X24, 24000, { ...settingsForPreset('auto'), perSection: false }, `auto/${n}`);
       await compare(X24, 24000, { ...settingsForPreset('strong'), removeSilence: true }, `strong+silence/${n}`);
     } finally {
       setChunkSamplesForTests(0);
@@ -183,4 +184,44 @@ test('whole-file Smart analysis chooses exactly what a full Smart run uses', asy
   assert.deepEqual(a.reasons, r.report.autoReasons);
   assert.equal(a.humHz, r.report.humHz);
   assert.deepEqual(a.segments, r.report.segments);
+});
+
+test('per-section Smart mode: same result whatever the chunk size, and it changes the audio', async () => {
+  const s = settingsForPreset('auto');
+  const run = async (settings: EnhanceSettings) => {
+    const sink = new MemorySink();
+    const r = await enhanceStream(new MemorySource(X24, 24000), sink, settings, memoryTemp);
+    return { out: sink.toArray(), r };
+  };
+  const ref = await run(s);
+  assert.ok(ref.r.sections && ref.r.sections.length > 0, 'sections found');
+  assert.ok(ref.r.sections.some((x) => x.kind === 'whisper'), 'the whisper fixture has whispered sections');
+  assert.ok(ref.r.report.stagesRun.includes('per-section'));
+  assert.deepEqual(ref.r.report.sectionCounts, (await import('../src/dsp/autoTune')).countSections(ref.r.sections));
+  for (const n of [12345, 4099]) {
+    setChunkSamplesForTests(n);
+    try {
+      const o = await run(s);
+      assert.equal(o.out.length, ref.out.length);
+      assert.ok(maxDiff(o.out, ref.out) < 1e-5, `chunk ${n}: ${maxDiff(o.out, ref.out)}`);
+    } finally {
+      setChunkSamplesForTests(0);
+    }
+  }
+  const flat = await run({ ...s, perSection: false });
+  assert.equal(flat.r.sections, null);
+  assert.ok(maxDiff(flat.out, ref.out) > 1e-3, 'per-section output differs from one setting for the file');
+});
+
+test('preview with the whole file\'s measurements uses them for the file settings and the sections', async () => {
+  const { analyseForSmart } = await import('../src/dsp/stream');
+  const s = settingsForPreset('auto');
+  const a = await analyseForSmart(new MemorySource(X24, 24000), s);
+  // a part of the file, processed with the whole file's measurements (as the preview does)
+  const part = X24.slice(0, 10 * 24000);
+  const r = await enhanceStream(new MemorySource(part, 24000), new MemorySink(), { ...s, autoMeasures: a.measures }, memoryTemp);
+  const { autoMeasures: _x, ...applied } = r.report.appliedSettings;
+  void _x;
+  assert.deepEqual(applied, a.settings);
+  for (const sec of r.sections ?? []) assert.ok(sec.end <= 10.01);
 });

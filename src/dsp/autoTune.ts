@@ -24,7 +24,8 @@ export interface AutoReason {
     | 'auto_level_off'
     | 'auto_rumble'
     | 'auto_clarity_far'
-    | 'auto_pauses';
+    | 'auto_pauses'
+    | 'auto_sections';
   vars?: Record<string, string | number>;
 }
 
@@ -33,6 +34,8 @@ export interface AutoMeasures {
   whisperShare: number;
   spreadDb: number;
   rumbleDb: number;
+  /** Level of the louder speech (80th percentile of ~1 s windows, K-weighted dBFS); reference for sections. */
+  speechRefDb?: number;
 }
 
 const r1 = (x: number) => Math.round(x * 10) / 10;
@@ -134,4 +137,118 @@ export function chooseSettings(base: EnhanceSettings, m: AutoMeasures): { settin
     },
     reasons,
   };
+}
+
+// ------------------------------------------------------------------ per-section settings
+
+export type SectionKind = 'whisper' | 'far' | 'near';
+
+/** One ~1 s speech window, measured on the original audio. Times in seconds. */
+export interface SectionWindow {
+  start: number;
+  end: number;
+  /** K-weighted level, dBFS. */
+  levelDb: number;
+  /** Voice-band level against the noise in the pauses around it, dB. */
+  snrDb: number;
+  whisper: boolean;
+}
+
+/** Settings chosen for one section of the recording. */
+export interface SectionSetting {
+  start: number;
+  end: number;
+  kind: SectionKind;
+  levelDb: number;
+  snrDb: number;
+  noiseAmount: number;
+  noiseFloorDb: number;
+  clarityDb: number;
+}
+
+/** Speech this far below the louder speech (dB) counts as distant. */
+export const FAR_BELOW_DB = 8;
+/** Windows closer than this (s) belong to the same section when they are of the same kind. */
+const JOIN_GAP_SEC = 1.5;
+/** Shorter sections are folded into an adjacent one, so settings do not flicker. */
+const MIN_SECTION_SEC = 2;
+
+function noiseFor(snr: number): { noiseAmount: number; noiseFloorDb: number } {
+  if (!Number.isFinite(snr) || snr >= 25) return { noiseAmount: 1.0, noiseFloorDb: -10 };
+  if (snr >= 15) return { noiseAmount: 1.3, noiseFloorDb: -15 };
+  if (snr >= 8) return { noiseAmount: 1.6, noiseFloorDb: -20 };
+  return { noiseAmount: 2.0, noiseFloorDb: -22 };
+}
+
+/** Settings for one section: noise reduction from its own noise level, gentler and brighter for quiet speech. */
+export function settingsForSection(kind: SectionKind, snrDb: number): Pick<SectionSetting, 'noiseAmount' | 'noiseFloorDb' | 'clarityDb'> {
+  let { noiseAmount, noiseFloorDb } = noiseFor(snrDb);
+  let clarityDb = 3;
+  if (kind === 'whisper') {
+    // whispers are noise-like: subtract gently so their consonants survive
+    noiseAmount = Math.min(noiseAmount, 1.2);
+    noiseFloorDb = Math.max(noiseFloorDb, -14);
+    clarityDb = 5;
+  } else if (kind === 'far') {
+    // distant speech sits close to the noise: protect it, lift the presence range
+    noiseAmount = Math.min(noiseAmount, 1.5);
+    noiseFloorDb = Math.max(noiseFloorDb, -18);
+    clarityDb = 5;
+  }
+  return { noiseAmount, noiseFloorDb, clarityDb };
+}
+
+/**
+ * Groups speech windows into sections (whispered, distant, close) and chooses settings for each.
+ * `refDb` is the level of the louder speech in the whole recording.
+ */
+export function planSections(windows: SectionWindow[], refDb: number): SectionSetting[] {
+  type Acc = { start: number; end: number; kind: SectionKind; wins: SectionWindow[] };
+  const kindOf = (w: SectionWindow): SectionKind => (w.whisper ? 'whisper' : w.levelDb < refDb - FAR_BELOW_DB ? 'far' : 'near');
+  let secs: Acc[] = [];
+  for (const w of windows) {
+    const k = kindOf(w);
+    const last = secs[secs.length - 1];
+    if (last && last.kind === k && w.start - last.end < JOIN_GAP_SEC) { last.end = w.end; last.wins.push(w); }
+    else secs.push({ start: w.start, end: w.end, kind: k, wins: [w] });
+  }
+  // fold short sections into the longer adjacent neighbour (only neighbours closer than the join gap)
+  for (let changed = true; changed;) {
+    changed = false;
+    for (let i = 0; i < secs.length; i++) {
+      const c = secs[i];
+      if (c.end - c.start >= MIN_SECTION_SEC) continue;
+      const prev = i > 0 && c.start - secs[i - 1].end < JOIN_GAP_SEC ? secs[i - 1] : null;
+      const next = i + 1 < secs.length && secs[i + 1].start - c.end < JOIN_GAP_SEC ? secs[i + 1] : null;
+      const into = prev && next ? (prev.end - prev.start >= next.end - next.start ? prev : next) : prev ?? next;
+      if (!into) continue;
+      into.start = Math.min(into.start, c.start);
+      into.end = Math.max(into.end, c.end);
+      into.wins = into === prev ? [...into.wins, ...c.wins] : [...c.wins, ...into.wins];
+      secs.splice(i, 1);
+      changed = true;
+      break;
+    }
+    // neighbours of the same kind that now touch become one
+    const merged: Acc[] = [];
+    for (const c of secs) {
+      const last = merged[merged.length - 1];
+      if (last && last.kind === c.kind && c.start - last.end < JOIN_GAP_SEC) { last.end = c.end; last.wins.push(...c.wins); }
+      else merged.push(c);
+    }
+    if (merged.length !== secs.length) changed = true;
+    secs = merged;
+  }
+  return secs.map((c) => {
+    const dur = c.wins.reduce((t, w) => t + (w.end - w.start), 0) || 1;
+    const avg = (f: (w: SectionWindow) => number) => c.wins.reduce((t, w) => t + f(w) * (w.end - w.start), 0) / dur;
+    const snrDb = avg((w) => (Number.isFinite(w.snrDb) ? Math.min(60, w.snrDb) : 60));
+    return { start: c.start, end: c.end, kind: c.kind, levelDb: avg((w) => w.levelDb), snrDb, ...settingsForSection(c.kind, snrDb) };
+  });
+}
+
+export function countSections(sections: SectionSetting[]): Record<SectionKind, number> {
+  const n: Record<SectionKind, number> = { whisper: 0, far: 0, near: 0 };
+  for (const s of sections) n[s.kind]++;
+  return n;
 }

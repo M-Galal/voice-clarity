@@ -14,9 +14,13 @@
  *  6. leveller, gain, limiter → temporary track B (repeated with a lower internal ceiling if the
  *     true peak is over the user's ceiling, like the whole-buffer pipeline)
  *  7. optional silence removal, output measurement → output sink
+ *
+ * Smart mode per section: pass 2 also measures every ~1 s speech window (level, noise around it,
+ * whisper or not); the windows are grouped into whispered, distant and close sections with their
+ * own noise reduction and clarity, which pass 4 follows with short crossfades at section edges.
  */
 import { BiquadChainState, designBiquad, type BiquadCoeffs } from './biquad';
-import { chooseSettings, type AutoMeasures, type AutoReason } from './autoTune';
+import { chooseSettings, countSections, planSections, type AutoMeasures, type AutoReason, type SectionSetting, type SectionWindow } from './autoTune';
 import { CancelledError, detectHum, frameSizeFor, type Progress } from './denoise';
 import { RealFFT } from './fft';
 import { KLoudnessMeter, kWeightingCoeffs, loudnessFromBlocks, TruePeakMeter, type BlockPower } from './loudness';
@@ -100,6 +104,8 @@ export const memoryTemp: TempFactory = (sampleRate) => {
 };
 
 export const CHUNK_SEC = 8;
+/** Clarity boost of the filter that per-section clarity is mixed from, dB. */
+const CLARITY_MAX_DB = 6;
 let chunkOverride = 0;
 /** Tests only: read in chunks of exactly `n` samples (0 = normal 8 s chunks). */
 export function setChunkSamplesForTests(n: number) { chunkOverride = n; }
@@ -159,13 +165,13 @@ const peakOf = (x: Float32Array, cur: number) => {
 };
 
 /** Sample ranges [a, b) inside segments split into ~`winSec` windows (as levelSpeech / measureForAuto). */
-function speechWindows(segments: Segment[], sampleRate: number, length: number, winSec: number): { a: number; b: number }[] {
-  const out: { a: number; b: number }[] = [];
+function speechWindows(segments: Segment[], sampleRate: number, length: number, winSec: number): { a: number; b: number; whisper: boolean }[] {
+  const out: { a: number; b: number; whisper: boolean }[] = [];
   for (const s of segments) {
     const a0 = Math.round(s.start * sampleRate), b0 = Math.min(length, Math.round(s.end * sampleRate));
     const n = Math.max(1, Math.round((b0 - a0) / (winSec * sampleRate)));
     const step = (b0 - a0) / n;
-    for (let k = 0; k < n; k++) out.push({ a: Math.round(a0 + k * step), b: Math.round(a0 + (k + 1) * step) });
+    for (let k = 0; k < n; k++) out.push({ a: Math.round(a0 + k * step), b: Math.round(a0 + (k + 1) * step), whisper: s.kind === 'whisper' });
   }
   return out;
 }
@@ -214,6 +220,35 @@ function gapsOf(segments: Segment[], duration: number): [number, number][] {
   for (const s of segments) { if (s.start > c) gaps.push([c, s.start]); c = s.end; }
   if (c < duration) gaps.push([c, duration]);
   return gaps;
+}
+
+/**
+ * A setting that changes from section to section: constant inside a section, 0.3 s linear ramps
+ * where sections meet, a linear move across the pause between two sections. Queries must not go
+ * backwards in time (each consumer has its own curve).
+ */
+export class SectionCurve {
+  private readonly t: number[] = [];
+  private readonly v: number[] = [];
+  private i = 0;
+  constructor(sections: SectionSetting[], value: (s: SectionSetting) => number, rampSec = 0.3) {
+    for (const s of sections) {
+      const r = Math.min(rampSec / 2, (s.end - s.start) / 2);
+      const x = value(s);
+      this.t.push(s.start + r, s.end - r);
+      this.v.push(x, x);
+    }
+  }
+  at(time: number): number {
+    const { t, v } = this;
+    const n = t.length;
+    if (n === 0) return 0;
+    if (time <= t[0]) return v[0];
+    while (this.i + 1 < n && t[this.i + 1] <= time) this.i++;
+    if (this.i >= n - 1) return v[n - 1];
+    const a = t[this.i], b = t[this.i + 1];
+    return b > a ? v[this.i] + ((v[this.i + 1] - v[this.i]) * (time - a)) / (b - a) : v[this.i + 1];
+  }
 }
 
 // ------------------------------------------------------------------ noise suppression
@@ -328,6 +363,8 @@ class StreamingDenoiser {
     private readonly noise: Float32Array,
     private readonly opts: { overSubtraction: number; floorDb: number; smoothing: number },
     private readonly length: number,
+    /** Per-section over-subtraction and floor (dB); replaces opts.overSubtraction / floorDb. */
+    private readonly control: { over: SectionCurve; floorDb: SectionCurve } | null = null,
   ) {
     this.n = frameSizeFor(sampleRate);
     this.hop = this.n / 2;
@@ -358,11 +395,17 @@ class StreamingDenoiser {
       for (let i = 0; i < this.n; i++) this.frameBuf[i] = this.pend[off + i] * this.win[i];
       this.fft.forward(this.frameBuf, this.re, this.im);
       const isNoise = !this.speech(this.frame);
-      const floor = this.floor;
+      let floor = this.floor;
+      let over = this.opts.overSubtraction;
+      if (this.control) {
+        const t = (this.frame * this.hop + this.n / 2 - this.n) / this.sampleRate;
+        over = clamp(this.control.over.at(t), 0.5, 3);
+        floor = Math.pow(10, clamp(this.control.floorDb.at(t), -40, -3) / 20);
+      }
       for (let k = 0; k < this.bins; k++) {
         const p = this.re[k] * this.re[k] + this.im[k] * this.im[k];
         if (isNoise) this.noise[k] = 0.97 * this.noise[k] + 0.03 * p;
-        const g = p > 0 ? Math.max(floor * floor, 1 - (this.opts.overSubtraction * this.noise[k]) / p) : floor * floor;
+        const g = p > 0 ? Math.max(floor * floor, 1 - (over * this.noise[k]) / p) : floor * floor;
         this.gain[k] = Math.sqrt(g);
       }
       for (let k = 0; k < this.bins; k++) {
@@ -603,6 +646,8 @@ interface FileMeasures {
   humAudio: Float32Array;
   /** Smart-mode measurements (only when asked for). */
   measures?: AutoMeasures;
+  /** ~1 s speech windows for per-section settings (only with the measurements). */
+  windows?: SectionWindow[];
 }
 
 /** Passes 1-2 of the enhancement: speech, input levels, Smart-mode measures, audio for hum detection. */
@@ -669,8 +714,11 @@ async function measureFile(src: SampleSource, vad: EnhanceSettings['vad'], wantA
     }
   }, (f) => half(0.6, 1, f));
   let measures: AutoMeasures | undefined;
+  let windows: SectionWindow[] | undefined;
   if (wantAuto) {
-    const levels = spreadWins.map((w, i) => 10 * Math.log10(spreadE.sums[i] / Math.max(1, w.b - w.a) + 1e-12)).sort((p, q) => p - q);
+    const winDb = spreadWins.map((w, i) => 10 * Math.log10(spreadE.sums[i] / Math.max(1, w.b - w.a) + 1e-12));
+    windows = sectionWindows(spreadWins, winDb, analysis, segments, sr, durationSec);
+    const levels = [...winDb].sort((p, q) => p - q);
     const pick = (p: number) => (levels.length ? levels[Math.min(levels.length - 1, Math.floor(p * levels.length))] : 0);
     const n = (rs: { a: number; b: number }[]) => rs.reduce((t, r) => t + Math.max(0, r.b - r.a), 0);
     const gapN = n(gapRanges);
@@ -683,13 +731,82 @@ async function measureFile(src: SampleSource, vad: EnhanceSettings['vad'], wantA
       whisperShare: speechTime > 0 ? whisperTime / speechTime : 0,
       spreadDb: levels.length >= 2 ? pick(0.9) - pick(0.1) : 0,
       rumbleDb: low > 0 && mid > 0 ? 10 * Math.log10(low / mid) : -60,
+      speechRefDb: levels.length ? pick(0.8) : undefined,
     };
   }
   const total = humAudio.reduce((t, h) => t + h.length, 0);
   const joined = new Float32Array(total);
   let off = 0;
   for (const h of humAudio) { joined.set(h, off); off += h.length; }
-  return { segments, analysis, snrDb, input, clip, humAudio: joined, measures };
+  return { segments, analysis, snrDb, input, clip, humAudio: joined, measures, windows };
+}
+
+/** Pauses within this distance (s) of a window are its local noise. */
+const LOCAL_NOISE_SEC = 15;
+
+/**
+ * Speech windows with their level and their speech-to-noise ratio against the pauses around them
+ * (voice band, from the speech-detection frames); the whole file's pauses when there are too few nearby.
+ */
+function sectionWindows(
+  wins: { a: number; b: number; whisper: boolean }[],
+  winDb: number[],
+  analysis: ReturnType<FrameAnalyzer['finish']>,
+  segments: Segment[],
+  sampleRate: number,
+  durationSec: number,
+): SectionWindow[] {
+  const { levelsDb, frameSec } = analysis;
+  const bins = Math.ceil(durationSec) + 1;
+  const nP = new Float64Array(bins + 1); // prefix sums per second: noise power, noise frames
+  const nC = new Float64Array(bins + 1);
+  const pw = (db: number) => Math.pow(10, db / 10);
+  let si = 0;
+  for (let f = 0; f < levelsDb.length; f++) {
+    const t = (f + 0.5) * frameSec;
+    while (si < segments.length && segments[si].end < t) si++;
+    const speech = si < segments.length && t >= segments[si].start && t <= segments[si].end;
+    if (speech) continue;
+    const b = Math.min(bins - 1, Math.floor(t));
+    nP[b + 1] += pw(levelsDb[f]);
+    nC[b + 1] += 1;
+  }
+  for (let b = 1; b <= bins; b++) { nP[b] += nP[b - 1]; nC[b] += nC[b - 1]; }
+  const globalNoise = nC[bins] > 0 ? nP[bins] / nC[bins] : 0;
+  const minFrames = 0.5 / frameSec;
+  return wins.map((w, i) => {
+    const start = w.a / sampleRate, end = w.b / sampleRate;
+    const f0 = Math.max(0, Math.floor(start / frameSec)), f1 = Math.min(levelsDb.length, Math.ceil(end / frameSec));
+    let sp = 0;
+    for (let f = f0; f < f1; f++) sp += pw(levelsDb[f]);
+    sp /= Math.max(1, f1 - f0);
+    const c = (start + end) / 2;
+    const lo = Math.max(0, Math.floor(c - LOCAL_NOISE_SEC)), hi = Math.min(bins, Math.ceil(c + LOCAL_NOISE_SEC));
+    const cnt = nC[hi] - nC[lo];
+    const noise = cnt >= minFrames ? (nP[hi] - nP[lo]) / cnt : globalNoise;
+    const snrDb = noise > 0 && sp > 0 ? 10 * Math.log10(sp / noise) : Infinity;
+    return { start, end, levelDb: winDb[i], snrDb, whisper: w.whisper };
+  });
+}
+
+interface SmartChoice {
+  settings: EnhanceSettings;
+  reasons: AutoReason[];
+  sections: SectionSetting[] | null;
+}
+
+/** Smart-mode settings for the file and, when asked, for each section of it. */
+function smartChoice(requested: EnhanceSettings, fm: FileMeasures): SmartChoice {
+  const measures = requested.autoMeasures ?? fm.measures!;
+  const chosen = chooseSettings(requested, measures);
+  const refDb = measures.speechRefDb ?? fm.measures?.speechRefDb;
+  let sections: SectionSetting[] | null = null;
+  if (requested.perSection !== false && fm.windows?.length && refDb !== undefined) {
+    sections = planSections(fm.windows, refDb);
+    const n = countSections(sections);
+    chosen.reasons.push({ key: 'auto_sections', vars: { whisper: n.whisper, far: n.far, near: n.near } });
+  }
+  return { settings: chosen.settings, reasons: chosen.reasons, sections };
 }
 
 export interface SmartAnalysis {
@@ -701,6 +818,8 @@ export interface SmartAnalysis {
   input: LevelReport;
   /** Set when only parts of a long recording were analysed. */
   sampled?: { parts: number; seconds: number };
+  /** Per-section settings (Smart mode per section), times in seconds of the analysed audio. */
+  sections: SectionSetting[] | null;
 }
 
 /**
@@ -710,15 +829,19 @@ export interface SmartAnalysis {
  */
 export async function analyseForSmart(src: SampleSource, requested: EnhanceSettings, progress: Progress = {}): Promise<SmartAnalysis> {
   const fm = await measureFile(src, requested.vad, true, makeTicker(progress)(0, 1));
-  const chosen = chooseSettings(requested, fm.measures!);
+  const { autoMeasures: _ignored, ...own } = requested; // always this file's own measurements
+  void _ignored;
+  const chosen = smartChoice(own, fm);
   const humHz = chosen.settings.humRemoval && fm.humAudio.length >= src.sampleRate ? detectHum(fm.humAudio, src.sampleRate, []) : null;
-  return { measures: fm.measures!, settings: chosen.settings, reasons: chosen.reasons, humHz, segments: fm.segments, input: fm.input };
+  return { measures: fm.measures!, settings: chosen.settings, reasons: chosen.reasons, humHz, segments: fm.segments, input: fm.input, sections: chosen.sections };
 }
 
 export interface StreamEnhanceResult {
   report: EnhanceReport;
   /** Output length in samples. */
   outputLength: number;
+  /** Smart mode per section: the sections and their settings (input timeline). */
+  sections: SectionSetting[] | null;
 }
 
 export async function enhanceStream(
@@ -744,11 +867,14 @@ export async function enhanceStream(
     const fm = await measureFile(src, settings.vad, requested.strength === 'auto', ticker(0, 0.2));
     const { segments, analysis, snrDb, input, clip, humAudio } = fm;
     stages.push('analyse');
+    let sections: SectionSetting[] | null = null;
     if (fm.measures) {
-      const chosen = chooseSettings(requested, fm.measures);
+      const chosen = smartChoice(requested, fm);
       settings = chosen.settings;
       autoReasons = chosen.reasons;
+      sections = chosen.sections;
       stages.push('smart-settings');
+      if (sections) stages.push('per-section');
     }
     void analysis;
 
@@ -790,13 +916,23 @@ export async function enhanceStream(
     tracks.push(trackA);
     const pre = new BiquadChainState(chain);
     const dn = noiseProfile
-      ? new StreamingDenoiser(sr, segments, noiseProfile, { overSubtraction: clamp(settings.noiseAmount, 0.5, 3), floorDb: clamp(settings.noiseFloorDb, -40, -3), smoothing: 0.6 }, len)
+      ? new StreamingDenoiser(
+        sr, segments, noiseProfile,
+        { overSubtraction: clamp(settings.noiseAmount, 0.5, 3), floorDb: clamp(settings.noiseFloorDb, -40, -3), smoothing: 0.6 }, len,
+        sections ? { over: new SectionCurve(sections, (x) => x.noiseAmount), floorDb: new SectionCurve(sections, (x) => x.noiseFloorDb) } : null,
+      )
       : null;
     if (dn) stages.push('noise-suppression');
-    const clarity = settings.clarityDb > 0 && sr > 8000
-      ? new BiquadChainState([designBiquad('peaking', sr, Math.min(3000, sr * 0.4), 0.9, clamp(settings.clarityDb, 0, 8))])
+    // per section: the full-boost filter is mixed with the dry signal (exact gain at the centre frequency)
+    const clarityCurve = sections && sr > 8000 ? new SectionCurve(sections, (x) => x.clarityDb) : null;
+    const clarityMax = clarityCurve ? CLARITY_MAX_DB : clamp(settings.clarityDb, 0, 8);
+    const clarity = clarityMax > 0 && sr > 8000
+      ? new BiquadChainState([designBiquad('peaking', sr, Math.min(3000, sr * 0.4), 0.9, clarityMax)])
       : null;
     if (clarity) stages.push('clarity');
+    const clarityBlock = Math.max(1, Math.round(0.01 * sr));
+    let mixBlock = -1, mixNextBlock = -1, mixW0 = 0, mixW1 = 0;
+    const mixFor = (db: number) => (Math.pow(10, clamp(db, 0, clarityMax) / 20) - 1) / (Math.pow(10, clarityMax / 20) - 1);
     const gapDb = settings.pauseReductionDb > 0 && segments.length ? settings.pauseReductionDb : 0;
     if (settings.pauseReductionDb > 0) stages.push('pause-reduction');
     const gapGain = dbToGain(-gapDb);
@@ -808,6 +944,24 @@ export async function enhanceStream(
     const stageA = async (y: Float32Array) => {
       if (y.length === 0) return;
       let z = clarity ? clarity.process(y) : y;
+      if (clarity && clarityCurve) {
+        // wet/dry mix, interpolated between control points every 10 ms of the file (chunk-independent)
+        const o = new Float32Array(y.length);
+        for (let i = 0; i < y.length; i++) {
+          const p = aPos + i;
+          const blk = Math.floor(p / clarityBlock);
+          if (blk !== mixBlock) {
+            mixBlock = blk;
+            if (blk === mixNextBlock) mixW0 = mixW1;
+            else mixW0 = mixFor(clarityCurve.at((blk * clarityBlock) / sr));
+            mixW1 = mixFor(clarityCurve.at(((blk + 1) * clarityBlock) / sr));
+            mixNextBlock = blk + 1;
+          }
+          const w = mixW0 + ((mixW1 - mixW0) * (p - blk * clarityBlock)) / clarityBlock;
+          o[i] = y[i] + w * (z[i] - y[i]);
+        }
+        z = o;
+      }
       if (gapDb > 0) {
         const m = maskRange(segments, sr, len, 40, aPos, z.length);
         const o = new Float32Array(z.length);
@@ -957,6 +1111,7 @@ export async function enhanceStream(
 
     return {
       outputLength: outLen,
+      sections,
       report: {
         input,
         output,
@@ -975,6 +1130,7 @@ export async function enhanceStream(
         autoReasons,
         whisperSections: segments.filter((s) => s.kind === 'whisper').length,
         levelerMaxBoostDb: plan?.maxBoostDb ?? 0,
+        sectionCounts: sections ? countSections(sections) : undefined,
       },
     };
   } finally {

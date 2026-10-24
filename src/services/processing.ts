@@ -12,6 +12,8 @@ import type { EnhanceSettings, EnhanceSummary } from '../dsp/pipeline';
 import { analyseForSmart, analyseStream, enhanceStream, memoryTemp, RangeSource, type SampleSink, type SampleSource, type SmartAnalysis } from '../dsp/stream';
 import { SpectrumMeter, type Spectrum } from '../dsp/spectrum';
 import { decodeRangesToPcmFile, decodeToPcmFile, fileTemp, samplePlan, WavFileSink, type DecodedPcm } from './pcm';
+import { mapToParts } from './samplePlan';
+import type { SectionSetting } from '../dsp/autoTune';
 import type { Segment } from '../dsp/vad';
 import { toJson, toSrt, toTxt, toVtt, type Transcript } from '../transcript/format';
 import type { Bookmark, Recording } from '../types';
@@ -194,6 +196,8 @@ export interface PreviewRender {
   lengthSec: number;
   /** Average spectra of the part before and after processing. */
   spectrum: { original: Spectrum; enhanced: Spectrum };
+  /** Smart mode per section: the sections of this part (seconds from the part's start). */
+  sections: SectionSetting[] | null;
 }
 
 /**
@@ -237,7 +241,7 @@ export class EnhancePreviewer {
       if (parts) {
         try {
           r = await analyseForSmart(parts.source, settings, { onProgress: (f) => onProgress(0.5 + 0.5 * f, 'measuring'), isCancelled, yieldFn: yieldToUi });
-          r = { ...r, sampled: { parts: plan.length, seconds: parts.source.length / 16000 } };
+          r = { ...r, sampled: { parts: plan.length, seconds: parts.source.length / 16000 }, sections: r.sections && mapToParts(r.sections, plan, parts.partFrames, 16000) };
         } finally {
           parts.dispose();
         }
@@ -299,7 +303,7 @@ export class EnhancePreviewer {
     const specEnh = new SpectrumMeter(sr);
     const tee: SampleSink = { write: async (x) => { specEnh.push(x); await se.write(x); } };
     try {
-      const { report } = await enhanceStream(part, tee, settings, memoryTemp, { isCancelled, yieldFn: yieldToUi });
+      const { report, sections } = await enhanceStream(part, tee, settings, memoryTemp, { isCancelled, yieldFn: yieldToUi });
       se.close();
       this.cleanup();
       this.files = [orig, enh];
@@ -310,6 +314,7 @@ export class EnhancePreviewer {
         startSec: actualStart,
         lengthSec: part.length / sr,
         spectrum: { original: specOrig.bands(), enhanced: specEnh.bands() },
+        sections,
       };
     } catch (e) {
       try { se.close(); } catch { /* closed */ }

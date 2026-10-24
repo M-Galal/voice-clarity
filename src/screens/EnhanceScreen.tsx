@@ -5,7 +5,7 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { settingsForPreset, type EnhanceSummary as EnhanceResult, type EnhanceSettings, type Strength, type WarningCode } from '../dsp/pipeline';
 import { dbToPercent, formatDb, formatLevel, percentToDb } from '../dsp/units';
 import { audioUri, commitPreview, deleteEnhanced, discardPreview, EnhancePreviewer, enhanceToPreview, PREVIEW_SEC, type CancelToken, type PreviewRender } from '../services/processing';
-import { chooseSettings } from '../dsp/autoTune';
+import { countSections, type SectionKind, type SectionSetting } from '../dsp/autoTune';
 import type { SmartAnalysis } from '../dsp/stream';
 import type { Spectrum } from '../dsp/spectrum';
 import { Waveform } from '../ui/Waveform';
@@ -51,7 +51,8 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
     const stale = () => my !== smartGen.current;
     try {
       setSmart({ kind: 'running', label: t('smart_reading'), progress: 0 });
-      const analysis = await pv.analyseSmart(rate, vadOf(s), (f, stage) => {
+      // sections are always worked out, so the per-section switch needs no new analysis
+      const analysis = await pv.analyseSmart(rate, { ...vadOf(s), perSection: true }, (f, stage) => {
         if (!stale()) setSmart({ kind: 'running', label: t(stage === 'reading' ? 'smart_reading' : 'smart_measuring'), progress: f });
       }, stale);
       if (!stale()) setSmart({ kind: 'ready', analysis });
@@ -65,13 +66,13 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
     const h = setTimeout(() => { void analyse(); }, 0);
     return () => clearTimeout(h);
   }, [wantSmart, rate]); // eslint-disable-line react-hooks/exhaustive-deps
-  // The preview uses the whole-file Smart choice (re-applied to the current loudness settings),
-  // not a choice made from the previewed minute alone.
-  const previewSettings: EnhanceSettings = wantSmart && smart.kind === 'ready'
-    ? { ...chooseSettings(s, smart.analysis.measures).settings, strength: 'advanced' }
-    : s;
+  // The preview uses the whole-file Smart measurements (file settings and the level that marks
+  // distant speech), not a choice made from the previewed minute alone.
+  const previewSettings: EnhanceSettings = wantSmart && smart.kind === 'ready' ? { ...s, autoMeasures: smart.analysis.measures } : s;
+  const perSection = s.perSection !== false;
+  const fileSections = wantSmart && perSection && smart.kind === 'ready' ? smart.analysis.sections : null;
 
-  const patch = (p: Partial<EnhanceSettings>) => setS((prev) => ({ ...prev, ...p, strength: p.strength ?? (Object.keys(p).some((k) => k !== 'gainMode' && k !== 'targetLufs' && k !== 'manualGainDb' && k !== 'removeSilence' && k !== 'keepGapMs' && k !== 'limiterCeilingDb') ? 'advanced' : prev.strength) }));
+  const patch = (p: Partial<EnhanceSettings>) => setS((prev) => ({ ...prev, ...p, strength: p.strength ?? (Object.keys(p).some((k) => k !== 'perSection' && k !== 'gainMode' && k !== 'targetLufs' && k !== 'manualGainDb' && k !== 'removeSilence' && k !== 'keepGapMs' && k !== 'limiterCeilingDb') ? 'advanced' : prev.strength) }));
 
   const run = async () => {
     token.current = { cancelled: false };
@@ -145,7 +146,8 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
             {s.strength === 'auto' ? (
               <>
                 <Txt size="sm" testID="auto-hint">{t('auto_hint')}</Txt>
-                <SmartCard state={smart} onRetry={() => { void analyse(); }} />
+                <SmartCard state={smart} onRetry={() => { void analyse(); }} perSection={perSection} />
+                <Toggle testID="per-section" label={t('per_section')} hint={t('per_section_hint')} value={perSection} onChange={(v) => patch({ perSection: v })} />
               </>
             ) : (
               <>
@@ -181,7 +183,7 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
             ) : null}
           </Section>
 
-          <PreviewPanel rec={rec} pv={pv} settings={previewSettings} rate={rate} />
+          <PreviewPanel rec={rec} pv={pv} settings={previewSettings} rate={rate} sections={fileSections} />
 
           <Card style={{ borderColor: colors.primary, borderWidth: 2 }}>
             <Txt bold>{t('settings_summary')}</Txt>
@@ -215,7 +217,7 @@ type SmartState =
   | { kind: 'error'; message: string };
 
 /** Smart mode: the whole recording is analysed when the screen opens; the result is shown here. */
-function SmartCard({ state, onRetry }: { state: SmartState; onRetry: () => void }) {
+function SmartCard({ state, onRetry, perSection }: { state: SmartState; onRetry: () => void; perSection: boolean }) {
   const { t } = useApp();
   if (state.kind === 'idle') return null;
   return (
@@ -231,7 +233,7 @@ function SmartCard({ state, onRetry }: { state: SmartState; onRetry: () => void 
       {state.kind === 'ready' ? (
         <View testID="smart-ready" style={{ gap: 2 }}>
           <Txt size="sm" muted>{state.analysis.sampled ? t('smart_done_sampled', { parts: state.analysis.sampled.parts, min: Math.max(1, Math.round(state.analysis.sampled.seconds / 60)) }) : t('smart_done')}</Txt>
-          {state.analysis.reasons.map((x, i) => (
+          {state.analysis.reasons.filter((x) => perSection || x.key !== 'auto_sections').map((x, i) => (
             <Txt key={i} size="sm" testID={`smart-${x.key}`}>{`• ${t(x.key, x.vars)}`}</Txt>
           ))}
           {state.analysis.humHz ? <Txt size="sm">{`• ${t('smart_hum', { hz: state.analysis.humHz })}`}</Txt> : null}
@@ -273,12 +275,34 @@ function SpectrumChart({ original, enhanced, height = 72 }: { original: Spectrum
   );
 }
 
+const sectionColor = (k: SectionKind, colors: ReturnType<typeof useApp>['colors']) => (k === 'whisper' ? colors.primary : k === 'far' ? colors.warn : colors.ok);
+
+/** Where the whispered, distant and close sections are (each tuned on its own), under the timeline. */
+function SectionStrip({ sections, duration }: { sections: SectionSetting[]; duration: number }) {
+  const { t, colors } = useApp();
+  const n = countSections(sections);
+  return (
+    <View testID="pv-sections" accessible accessibilityLabel={t('sec_counts_value', n)} style={{ gap: 2 }}>
+      <View style={{ height: 6, backgroundColor: colors.surface2, borderRadius: 3, overflow: 'hidden', direction: 'ltr' }}>
+        {duration > 0 ? sections.map((s, i) => (
+          <View key={i} style={{ position: 'absolute', top: 0, bottom: 0, left: `${(s.start / duration) * 100}%`, width: `${Math.max(0.3, ((s.end - s.start) / duration) * 100)}%`, backgroundColor: sectionColor(s.kind, colors) }} />
+        )) : null}
+      </View>
+      <Row style={{ gap: 12 }}>
+        {(['whisper', 'far', 'near'] as SectionKind[]).map((k) => (
+          <Row key={k} style={{ gap: 4 }}><View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: sectionColor(k, colors) }} /><Txt size="xs" muted>{`${t(`sec_${k}`)} ${n[k]}`}</Txt></Row>
+        ))}
+      </Row>
+    </View>
+  );
+}
+
 /**
  * Listen to a 1-minute part processed with the current settings before running the whole file.
  * The timeline shows where the part sits in the recording (tap inside it to seek, outside to
  * move it); after the first preview, any settings change renders a new one (debounced).
  */
-function PreviewPanel({ rec, pv, settings, rate }: { rec: Recording; pv: EnhancePreviewer; settings: EnhanceSettings; rate: number }) {
+function PreviewPanel({ rec, pv, settings, rate, sections }: { rec: Recording; pv: EnhancePreviewer; settings: EnhanceSettings; rate: number; sections: SectionSetting[] | null }) {
   const app = useApp();
   const { t } = app;
   const maxStart = Math.max(0, Math.floor(rec.durationSec - PREVIEW_SEC));
@@ -365,6 +389,7 @@ function PreviewPanel({ rec, pv, settings, rate }: { rec: Recording; pv: Enhance
           selectionMode="keep"
         />
       </View>
+      {sections?.length ? <SectionStrip sections={sections} duration={rec.durationSec} /> : null}
       <Row style={{ justifyContent: 'space-between', direction: 'ltr' }}>
         <Txt size="xs" muted testID="pv-range">{`${clock(start)} – ${clock(partEnd)}`}</Txt>
         <Txt size="xs" muted>{ready ? `${clock(status.currentTime)} / ${clock(ready.lengthSec)}` : clock(rec.durationSec)}</Txt>
@@ -399,6 +424,11 @@ function PreviewPanel({ rec, pv, settings, rate }: { rec: Recording; pv: Enhance
               <Txt size="sm" muted testID="pv-summary">
                 {t('pv_result', { gain: `${ready.report.appliedGainDb >= 0 ? '+' : ''}${ready.report.appliedGainDb.toFixed(1)}`, lufs: Number.isFinite(ready.report.output.speechLufs) ? ready.report.output.speechLufs.toFixed(1) : '—' })}
               </Txt>
+              {ready.sections?.length ? (
+                <Txt size="sm" muted testID="pv-section-list">
+                  {t('pv_sections', { list: ready.sections.map((x) => `${t(`sec_${x.kind}`)} ${clock(ready.startSec + x.start)}–${clock(ready.startSec + x.end)}`).join(', ') })}
+                </Txt>
+              ) : null}
             </>
           ) : null}
         </>
@@ -412,6 +442,7 @@ function summary(s: EnhanceSettings, rate: number, t: ReturnType<typeof useApp>[
     return [
       `${t('strength')}: ${t('auto')}`,
       t('auto_hint'),
+      s.perSection !== false ? t('per_section') : '',
       s.gainMode === 'target' ? `${t('target_lufs')}: ${s.targetLufs} LUFS` : `${t('manual_gain')}: ${formatDb(s.manualGainDb)} (${pct(s.manualGainDb)})`,
       `${t('limiter_ceiling')}: ${s.limiterCeilingDb} dBFS`,
       `${t('processing_rate')}: ${rate / 1000} kHz`,
@@ -571,6 +602,7 @@ function Review({ rec, result, previewUri, onKeep, onDiscard }: { rec: Recording
         <KeyValue k={t('snr')} v={Number.isFinite(r.snrDb) ? `${r.snrDb.toFixed(0)} dB` : '—'} />
         {r.humHz ? <Txt size="sm">{t('hum_found', { hz: r.humHz })}</Txt> : null}
         {r.whisperSections > 0 ? <KeyValue k={t('whisper_sections')} v={String(r.whisperSections)} /> : null}
+        {r.sectionCounts ? <View testID="sec-counts"><KeyValue k={t('sec_counts')} v={t('sec_counts_value', r.sectionCounts)} /></View> : null}
         {r.levelerMaxBoostDb > 0.5 ? <KeyValue k={t('leveller_boost')} v={formatDb(r.levelerMaxBoostDb, 0)} /> : null}
         <KeyValue k={t('duration')} v={`${clock(r.durationSec)} → ${clock(r.outputDurationSec)}`} />
       </Section>

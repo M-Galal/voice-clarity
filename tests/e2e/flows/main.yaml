@@ -136,6 +136,10 @@ appId: com.example.voiceclarity
     visible:
       id: "smart-ready"
     timeout: 120000
+- assertVisible:
+    id: "smart-auto_sections"
+- assertVisible:
+    id: "per-section"
 - takeScreenshot: 10_enhance_setup
 # preview 15 s with the current (Smart) settings, compare, then change a setting: it re-renders
 - scrollUntilVisible:
@@ -157,7 +161,21 @@ appId: com.example.voiceclarity
 - scrollUntilVisible:
     element:
       id: "pv-spectrum"
+- scrollUntilVisible:
+    element:
+      id: "pv-section-list"
 - takeScreenshot: 10b_preview
+- repeat:
+    while:
+      notVisible:
+        id: "pv-sections"
+    times: 10
+    commands:
+      - swipe:
+          start: 4%, 30%
+          end: 4%, 70%
+          duration: 400
+- takeScreenshot: 10d_preview_sections
 # Swipe near the left edge: a swipe through the middle lands on a slider and moves it
 # instead of scrolling the page.
 - repeat:

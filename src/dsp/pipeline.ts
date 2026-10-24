@@ -12,7 +12,7 @@ import { mixToMono, removeSilence } from './buffers';
 import { CancelledError, denoise, detectHum, type Progress } from './denoise';
 import { applyGain, attenuateGaps, detectClipping, levelSpeech, limit } from './dynamics';
 import { kWeight, loudnessPair, samplePeakDb, speechLoudness, truePeakDb } from './loudness';
-import { chooseSettings, measureForAuto, type AutoReason } from './autoTune';
+import { chooseSettings, measureForAuto, type AutoMeasures, type AutoReason, type SectionKind } from './autoTune';
 import { clamp } from './units';
 import { detectSpeech, estimateSnrDb, type Segment, type VadOptions } from './vad';
 
@@ -47,6 +47,13 @@ export interface EnhanceSettings {
   removeSilence: boolean;
   keepGapMs: number;
   vad: Partial<VadOptions>;
+  /** Smart mode: choose noise reduction and clarity for each section (whispered, distant, close). */
+  perSection?: boolean;
+  /**
+   * Smart mode with measurements taken elsewhere (the preview uses the whole recording's, not
+   * those of the previewed minute). Not saved with the user's settings.
+   */
+  autoMeasures?: AutoMeasures;
 }
 
 const BASE: EnhanceSettings = {
@@ -68,6 +75,7 @@ const BASE: EnhanceSettings = {
   removeSilence: false,
   keepGapMs: 300,
   vad: {},
+  perSection: true,
 };
 
 export const PRESETS: Record<Exclude<Strength, 'advanced' | 'auto'>, Partial<EnhanceSettings>> = {
@@ -123,6 +131,8 @@ export interface EnhanceReport {
   whisperSections: number;
   /** Largest boost the speech leveller applied, dB. */
   levelerMaxBoostDb: number;
+  /** Smart mode per section: how many sections of each kind got their own settings. */
+  sectionCounts?: Record<SectionKind, number>;
 }
 
 /** What the app keeps from an enhancement run (the audio itself goes to a file). */
