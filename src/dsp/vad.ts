@@ -16,7 +16,7 @@
  * clicks in the whisper band) can be marked as speech, and speech fully buried in noise can be
  * missed. The UI says so.
  */
-import { applyChain, designBiquad } from './biquad';
+import { BiquadChainState, designBiquad } from './biquad';
 
 export interface Segment {
   start: number; // seconds
@@ -61,54 +61,86 @@ export interface FrameAnalysis {
   highFloorDb: number;
 }
 
-function frameLevels(band: Float32Array, frame: number): Float32Array {
-  const count = Math.ceil(band.length / frame);
-  const levels = new Float32Array(count);
-  for (let f = 0; f < count; f++) {
-    let s = 0;
-    const st = f * frame;
-    const en = Math.min(band.length, st + frame);
-    for (let i = st; i < en; i++) s += band[i] * band[i];
-    const ms = s / Math.max(1, en - st);
-    levels[f] = ms > 1e-12 ? 10 * Math.log10(ms) : -120;
-  }
-  return levels;
-}
-
 const percentile = (x: Float32Array, p: number) => {
   if (!x.length) return -120;
   const sorted = Float32Array.from(x).sort();
   return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))];
 };
 
-export function analyzeFrames(samples: Float32Array, sampleRate: number, frameMs = 20): FrameAnalysis {
-  const nyq = sampleRate / 2;
-  const band = applyChain(samples, [
-    designBiquad('highpass', sampleRate, 100, 0.707),
-    designBiquad('lowpass', sampleRate, Math.min(4000, nyq * 0.9), 0.707),
-  ]);
-  const high = applyChain(samples, [
-    designBiquad('highpass', sampleRate, Math.min(1500, nyq * 0.5), 0.707),
-    designBiquad('highpass', sampleRate, Math.min(1500, nyq * 0.5), 0.707),
-    designBiquad('lowpass', sampleRate, Math.min(7000, nyq * 0.9), 0.707),
-  ]);
-  const frame = Math.max(1, Math.round((frameMs / 1000) * sampleRate));
-  const levelsDb = frameLevels(band, frame);
-  // whisper energy flickers frame to frame: average its power over ±2 frames (100 ms)
-  const rawHigh = frameLevels(high, frame);
-  const highLevelsDb = new Float32Array(rawHigh.length);
-  for (let f = 0; f < rawHigh.length; f++) {
-    let p = 0, n = 0;
-    for (let k = Math.max(0, f - 2); k <= Math.min(rawHigh.length - 1, f + 2); k++) { p += Math.pow(10, rawHigh[k] / 10); n++; }
-    highLevelsDb[f] = 10 * Math.log10(p / n);
+const toDb = (ms: number) => (ms > 1e-12 ? 10 * Math.log10(ms) : -120);
+
+/**
+ * Frame levels in the voice and whisper bands, fed chunk by chunk (filters keep their state),
+ * so a long recording can be analysed without holding it in memory. Feeding the whole signal
+ * at once gives the same result.
+ */
+export class FrameAnalyzer {
+  private readonly band: BiquadChainState;
+  private readonly high: BiquadChainState;
+  readonly frame: number;
+  private bandSum = 0;
+  private highSum = 0;
+  private filled = 0;
+  private readonly bandLevels: number[] = [];
+  private readonly highLevels: number[] = [];
+
+  constructor(private readonly sampleRate: number, frameMs = 20) {
+    const nyq = sampleRate / 2;
+    this.band = new BiquadChainState([
+      designBiquad('highpass', sampleRate, 100, 0.707),
+      designBiquad('lowpass', sampleRate, Math.min(4000, nyq * 0.9), 0.707),
+    ]);
+    this.high = new BiquadChainState([
+      designBiquad('highpass', sampleRate, Math.min(1500, nyq * 0.5), 0.707),
+      designBiquad('highpass', sampleRate, Math.min(1500, nyq * 0.5), 0.707),
+      designBiquad('lowpass', sampleRate, Math.min(7000, nyq * 0.9), 0.707),
+    ]);
+    this.frame = Math.max(1, Math.round((frameMs / 1000) * sampleRate));
   }
-  return {
-    frameSec: frame / sampleRate,
-    levelsDb,
-    noiseFloorDb: percentile(levelsDb, 0.1),
-    highLevelsDb,
-    highFloorDb: percentile(highLevelsDb, 0.1),
-  };
+
+  push(chunk: Float32Array): void {
+    const b = this.band.process(chunk);
+    const h = this.high.process(chunk);
+    for (let i = 0; i < chunk.length; i++) {
+      this.bandSum += b[i] * b[i];
+      this.highSum += h[i] * h[i];
+      if (++this.filled === this.frame) {
+        this.bandLevels.push(toDb(this.bandSum / this.frame));
+        this.highLevels.push(toDb(this.highSum / this.frame));
+        this.bandSum = 0; this.highSum = 0; this.filled = 0;
+      }
+    }
+  }
+
+  finish(): FrameAnalysis {
+    if (this.filled > 0) {
+      this.bandLevels.push(toDb(this.bandSum / this.filled));
+      this.highLevels.push(toDb(this.highSum / this.filled));
+      this.bandSum = 0; this.highSum = 0; this.filled = 0;
+    }
+    const levelsDb = Float32Array.from(this.bandLevels);
+    const rawHigh = Float32Array.from(this.highLevels);
+    // whisper energy flickers frame to frame: average its power over ±2 frames (100 ms)
+    const highLevelsDb = new Float32Array(rawHigh.length);
+    for (let f = 0; f < rawHigh.length; f++) {
+      let p = 0, n = 0;
+      for (let k = Math.max(0, f - 2); k <= Math.min(rawHigh.length - 1, f + 2); k++) { p += Math.pow(10, rawHigh[k] / 10); n++; }
+      highLevelsDb[f] = 10 * Math.log10(p / n);
+    }
+    return {
+      frameSec: this.frame / this.sampleRate,
+      levelsDb,
+      noiseFloorDb: percentile(levelsDb, 0.1),
+      highLevelsDb,
+      highFloorDb: percentile(highLevelsDb, 0.1),
+    };
+  }
+}
+
+export function analyzeFrames(samples: Float32Array, sampleRate: number, frameMs = 20): FrameAnalysis {
+  const a = new FrameAnalyzer(sampleRate, frameMs);
+  a.push(samples);
+  return a.finish();
 }
 
 export function detectSpeech(
@@ -117,26 +149,30 @@ export function detectSpeech(
   opts: Partial<VadOptions> = {},
 ): { segments: Segment[]; analysis: FrameAnalysis; thresholdUsedDb: number } {
   const o = { ...DEFAULT_VAD, ...opts };
-  const result = detectWith(samples, sampleRate, o);
-  // Noisy files: if nothing passes, retry once with a lower margin before giving up.
-  if (result.segments.length === 0 && o.thresholdDb > 6) {
-    const retry = detectWith(samples, sampleRate, { ...o, thresholdDb: 6 });
-    if (retry.segments.length) return { ...retry, thresholdUsedDb: 6 };
-  }
-  return { ...result, thresholdUsedDb: o.thresholdDb };
+  return detectSpeechFromAnalysis(analyzeFrames(samples, sampleRate, o.frameMs), samples.length / sampleRate, o);
 }
 
-function detectWith(
-  samples: Float32Array,
-  sampleRate: number,
-  o: VadOptions,
-): { segments: Segment[]; analysis: FrameAnalysis } {
-  const analysis = analyzeFrames(samples, sampleRate, o.frameMs);
+/** Speech segments from frame levels (see FrameAnalyzer); `analysis` must use opts.frameMs. */
+export function detectSpeechFromAnalysis(
+  analysis: FrameAnalysis,
+  duration: number,
+  opts: Partial<VadOptions> = {},
+): { segments: Segment[]; analysis: FrameAnalysis; thresholdUsedDb: number } {
+  const o = { ...DEFAULT_VAD, ...opts };
+  const segments = segmentsWith(analysis, duration, o);
+  // Noisy files: if nothing passes, retry once with a lower margin before giving up.
+  if (segments.length === 0 && o.thresholdDb > 6) {
+    const retry = segmentsWith(analysis, duration, { ...o, thresholdDb: 6 });
+    if (retry.length) return { segments: retry, analysis, thresholdUsedDb: 6 };
+  }
+  return { segments, analysis, thresholdUsedDb: o.thresholdDb };
+}
+
+function segmentsWith(analysis: FrameAnalysis, duration: number, o: VadOptions): Segment[] {
   const { levelsDb, highLevelsDb, frameSec, noiseFloorDb, highFloorDb } = analysis;
   const threshold = Math.max(noiseFloorDb + o.thresholdDb, o.minLevelDb);
   // whispers are quiet: allow 15 dB lower absolute level in their band
   const highThreshold = Math.max(highFloorDb + o.whisperThresholdDb, o.minLevelDb - 15);
-  const duration = samples.length / sampleRate;
 
   // per frame: 0 = silence, 1 = voice band, 2 = whisper band only
   const kind = new Uint8Array(levelsDb.length);
@@ -186,7 +222,7 @@ function detectWith(
     if (o.whisper) seg.kind = w > v ? 'whisper' : 'voice';
     return seg;
   });
-  return { segments: labelled, analysis };
+  return labelled;
 }
 
 const round3 = (x: number) => Math.round(x * 1000) / 1000;

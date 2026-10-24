@@ -26,7 +26,27 @@ class VoiceEncoderModule : Module() {
       encode(toPath(inputUri), toPath(outputUri), container, bitrate)
       File(toPath(outputUri)).length().toDouble()
     }
+
+    Events("onDecodeProgress")
+
+    // Streams any readable audio file (file:// or content://) to mono 16-bit PCM at `sampleRate`.
+    AsyncFunction("decodeToPcm") { id: String, inputUri: String, outputUri: String, sampleRate: Int ->
+      val ctx = appContext.reactContext ?: throw IllegalStateException("No React context")
+      cancelled.remove(id)
+      try {
+        val r = PcmDecoder(ctx).decode(inputUri, toPath(outputUri), sampleRate, { cancelled.contains(id) }) { p ->
+          sendEvent("onDecodeProgress", mapOf("id" to id, "fraction" to p))
+        }
+        mapOf("frames" to r.frames.toDouble(), "sourceRate" to r.sourceRate, "sourceChannels" to r.sourceChannels)
+      } finally {
+        cancelled.remove(id)
+      }
+    }
+
+    Function("cancelDecode") { id: String -> cancelled.add(id) }
   }
+
+  private val cancelled = java.util.Collections.synchronizedSet(mutableSetOf<String>())
 
   private fun toPath(uri: String): String =
     if (uri.startsWith("file://")) java.net.URLDecoder.decode(uri.removePrefix("file://"), "UTF-8") else uri

@@ -86,3 +86,34 @@ export function applyChain(input: Float32Array, chain: BiquadCoeffs[]): Float32A
   for (const c of chain) out = applyBiquad(out, c);
   return out === input ? Float32Array.from(input) : out;
 }
+
+/**
+ * A biquad chain that keeps its state between calls, so a long signal can be filtered chunk by
+ * chunk with exactly the same result as applyChain on the whole signal.
+ */
+export class BiquadChainState {
+  private readonly st: Float64Array; // per stage: x1, x2, y1, y2
+
+  constructor(private readonly chain: BiquadCoeffs[]) {
+    this.st = new Float64Array(chain.length * 4);
+  }
+
+  process(input: Float32Array): Float32Array {
+    let cur = input;
+    for (let s = 0; s < this.chain.length; s++) {
+      const c = this.chain[s];
+      const o = s * 4;
+      let x1 = this.st[o], x2 = this.st[o + 1], y1 = this.st[o + 2], y2 = this.st[o + 3];
+      const out = new Float32Array(cur.length);
+      for (let i = 0; i < cur.length; i++) {
+        const x0 = cur[i];
+        const y0 = c.b0 * x0 + c.b1 * x1 + c.b2 * x2 - c.a1 * y1 - c.a2 * y2;
+        out[i] = y0;
+        x2 = x1; x1 = x0; y2 = y1; y1 = y0;
+      }
+      this.st[o] = x1; this.st[o + 1] = x2; this.st[o + 2] = y1; this.st[o + 3] = y2;
+      cur = out;
+    }
+    return cur === input ? Float32Array.from(input) : cur;
+  }
+}

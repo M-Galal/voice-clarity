@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useKeepAwake } from 'expo-keep-awake';
-import { settingsForPreset, type EnhanceResult, type EnhanceSettings, type Strength, type WarningCode } from '../dsp/pipeline';
+import { settingsForPreset, type EnhanceSummary as EnhanceResult, type EnhanceSettings, type Strength, type WarningCode } from '../dsp/pipeline';
 import { dbToPercent, formatDb, formatLevel, percentToDb } from '../dsp/units';
 import { audioUri, commitPreview, deleteEnhanced, discardPreview, enhanceToPreview, type CancelToken } from '../services/processing';
 import { useApp } from '../state/AppContext';

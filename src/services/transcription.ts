@@ -12,13 +12,13 @@
  */
 import { File } from 'expo-file-system';
 import { initWhisper, type WhisperContext } from 'whisper.rn';
-import { mixToMono, resample } from '../dsp/buffers';
 import type { Segment } from '../dsp/vad';
 import {
   arabicPunctuation, cleanText, detectTimeScale, flagSegments, type Transcript, type TranscriptSegment,
 } from '../transcript/format';
 import type { Recording } from '../types';
-import { decodeFile, writeWav, yieldToUi } from './audio';
+import { yieldToUi } from './audio';
+import { decodeToPcmFile, WavFileSink } from './pcm';
 import { audioUri } from './processing';
 import { modelsDir, tempDir } from './storage';
 
@@ -83,16 +83,6 @@ export function lowQualityRanges(levels: { start: number; end: number; marginDb:
   return levels.filter((l) => l.marginDb < minMarginDb).map(({ start, end }) => ({ start, end }));
 }
 
-function segmentMargins(mono: Float32Array, sr: number, segs: Segment[], noiseFloorDb: number) {
-  return segs.map((s) => {
-    const a = Math.round(s.start * sr), b = Math.min(mono.length, Math.round(s.end * sr));
-    let acc = 0;
-    for (let i = a; i < b; i++) acc += mono[i] * mono[i];
-    const db = b > a ? 10 * Math.log10(acc / (b - a) + 1e-12) : -120;
-    return { start: s.start, end: s.end, marginDb: db - noiseFloorDb };
-  });
-}
-
 export async function startTranscription(
   rec: Recording,
   opts: { modelId: string; language: string; useEnhanced: boolean; prompt: string },
@@ -103,22 +93,37 @@ export async function startTranscription(
   const useEnhanced = opts.useEnhanced && !!rec.enhanced;
   const srcUri = audioUri(rec, useEnhanced ? 'enhanced' : 'original');
 
-  // whisper.cpp works on 16 kHz mono; write it as a 16-bit WAV it can read directly.
-  // Decoded samples live only inside prepare(), so they can be freed while whisper runs.
+  // whisper.cpp works on 16 kHz mono; write it as a 16-bit WAV it can read directly. The file is
+  // decoded to a temporary PCM file and copied in chunks, so long recordings fit in memory.
   const prepare = async () => {
-    const decoded = await decodeFile(srcUri, 16000);
-    let mono = mixToMono(decoded.channels);
-    if (decoded.sampleRate !== 16000) mono = resample(mono, decoded.sampleRate, 16000);
-    await yieldToUi();
-    const file = new File(tempDir(), `${rec.id}-asr.wav`);
-    await writeWav(file, mono, 16000);
-    const segs = useEnhanced ? rec.enhanced!.segments : rec.segments ?? [];
-    const noiseFloor = rec.noiseFloorDb ?? -60;
-    return {
-      wav: file,
-      weak: lowQualityRanges(segmentMargins(mono, 16000, segs, noiseFloor)),
-      duration: mono.length / 16000,
-    };
+    const decoded = await decodeToPcmFile(srcUri, 16000, useEnhanced ? rec.enhanced!.report.outputDurationSec : rec.durationSec);
+    try {
+      const src = decoded.source;
+      const file = new File(tempDir(), `${rec.id}-asr.wav`);
+      const sink = new WavFileSink(file, 16000);
+      const segs = useEnhanced ? rec.enhanced!.segments : rec.segments ?? [];
+      const ranges = segs.map((g) => ({ a: Math.round(g.start * 16000), b: Math.min(src.length, Math.round(g.end * 16000)) }));
+      const sums = new Float64Array(segs.length);
+      const step = 16000 * 8;
+      for (let pos = 0; pos < src.length; pos += step) {
+        const x = await src.read(pos, Math.min(step, src.length - pos));
+        ranges.forEach((r, i) => {
+          for (let k = Math.max(r.a, pos); k < Math.min(r.b, pos + x.length); k++) sums[i] += x[k - pos] * x[k - pos];
+        });
+        await sink.write(x);
+        await yieldToUi();
+      }
+      sink.close();
+      const noiseFloor = rec.noiseFloorDb ?? -60;
+      const margins = segs.map((g, i) => {
+        const n = ranges[i].b - ranges[i].a;
+        const db = n > 0 ? 10 * Math.log10(sums[i] / n + 1e-12) : -120;
+        return { start: g.start, end: g.end, marginDb: db - noiseFloor };
+      });
+      return { wav: file, weak: lowQualityRanges(margins), duration: src.length / 16000 };
+    } finally {
+      decoded.dispose();
+    }
   };
   const { wav, weak, duration } = await prepare();
 

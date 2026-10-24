@@ -7,13 +7,14 @@ import { Directory, File, FileMode } from 'expo-file-system';
 import { displayName } from '../playlist/filter';
 import VoiceEncoder from '../../modules/voice-encoder/src/VoiceEncoderModule';
 import { aacBitrate, MIME, saveTarget, type SaveTarget } from '../edit/saveFormat';
-import { mixToMono, waveformPeaks } from '../dsp/buffers';
 import { CancelledError } from '../dsp/denoise';
-import { enhance, type EnhanceResult, type EnhanceSettings } from '../dsp/pipeline';
-import { detectSpeech, type Segment } from '../dsp/vad';
+import type { EnhanceSettings, EnhanceSummary } from '../dsp/pipeline';
+import { analyseStream, enhanceStream } from '../dsp/stream';
+import { decodeToPcmFile, fileTemp, WavFileSink } from './pcm';
+import type { Segment } from '../dsp/vad';
 import { toJson, toSrt, toTxt, toVtt, type Transcript } from '../transcript/format';
 import type { Bookmark, Recording } from '../types';
-import { assertSupported, decodeFile, extOf, PICKER_TYPES, readDuration, writeWav, writeWavChannels, yieldToUi } from './audio';
+import { assertSupported, decodeFile, extOf, PICKER_TYPES, readDuration, writeWavChannels, yieldToUi } from './audio';
 import { applyEdit, editedDuration, normalizeSpec, remapTime, type EditSpec } from '../dsp/edit';
 import { ensureDirs, fileIn, freeBytes, newId, recordingDir, tempDir } from './storage';
 
@@ -24,8 +25,12 @@ export class LowStorageError extends Error {
   }
 }
 
-/** Bytes needed to process `durationSec` (decoded float buffers + output WAV), with margin. */
-export const estimateWorkBytes = (durationSec: number, rate: number) => Math.round(durationSec * rate * 2 * 3 + 20e6);
+/**
+ * Temporary disk space for enhancing `durationSec` at `rate`: at most 6 bytes per sample are on
+ * disk at once (decoded 16-bit input + float stage, then float stage + 16-bit limited track,
+ * then 16-bit track + 16-bit output), plus margin.
+ */
+export const estimateWorkBytes = (durationSec: number, rate: number) => Math.round(durationSec * rate * 6 * 1.1 + 20e6);
 
 export function checkStorage(needed: number) {
   const free = freeBytes();
@@ -113,25 +118,23 @@ export interface AnalysisResult {
 
 /** Decodes at 16 kHz (enough for speech detection and drawing) and finds speech. */
 export async function analyse(rec: Recording, vadThresholdDb: number, whisper = true): Promise<AnalysisResult> {
-  // 16 kHz keeps memory low for long recordings (≈ 230 MB per hour as float32 at 16 kHz mono)
-  const native = await decodeFile(originalUri(rec), 16000);
-  const nativeRate = native.sampleRate;
-  const channels = native.channels.length;
-  const mono = mixToMono(native.channels);
-  native.channels.length = 0;
-  await yieldToUi();
-  const tVad = Date.now();
-  const { segments, analysis } = detectSpeech(mono, nativeRate, { thresholdDb: vadThresholdDb, whisper });
-  console.log(`[VC] analyse ${rec.format} ${(mono.length / nativeRate).toFixed(1)}s: ${segments.length} speech sections (${segments.filter((s) => s.kind === 'whisper').length} whispered), VAD ${Date.now() - tVad} ms`);
-  await yieldToUi();
-  return {
-    durationSec: mono.length / nativeRate,
-    sampleRate: nativeRate,
-    channels,
-    segments,
-    waveform: waveformPeaks(mono, 400),
-    noiseFloorDb: analysis.noiseFloorDb,
-  };
+  // decoded to a temporary 16 kHz PCM file and read in chunks, so long files fit in memory
+  const decoded = await decodeToPcmFile(originalUri(rec), 16000, rec.durationSec);
+  try {
+    const tVad = Date.now();
+    const a = await analyseStream(decoded.source, { thresholdDb: vadThresholdDb, whisper }, { yieldFn: yieldToUi });
+    console.log(`[VC] analyse ${rec.format} ${a.durationSec.toFixed(1)}s: ${a.segments.length} speech sections (${a.segments.filter((s) => s.kind === 'whisper').length} whispered), VAD ${Date.now() - tVad} ms`);
+    return {
+      durationSec: a.durationSec,
+      sampleRate: 16000,
+      channels: decoded.channels,
+      segments: a.segments,
+      waveform: a.waveform,
+      noiseFloorDb: a.noiseFloorDb,
+    };
+  } finally {
+    decoded.dispose();
+  }
 }
 
 export interface CancelToken {
@@ -145,24 +148,35 @@ export async function enhanceToPreview(
   processingRate: number,
   token: CancelToken,
   onProgress: (f: number, stage: string) => void,
-): Promise<{ result: EnhanceResult; previewUri: string }> {
+): Promise<{ result: EnhanceSummary; previewUri: string }> {
   checkStorage(estimateWorkBytes(rec.durationSec, processingRate));
   const t0 = Date.now();
   onProgress(0, 'decode');
-  const decoded = await decodeFile(originalUri(rec), processingRate);
-  if (token.cancelled) throw new CancelledError();
-  const result = await enhance(decoded.channels, decoded.sampleRate, settings, {
-    isCancelled: () => token.cancelled,
-    yieldFn: yieldToUi,
-    onProgress: (f) => onProgress(0.05 + f * 0.9, 'process'),
-  });
-  const r = result.report;
-  console.log(`[VC] enhance ${rec.durationSec.toFixed(1)}s @${processingRate}: ${Date.now() - t0} ms, gain ${r.appliedGainDb.toFixed(1)} dB, speech ${r.output.speechLufs.toFixed(1)} LUFS, TP ${r.output.truePeakDb.toFixed(2)}, hum ${r.humHz}, warnings ${r.warnings.join(',') || 'none'}`);
-  onProgress(0.96, 'write');
+  // Long recordings never sit in memory: the file is decoded to a temporary PCM file, processed
+  // in chunks (dsp/stream.ts) and written straight to the preview WAV.
+  const decoded = await decodeToPcmFile(originalUri(rec), processingRate, rec.durationSec, (f) => onProgress(0.1 * f, 'decode'), () => token.cancelled);
   const preview = new File(tempDir(), `${rec.id}-preview-${Date.now()}.wav`);
-  await writeWav(preview, result.output, result.sampleRate);
-  onProgress(1, 'done');
-  return { result, previewUri: preview.uri };
+  let sink: WavFileSink | null = null;
+  try {
+    if (token.cancelled) throw new CancelledError();
+    sink = new WavFileSink(preview, decoded.source.sampleRate);
+    const { report } = await enhanceStream(decoded.source, sink, settings, fileTemp, {
+      isCancelled: () => token.cancelled,
+      yieldFn: yieldToUi,
+      onProgress: (f) => onProgress(0.1 + f * 0.9, f < 0.94 ? 'process' : 'write'),
+    }, () => decoded.dispose());
+    sink.close();
+    sink = null;
+    console.log(`[VC] enhance ${rec.durationSec.toFixed(1)}s @${processingRate}: ${Date.now() - t0} ms, gain ${report.appliedGainDb.toFixed(1)} dB, speech ${report.output.speechLufs.toFixed(1)} LUFS, TP ${report.output.truePeakDb.toFixed(2)}, hum ${report.humHz}, warnings ${report.warnings.join(',') || 'none'}`);
+    onProgress(1, 'done');
+    return { result: { report, sampleRate: decoded.source.sampleRate }, previewUri: preview.uri };
+  } catch (e) {
+    try { sink?.close(); } catch { /* closed */ }
+    if (preview.exists) preview.delete();
+    throw e;
+  } finally {
+    decoded.dispose();
+  }
 }
 
 /** Moves an accepted preview into the recording folder, replacing any previous enhanced copy. */

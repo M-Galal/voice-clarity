@@ -157,6 +157,8 @@ src/services/transcription.ts model download, whisper.rn transcription, flags
 src/edit/saveFormat.ts       save file type, AAC bit rate, -v<n> naming
 modules/voice-encoder/       local Expo module: AAC encoder (Kotlin MediaCodec, Swift AVAudioFile)
 src/dsp/                     pure TypeScript DSP: biquads, FFT, VAD, denoise, loudness, limiter, WAV
+src/dsp/stream.ts            chunked analysis and enhancement for long recordings
+src/services/pcm.ts          streaming decode to PCM files, chunk readers, temporary tracks, WAV writer
 src/transcript/format.ts     Arabic helpers, SRT/VTT/TXT/JSON, search
 src/playlist/filter.ts       play-list name/extension filters, sorting, SAF names and folder labels
 src/services/playlist.ts     folder picker, folder scan, Secure Folder availability
@@ -173,13 +175,21 @@ Libraries: expo-audio for playback (rate change with pitch correction, backgroun
 
 The DSP is plain TypeScript with no React Native imports, so it is tested in Node and could later move to a native module or a worklet without changes to the UI. Processing runs on the JavaScript thread in chunks that yield to the UI between steps; cancel takes effect at the next chunk.
 
+Long recordings. Speech detection, enhancement and transcription never hold the whole recording in memory:
+
+1. The local native module decodes the file to a temporary mono 16-bit PCM file at the processing rate, streaming (Android: MediaExtractor + MediaCodec with a windowed-sinc resampler; iOS: AVAudioFile + AVAudioConverter). It reads `content://` play-list files directly.
+2. `src/dsp/stream.ts` reads that file 8 s at a time. Every stage keeps its state between chunks (filters, speech-detection frames, the noise-suppression STFT, the limiter's look-ahead, the true-peak interpolator). Whole-file quantities are gathered first as small per-frame statistics: frame levels, 100 ms loudness blocks, the noise profile, hum audio, leveller windows.
+3. Stages that need the result of earlier ones go through temporary tracks on disk (float32, and 16-bit once the audio is limited). At most about 6 bytes per sample are on disk at once; the app checks free space first.
+
+Tests check that the chunked pipeline gives the same output as the whole-buffer one: every preset, Smart mode, manual gain, silence removal, files without pauses, and chunk joins placed inside FFT frames and the limiter's look-ahead. A 10-minute and a 30-minute run used about 62 and 70 MB of extra memory; holding the 30-minute file whole at 16 kHz would take 115 MB for each copy. If the native decoder cannot read a format, files up to 20 minutes fall back to the in-memory decoder, and longer ones show a message asking for M4A or WAV.
+
 ## Known limits
 
 - MP3, FLAC, OGG and Opus edits are saved as M4A (AAC); raw AAC edits become M4A on iOS.
 - Enhanced audio is exported as 16-bit mono WAV. None of the libraries used here encodes an in-memory buffer to M4A/AAC, so M4A export of the enhanced copy would need a small native encoder (AVAudioFile on iOS, MediaCodec + MediaMuxer on Android). The original M4A can be exported unchanged.
 - Import uses the system file picker. Receiving files from another app's share sheet needs an iOS share extension and Android intent filters, which are not included yet.
 - Processing is mono.
-- Decoded audio is held in memory. At 16 kHz mono that is about 230 MB per hour of audio as 32-bit floats, and enhancement at 24 kHz needs more. The app warns above 45 minutes and checks free storage before starting, but very long files may run out of memory on smaller phones.
+- Editing (trim and speed) still decodes the whole recording into memory (at 24 kHz for recordings over 20 minutes), so editing very long recordings can run out of memory on smaller phones. Analysis, enhancement and transcription work in chunks (see Architecture).
 - If the app is closed during processing, the recording is marked "interrupted" on next launch and the user can retry. Partial work is not resumed.
 - When "shorten pauses" is used, bookmarks stay on the original timeline and are hidden while the enhanced copy plays.
 - De-reverberation is not implemented.

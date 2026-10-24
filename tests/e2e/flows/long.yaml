@@ -1,0 +1,51 @@
+# Long-file test: a 20-minute recording is analysed and enhanced (Smart mode) without running
+# out of memory. Runs as its own Maestro session after main.yaml.
+appId: com.example.voiceclarity
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "OK"
+    timeout: 60000
+- tapOn: "OK"
+- tapOn:
+    id: "import"
+- runFlow:
+    file: pick.yaml
+    env:
+      FILE: long_20min.wav
+      SHOT: "70"
+- extendedWaitUntil:
+    visible: ".*long_20min.*Ready.*"
+    timeout: 600000
+- takeScreenshot: 71_long_imported
+- tapOn:
+    id: "rec-long_20min"
+- extendedWaitUntil:
+    visible: ".*[1-9][0-9]+ speech sections.*"
+    timeout: 60000
+- takeScreenshot: 72_long_player
+- scrollUntilVisible:
+    element:
+      id: "auto-enhance"
+- tapOn:
+    id: "auto-enhance"
+- scrollUntilVisible:
+    element:
+      id: "start-enhance"
+- tapOn:
+    id: "start-enhance"
+- takeScreenshot: 73_long_enhancing
+# about 20 minutes of audio on a slow emulator: allow up to 30 minutes
+- extendedWaitUntil:
+    visible:
+      id: "keep-enhanced"
+    timeout: 1800000
+- takeScreenshot: 74_long_review
+- tapOn:
+    id: "keep-enhanced"
+- extendedWaitUntil:
+    visible:
+      id: "source-enhanced"
+    timeout: 60000
+- takeScreenshot: 75_long_kept

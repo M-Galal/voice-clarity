@@ -8,7 +8,7 @@ mkdir -p "$RES/screens"
 # A retry reuses the results folder: keep the first attempt's output under attempt1/
 if [ -f "$RES/STATUS" ]; then
   mkdir -p "$RES/attempt1"
-  mv "$RES"/STATUS "$RES"/maestro.txt "$RES"/junit.xml "$RES"/logcat-js.txt "$RES"/app-errors.txt "$RES"/crashes.txt "$RES"/process-deaths.txt "$RES"/final-ui.xml "$RES/attempt1/" 2>/dev/null || true
+  mv "$RES"/STATUS "$RES"/LONG_STATUS "$RES"/maestro-long.txt "$RES"/junit-long.xml "$RES"/maestro.txt "$RES"/junit.xml "$RES"/logcat-js.txt "$RES"/app-errors.txt "$RES"/crashes.txt "$RES"/process-deaths.txt "$RES"/final-ui.xml "$RES/attempt1/" 2>/dev/null || true
   mv "$RES/screens" "$RES/attempt1/screens" 2>/dev/null || true
   mkdir -p "$RES/screens"
 fi
@@ -36,6 +36,14 @@ STAMP=$(mktemp)
 "$HOME/.maestro/bin/maestro" test tests/e2e/flows/main.yaml --format junit --output "$RES/junit.xml" \
   --test-output-dir "$RES/maestro-out" > "$RES/maestro.txt" 2>&1
 CODE=$?
+# Long-file test (20 min recording, Smart enhance) in its own Maestro session
+if [ -f e2e-audio/long_20min.wav ]; then
+  "$HOME/.maestro/bin/maestro" test tests/e2e/flows/long.yaml --format junit --output "$RES/junit-long.xml" \
+    --test-output-dir "$RES/maestro-out-long" > "$RES/maestro-long.txt" 2>&1
+  LONG=$?
+  echo "long_exit=$LONG" > "$RES/LONG_STATUS"
+  [ "$CODE" -eq 0 ] && CODE=$LONG
+fi
 # takeScreenshot paths are resolved by Maestro, not by our cwd: collect every new PNG.
 find "$ROOT" "$HOME/.maestro" -name "*.png" -newer "$STAMP" -not -path "$ROOT/$RES/screens/*" -exec cp {} "$RES/screens/" \; 2>/dev/null || true
 # last screen state for diagnosis

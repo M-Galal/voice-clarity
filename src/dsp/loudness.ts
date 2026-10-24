@@ -11,7 +11,7 @@
  * "Speech loudness" applies the same math only to blocks that sit inside detected speech,
  * so silence and pauses do not drag the number down (this is what the gain stage targets).
  */
-import { applyChain, type BiquadCoeffs } from './biquad';
+import { applyChain, BiquadChainState, type BiquadCoeffs } from './biquad';
 import type { Segment } from './vad';
 
 /**
@@ -77,7 +77,7 @@ function blockPowers(weighted: Float32Array, sampleRate: number): { power: numbe
 
 const toLufs = (power: number) => (power > 0 ? -0.691 + 10 * Math.log10(power) : -Infinity);
 
-function gatedLoudness(powers: number[]): number {
+export function gatedLoudness(powers: number[]): number {
   const abs = powers.filter((p) => toLufs(p) > -70);
   if (abs.length === 0) return -Infinity;
   const meanAbs = abs.reduce((a, b) => a + b, 0) / abs.length;
@@ -173,4 +173,132 @@ export function truePeakDb(samples: Float32Array): number {
     }
   }
   return peak > 0 ? 20 * Math.log10(peak) : -Infinity;
+}
+
+export interface BlockPower { power: number; start: number }
+
+/**
+ * K-weighted 400 ms block powers (100 ms hop), fed chunk by chunk. Gives the same blocks as the
+ * whole-signal measurement (400 ms = four 100 ms sub-blocks at the processing rates used here).
+ */
+export class KLoudnessMeter {
+  private readonly k: BiquadChainState;
+  private readonly step: number;
+  private readonly block: number;
+  private readonly sub: number[] = [];
+  private acc = 0;
+  private filled = 0;
+  private total = 0;
+  private all = 0;
+
+  constructor(sampleRate: number) {
+    this.k = new BiquadChainState(kWeightingCoeffs(sampleRate));
+    this.step = Math.round(0.1 * sampleRate);
+    this.block = 4 * this.step;
+  }
+
+  /** Feeds samples; returns the K-weighted chunk in case the caller needs it. */
+  push(chunk: Float32Array): Float32Array {
+    const w = this.k.process(chunk);
+    for (let i = 0; i < w.length; i++) {
+      const e = w[i] * w[i];
+      this.acc += e;
+      this.all += e;
+      if (++this.filled === this.step) { this.sub.push(this.acc); this.acc = 0; this.filled = 0; }
+    }
+    this.total += w.length;
+    return w;
+  }
+
+  blocks(): BlockPower[] {
+    const out: BlockPower[] = [];
+    if (this.total === 0) return out;
+    if (this.total < this.block) return [{ power: this.all / this.total, start: 0 }];
+    for (let b = 0; b + 4 <= this.sub.length; b++) {
+      out.push({ power: Math.max(0, this.sub[b] + this.sub[b + 1] + this.sub[b + 2] + this.sub[b + 3]) / this.block, start: b * this.step });
+    }
+    return out;
+  }
+}
+
+/** Integrated and speech loudness from block powers (same rules as loudnessPair). */
+export function loudnessFromBlocks(blocks: BlockPower[], sampleRate: number, segments: Segment[]): { integrated: number; speech: number } {
+  const integrated = gatedLoudness(blocks.map((b) => b.power));
+  if (segments.length === 0) return { integrated, speech: integrated };
+  const inSpeech: number[] = [];
+  let si = 0;
+  for (const b of blocks) {
+    const centre = b.start / sampleRate + 0.2;
+    while (si < segments.length && segments[si].end < centre) si++;
+    if (si < segments.length && centre >= segments[si].start) inSpeech.push(b.power);
+  }
+  return { integrated, speech: inSpeech.length ? gatedLoudness(inSpeech) : integrated };
+}
+
+/** Polyphase kernels of the true-peak interpolator. */
+function truePeakPhases(): Float32Array[] {
+  const factor = 4;
+  const taps = 12;
+  const half = taps / 2;
+  const phases: Float32Array[] = [];
+  for (let p = 0; p < factor; p++) {
+    const k = new Float32Array(taps);
+    const frac = p / factor;
+    for (let t = 0; t < taps; t++) {
+      const x = t - half + 1 - frac;
+      const sinc = x === 0 ? 1 : Math.sin(Math.PI * x) / (Math.PI * x);
+      const win = 0.5 * (1 + Math.cos((Math.PI * x) / (half + 0.5)));
+      k[t] = sinc * win;
+    }
+    phases.push(k);
+  }
+  return phases;
+}
+
+/**
+ * True-peak estimate fed chunk by chunk (same interpolator as truePeakDb). Samples are only
+ * interpolated near the running peak (12 dB gate); the running peak never exceeds the final
+ * one, so at least the samples truePeakDb examines are examined.
+ */
+export class TruePeakMeter {
+  private readonly phases = truePeakPhases();
+  private readonly taps = 12;
+  private readonly half = 6;
+  private hist = new Float32Array(0); // last samples kept for the next chunk's window
+  private peak = 0;
+  private done = 0; // absolute index of the next sample to examine
+  private histStart = 0; // absolute index of hist[0]
+
+  push(chunk: Float32Array, final = false): void {
+    for (let i = 0; i < chunk.length; i++) { const a = Math.abs(chunk[i]); if (a > this.peak) this.peak = a; }
+    const buf = new Float32Array(this.hist.length + chunk.length);
+    buf.set(this.hist, 0);
+    buf.set(chunk, this.hist.length);
+    const end = this.histStart + buf.length; // absolute end (exclusive)
+    // a sample i needs i+1 and up to i+half samples after it, unless the signal ends
+    const limit = final ? end : end - (this.taps - this.half);
+    const gate = this.peak * 0.25;
+    for (let i = this.done; i < limit; i++) {
+      const li = i - this.histStart;
+      const near = Math.max(Math.abs(buf[li]), i + 1 < end ? Math.abs(buf[li + 1]) : 0);
+      if (near < gate || gate === 0) continue;
+      for (let p = 1; p < 4; p++) {
+        const k = this.phases[p];
+        let acc = 0;
+        for (let t = 0; t < this.taps; t++) {
+          const idx = li + t - this.half + 1;
+          if (idx >= 0 && idx < buf.length) acc += buf[idx] * k[t];
+        }
+        const aa = Math.abs(acc);
+        if (aa > this.peak) this.peak = aa;
+      }
+    }
+    this.done = Math.max(this.done, limit);
+    // keep enough history for the next window (half samples before the next unexamined one)
+    const keepFrom = Math.max(this.histStart, this.done - this.half);
+    this.hist = buf.slice(keepFrom - this.histStart);
+    this.histStart = keepFrom;
+  }
+
+  get db(): number { return this.peak > 0 ? 20 * Math.log10(this.peak) : -Infinity; }
 }

@@ -125,10 +125,14 @@ export interface EnhanceReport {
   levelerMaxBoostDb: number;
 }
 
-export interface EnhanceResult {
-  output: Float32Array;
+/** What the app keeps from an enhancement run (the audio itself goes to a file). */
+export interface EnhanceSummary {
   sampleRate: number;
   report: EnhanceReport;
+}
+
+export interface EnhanceResult extends EnhanceSummary {
+  output: Float32Array;
 }
 
 function measure(x: Float32Array, sr: number, segs: Segment[]): LevelReport {

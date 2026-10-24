@@ -10,6 +10,7 @@ import { File } from 'expo-file-system';
 import type { AppSettings, Recording } from '../types';
 import type { PlaylistItem } from '../playlist/filter';
 import { FolderUnavailableError } from '../services/playlist';
+import { StreamDecodeUnavailableError } from '../services/pcm';
 import { DARK, LIGHT, fontSizes, type Palette } from '../ui/theme';
 
 export type Route =
@@ -148,6 +149,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       else if (e instanceof Error && e.message === 'model_missing') msg = t('model_missing');
       else if (e instanceof Error && e.message === 'sharing_unavailable') msg = t('err_share');
       else if (e instanceof FolderUnavailableError) msg = t('pl_folder_unavailable');
+      else if (e instanceof StreamDecodeUnavailableError) msg = t('err_stream_decode', { detail: e.detail });
       else if (e instanceof Error && e.message === 'folder_unavailable') msg = t('pl_folder_unavailable');
       else if (e instanceof Error && /decode|codec|format/i.test(e.message)) msg = t('err_decode');
       else msg = t('err_generic', { msg: e instanceof Error ? e.message : String(e) });
