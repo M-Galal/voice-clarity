@@ -39,6 +39,27 @@ function Player({ rec, queueIndex, autoplay }: { rec: Recording; queueIndex?: nu
     const [initialUri] = useState(() => audioUri(rec, source));
     const player = useAudioPlayer({ uri: initialUri, name: rec.name }, { updateInterval: 100 });
     const status = useAudioPlayerStatus(player);
+    const [mountedAt] = useState(() => Date.now());
+
+    // Diagnostics, and one retry: if the player has not loaded the source after 5 s, the source is
+    // set again. (Seen once on the emulator with a folder file; the cause is not known yet.)
+    useEffect(() => {
+      if (status.isLoaded) console.log(`[VC] player loaded ${rec.format}${rec.external ? ' (folder)' : ''} in ${Date.now() - mountedAt} ms`);
+    }, [status.isLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(() => {
+      if (status.error) console.warn(`[VC] player error ${rec.format}: ${status.error}`);
+    }, [status.error]); // eslint-disable-line react-hooks/exhaustive-deps
+    const retried = useRef(false);
+    useEffect(() => {
+      if (status.isLoaded || retried.current) return;
+      const h = setTimeout(() => {
+        if (player.isLoaded || retried.current) return;
+        retried.current = true;
+        console.warn(`[VC] player not loaded after 5 s, setting the source again (${rec.external ? 'folder' : 'app'} file)`);
+        player.replace({ uri: audioUri(rec, source), name: rec.name });
+      }, 5000);
+      return () => clearTimeout(h);
+    }, [status.isLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
     const [editing, setEditing] = useState<Bookmark | null>(null);
     const [exportOpen, setExportOpen] = useState(false);
     const [notice, setNotice] = useState<string | null>(null);
