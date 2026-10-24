@@ -1,0 +1,5 @@
+crw-rw-rw- 1 root kvm 10, 232 Oct 24 20:48 /dev/kvm
+4
+               total        used        free      shared  buff/cache   available
+Mem:           15989        1237       12398          47        2721       14751
+Swap:           3071           0        3071
