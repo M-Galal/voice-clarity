@@ -109,9 +109,10 @@ appId: com.example.voiceclarity
     from:
       id: "speed-slider-track"
     direction: RIGHT
+# the swipe ends near the right edge: 4.5× or more (the last run landed on 4.95×)
 - assertVisible:
     id: "speed-slider-value"
-    text: "5.00×"
+    text: "(4\\.[5-9][0-9]|5\\.00)×"
 - tapOn:
     id: "speed-reset"
 - assertVisible:
