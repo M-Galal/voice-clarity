@@ -8,6 +8,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      ios:
+        description: Also compile the iOS app (paused while Android is being confirmed)
+        type: boolean
+        default: false
 
 concurrency:
   group: android-apk-${{ github.ref }}
@@ -196,7 +201,9 @@ jobs:
           bash tests/e2e/publish-results.sh results ci-results-e2e
 
   # Compiles the iOS app (simulator, unsigned) so Swift code such as the AAC encoder is checked.
+  # Paused while the Android version is confirmed: runs only when started by hand with "ios" ticked.
   ios-build:
+    if: github.event_name == 'workflow_dispatch' && inputs.ios
     runs-on: macos-latest
     timeout-minutes: 120
     steps:
