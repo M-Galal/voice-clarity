@@ -1,0 +1,300 @@
+ExpoModulesWorklets.framework/
+ExpoModulesWorklets.framework/ExpoModulesWorklets
+ExpoModulesWorklets.framework/Info.plist
+ExpoModulesWorklets.framework/_CodeSignature/
+ExpoModulesWorklets.framework/_CodeSignature/CodeResources
+
+sent 377690 bytes  received 98 bytes  41515164 bytes/sec
+total size is 376994  speedup is 1.00
+rsync --delete -av --filter P .*.?????? --links --filter "- CVS/" --filter "- .svn/" --filter "- .git/" --filter "- .hg/" --filter "- Headers" --filter "- PrivateHeaders" --filter "- Modules" "/Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/XCFrameworkIntermediates/RNAudioAPI/libavcodec.framework" "/Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/VoiceClarity.app/Frameworks"
+Transfer starting: 3 files
+libavcodec.framework/
+libavcodec.framework/Info.plist
+libavcodec.framework/libavcodec
+
+sent 1101371 bytes  received 70 bytes  64411754 bytes/sec
+total size is 1100827  speedup is 1.00
+rsync --delete -av --filter P .*.?????? --links --filter "- CVS/" --filter "- .svn/" --filter "- .git/" --filter "- .hg/" --filter "- Headers" --filter "- PrivateHeaders" --filter "- Modules" "/Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/XCFrameworkIntermediates/RNAudioAPI/libavformat.framework" "/Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/VoiceClarity.app/Frameworks"
+Transfer starting: 3 files
+libavformat.framework/
+libavformat.framework/Info.plist
+libavformat.framework/libavformat
+
+sent 10870746 bytes  received 70 bytes  85529630 bytes/sec
+total size is 10869006  speedup is 1.00
+rsync --delete -av --filter P .*.?????? --links --filter "- CVS/" --filter "- .svn/" --filter "- .git/" --filter "- .hg/" --filter "- Headers" --filter "- PrivateHeaders" --filter "- Modules" "/Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/XCFrameworkIntermediates/RNAudioAPI/libavutil.framework" "/Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/VoiceClarity.app/Frameworks"
+Transfer starting: 3 files
+libavutil.framework/
+libavutil.framework/Info.plist
+libavutil.framework/libavutil
+
+sent 964548 bytes  received 70 bytes  73634961 bytes/sec
+total size is 964024  speedup is 1.00
+rsync --delete -av --filter P .*.?????? --links --filter "- CVS/" --filter "- .svn/" --filter "- .git/" --filter "- .hg/" --filter "- Headers" --filter "- PrivateHeaders" --filter "- Modules" "/Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/XCFrameworkIntermediates/RNAudioAPI/libswresample.framework" "/Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/VoiceClarity.app/Frameworks"
+Transfer starting: 3 files
+libswresample.framework/
+libswresample.framework/Info.plist
+libswresample.framework/libswresample
+
+sent 170248 bytes  received 70 bytes  27920983 bytes/sec
+total size is 169804  speedup is 1.00
+rsync --delete -av --filter P .*.?????? --links --filter "- CVS/" --filter "- .svn/" --filter "- .git/" --filter "- .hg/" --filter "- Headers" --filter "- PrivateHeaders" --filter "- Modules" "/Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/XCFrameworkIntermediates/React-Core-prebuilt/React.framework" "/Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/VoiceClarity.app/Frameworks"
+Transfer starting: 118 files
+React.framework/
+React.framework/Info.plist
+React.framework/PrivacyInfo.xcprivacy
+React.framework/React
+React.framework/RCTI18nStrings.bundle/
+React.framework/RCTI18nStrings.bundle/Info.plist
+React.framework/RCTI18nStrings.bundle/ar.lproj/
+React.framework/RCTI18nStrings.bundle/ar.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/ar.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/cs.lproj/
+React.framework/RCTI18nStrings.bundle/cs.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/cs.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/da.lproj/
+React.framework/RCTI18nStrings.bundle/da.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/da.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/de.lproj/
+React.framework/RCTI18nStrings.bundle/de.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/de.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/el.lproj/
+React.framework/RCTI18nStrings.bundle/el.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/el.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/en-GB.lproj/
+React.framework/RCTI18nStrings.bundle/en-GB.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/en-GB.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/en.lproj/
+React.framework/RCTI18nStrings.bundle/en.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/es-ES.lproj/
+React.framework/RCTI18nStrings.bundle/es-ES.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/es-ES.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/es.lproj/
+React.framework/RCTI18nStrings.bundle/es.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/es.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/fi.lproj/
+React.framework/RCTI18nStrings.bundle/fi.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/fi.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/fr.lproj/
+React.framework/RCTI18nStrings.bundle/fr.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/fr.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/he.lproj/
+React.framework/RCTI18nStrings.bundle/he.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/he.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/hi.lproj/
+React.framework/RCTI18nStrings.bundle/hi.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/hi.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/hr.lproj/
+React.framework/RCTI18nStrings.bundle/hr.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/hr.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/hu.lproj/
+React.framework/RCTI18nStrings.bundle/hu.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/hu.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/id.lproj/
+React.framework/RCTI18nStrings.bundle/id.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/id.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/it.lproj/
+React.framework/RCTI18nStrings.bundle/it.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/it.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/ja.lproj/
+React.framework/RCTI18nStrings.bundle/ja.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/ja.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/ko.lproj/
+React.framework/RCTI18nStrings.bundle/ko.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/ko.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/ms.lproj/
+React.framework/RCTI18nStrings.bundle/ms.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/ms.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/nb.lproj/
+React.framework/RCTI18nStrings.bundle/nb.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/nb.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/nl.lproj/
+React.framework/RCTI18nStrings.bundle/nl.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/nl.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/pl.lproj/
+React.framework/RCTI18nStrings.bundle/pl.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/pl.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/pt-PT.lproj/
+React.framework/RCTI18nStrings.bundle/pt-PT.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/pt-PT.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/pt.lproj/
+React.framework/RCTI18nStrings.bundle/pt.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/pt.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/ro.lproj/
+React.framework/RCTI18nStrings.bundle/ro.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/ro.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/ru.lproj/
+React.framework/RCTI18nStrings.bundle/ru.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/ru.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/sk.lproj/
+React.framework/RCTI18nStrings.bundle/sk.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/sk.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/sv.lproj/
+React.framework/RCTI18nStrings.bundle/sv.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/sv.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/th.lproj/
+React.framework/RCTI18nStrings.bundle/th.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/th.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/tr.lproj/
+React.framework/RCTI18nStrings.bundle/tr.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/tr.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/uk.lproj/
+React.framework/RCTI18nStrings.bundle/uk.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/uk.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/vi.lproj/
+React.framework/RCTI18nStrings.bundle/vi.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/vi.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/zh-Hans.lproj/
+React.framework/RCTI18nStrings.bundle/zh-Hans.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/zh-Hans.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/zh-Hant-HK.lproj/
+React.framework/RCTI18nStrings.bundle/zh-Hant-HK.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/zh-Hant-HK.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/zh-Hant.lproj/
+React.framework/RCTI18nStrings.bundle/zh-Hant.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/zh-Hant.lproj/fbt_language_pack.bin
+React.framework/RCTI18nStrings.bundle/zu.lproj/
+React.framework/RCTI18nStrings.bundle/zu.lproj/Localizable.strings
+React.framework/RCTI18nStrings.bundle/zu.lproj/fbt_language_pack.bin
+React.framework/_CodeSignature/
+React.framework/_CodeSignature/CodeResources
+
+sent 142432701 bytes  received 1976 bytes  116453827 bytes/sec
+total size is 142401463  speedup is 1.00
+rsync --delete -av --filter P .*.?????? --links --filter "- CVS/" --filter "- .svn/" --filter "- .git/" --filter "- .hg/" --filter "- Headers" --filter "- PrivateHeaders" --filter "- Modules" "/Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/XCFrameworkIntermediates/ReactNativeDependencies/ReactNativeDependencies.framework" "/Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/VoiceClarity.app/Frameworks"
+Transfer starting: 41 files
+ReactNativeDependencies.framework/
+ReactNativeDependencies.framework/Info.plist
+ReactNativeDependencies.framework/ReactNativeDependencies
+ReactNativeDependencies.framework/ReactNativeDependencies_SocketRocket.bundle/
+ReactNativeDependencies.framework/ReactNativeDependencies_SocketRocket.bundle/Info.plist
+ReactNativeDependencies.framework/ReactNativeDependencies_SocketRocket.bundle/PrivacyInfo.xcprivacy
+ReactNativeDependencies.framework/ReactNativeDependencies_SocketRocket.bundle/_CodeSignature/
+ReactNativeDependencies.framework/ReactNativeDependencies_SocketRocket.bundle/_CodeSignature/CodeDirectory
+ReactNativeDependencies.framework/ReactNativeDependencies_SocketRocket.bundle/_CodeSignature/CodeRequirements
+ReactNativeDependencies.framework/ReactNativeDependencies_SocketRocket.bundle/_CodeSignature/CodeRequirements-1
+ReactNativeDependencies.framework/ReactNativeDependencies_SocketRocket.bundle/_CodeSignature/CodeResources
+ReactNativeDependencies.framework/ReactNativeDependencies_SocketRocket.bundle/_CodeSignature/CodeSignature
+ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/
+ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/Info.plist
+ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/PrivacyInfo.xcprivacy
+ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/
+ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeDirectory
+ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeRequirements
+ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeRequirements-1
+ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeResources
+ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeSignature
+ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/
+ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/Info.plist
+ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/PrivacyInfo.xcprivacy
+ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/
+ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeDirectory
+ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeRequirements
+ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeRequirements-1
+ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeResources
+ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeSignature
+ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/
+ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/Info.plist
+ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/PrivacyInfo.xcprivacy
+ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/
+ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeDirectory
+ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeRequirements
+ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeRequirements-1
+ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeResources
+ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeSignature
+ReactNativeDependencies.framework/_CodeSignature/
+ReactNativeDependencies.framework/_CodeSignature/CodeResources
+
+sent 6990539 bytes  received 762 bytes  75094532 bytes/sec
+total size is 6983417  speedup is 1.00
+rsync --delete -av --filter P .*.?????? --links --filter "- CVS/" --filter "- .svn/" --filter "- .git/" --filter "- .hg/" --filter "- Headers" --filter "- PrivateHeaders" --filter "- Modules" "/Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/XCFrameworkIntermediates/hermes-engine/Pre-built/hermesvm.framework" "/Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/VoiceClarity.app/Frameworks"
+Transfer starting: 3 files
+hermesvm.framework/
+hermesvm.framework/Info.plist
+hermesvm.framework/hermesvm
+
+sent 14884390 bytes  received 70 bytes  92392675 bytes/sec
+total size is 14882170  speedup is 1.00
+rsync --delete -av --filter P .*.?????? --links --filter "- CVS/" --filter "- .svn/" --filter "- .git/" --filter "- .hg/" --filter "- Headers" --filter "- PrivateHeaders" --filter "- Modules" "/Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/XCFrameworkIntermediates/whisper-rn/rnwhisper.framework" "/Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/VoiceClarity.app/Frameworks"
+Transfer starting: 31 files
+rnwhisper.framework/
+rnwhisper.framework/Info.plist
+rnwhisper.framework/ggml-common.h
+rnwhisper.framework/ggml-metal-impl.h
+rnwhisper.framework/rnwhisper
+rnwhisper.framework/_CodeSignature/
+rnwhisper.framework/_CodeSignature/CodeResources
+rnwhisper.framework/kernels/
+rnwhisper.framework/kernels/argsort.metal
+rnwhisper.framework/kernels/binbcast.metal
+rnwhisper.framework/kernels/common.h
+rnwhisper.framework/kernels/conv.metal
+rnwhisper.framework/kernels/dequantize.h
+rnwhisper.framework/kernels/fa.metal
+rnwhisper.framework/kernels/gated_delta_net.metal
+rnwhisper.framework/kernels/misc.metal
+rnwhisper.framework/kernels/mul_mm.metal
+rnwhisper.framework/kernels/mul_mv.metal
+rnwhisper.framework/kernels/norm.metal
+rnwhisper.framework/kernels/pool.metal
+rnwhisper.framework/kernels/quantize.h
+rnwhisper.framework/kernels/quantize.metal
+rnwhisper.framework/kernels/reduce.metal
+rnwhisper.framework/kernels/rope.metal
+rnwhisper.framework/kernels/softmax.metal
+rnwhisper.framework/kernels/solve_tri.metal
+rnwhisper.framework/kernels/ssm.metal
+rnwhisper.framework/kernels/tri.metal
+rnwhisper.framework/kernels/unary.metal
+rnwhisper.framework/kernels/upscale.metal
+rnwhisper.framework/kernels/wkv.metal
+
+sent 5555488 bytes  received 654 bytes  81587988 bytes/sec
+total size is 5551448  speedup is 1.00
+
+CopySwiftLibs /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/VoiceClarity.app (in target 'VoiceClarity' from project 'VoiceClarity')
+    cd /Users/runner/work/voice-clarity/voice-clarity/ios
+    builtin-swiftStdLibTool --copy --verbose --scan-executable /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/VoiceClarity.app/VoiceClarity.debug.dylib --scan-folder /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/VoiceClarity.app/Frameworks --scan-folder /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/VoiceClarity.app/PlugIns --scan-folder /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/VoiceClarity.app/SystemExtensions --scan-folder /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/VoiceClarity.app/Extensions --platform iphonesimulator --toolchain /var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v17.6.109.0.2KeSK0/Metal.xctoolchain --toolchain /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --destination /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/VoiceClarity.app/Frameworks --strip-bitcode --strip-bitcode-tool /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/bitcode_strip --emit-dependency-info /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Intermediates.noindex/VoiceClarity.build/Debug-iphonesimulator/VoiceClarity.build/SwiftStdLibToolInputDependencies.dep --filter-for-swift-os --back-deploy-swift-span
+Ignoring --strip-bitcode because --sign was not passed
+
+ExtractAppIntentsMetadata (in target 'VoiceClarity' from project 'VoiceClarity')
+    cd /Users/runner/work/voice-clarity/voice-clarity/ios
+    /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v17.6.109.0.2KeSK0/Metal.xctoolchain --module-name VoiceClarity --sdk-root /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk --xcode-version 17F113 --platform-family iOS --deployment-target 16.4 --bundle-identifier com.example.voiceclarity --output /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/VoiceClarity.app --target-triple arm64-apple-ios16.4-simulator --target-triple x86_64-apple-ios16.4-simulator --binary-file /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/VoiceClarity.app/VoiceClarity --dependency-file /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Intermediates.noindex/VoiceClarity.build/Debug-iphonesimulator/VoiceClarity.build/Objects-normal/arm64/VoiceClarity_dependency_info.dat --dependency-file /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Intermediates.noindex/VoiceClarity.build/Debug-iphonesimulator/VoiceClarity.build/Objects-normal/x86_64/VoiceClarity_dependency_info.dat --stringsdata-file /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Intermediates.noindex/VoiceClarity.build/Debug-iphonesimulator/VoiceClarity.build/Objects-normal/arm64/ExtractedAppShortcutsMetadata.stringsdata --stringsdata-file /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Intermediates.noindex/VoiceClarity.build/Debug-iphonesimulator/VoiceClarity.build/Objects-normal/x86_64/ExtractedAppShortcutsMetadata.stringsdata --source-file-list /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Intermediates.noindex/VoiceClarity.build/Debug-iphonesimulator/VoiceClarity.build/Objects-normal/arm64/VoiceClarity.SwiftFileList --source-file-list /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Intermediates.noindex/VoiceClarity.build/Debug-iphonesimulator/VoiceClarity.build/Objects-normal/x86_64/VoiceClarity.SwiftFileList --metadata-file-list /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Intermediates.noindex/VoiceClarity.build/Debug-iphonesimulator/VoiceClarity.build/VoiceClarity.DependencyMetadataFileList --static-metadata-file-list /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Intermediates.noindex/VoiceClarity.build/Debug-iphonesimulator/VoiceClarity.build/VoiceClarity.DependencyStaticMetadataFileList --swift-const-vals-list /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Intermediates.noindex/VoiceClarity.build/Debug-iphonesimulator/VoiceClarity.build/Objects-normal/arm64/VoiceClarity.SwiftConstValuesFileList --swift-const-vals-list /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Intermediates.noindex/VoiceClarity.build/Debug-iphonesimulator/VoiceClarity.build/Objects-normal/x86_64/VoiceClarity.SwiftConstValuesFileList --compile-time-extraction --deployment-aware-processing --validate-assistant-intents --no-app-shortcuts-localization
+2026-10-24 14:40:58.511 appintentsmetadataprocessor[21777:64847] Starting appintentsmetadataprocessor export
+2026-10-24 14:40:58.523 appintentsmetadataprocessor[21777:64847] warning: Metadata extraction skipped. No AppIntents.framework dependency found.
+
+AppIntentsSSUTraining (in target 'VoiceClarity' from project 'VoiceClarity')
+    cd /Users/runner/work/voice-clarity/voice-clarity/ios
+    /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsnltrainingprocessor --infoplist-path /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/VoiceClarity.app/Info.plist --temp-dir-path /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Intermediates.noindex/VoiceClarity.build/Debug-iphonesimulator/VoiceClarity.build/ssu --bundle-id com.example.voiceclarity --product-path /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/VoiceClarity.app --extracted-metadata-path /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/VoiceClarity.app/Metadata.appintents --metadata-file-list /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Intermediates.noindex/VoiceClarity.build/Debug-iphonesimulator/VoiceClarity.build/VoiceClarity.DependencyMetadataFileList --source-file /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/VoiceClarity.app/Info.plist --archive-ssu-assets
+2026-10-24 14:40:58.563 appintentsnltrainingprocessor[21778:64849] Parsing options for appintentsnltrainingprocessor
+2026-10-24 14:40:58.565 appintentsnltrainingprocessor[21778:64849] Starting AppIntents SSU YAML Generation
+2026-10-24 14:40:58.571 appintentsnltrainingprocessor[21778:64849] No AppShortcuts found - Skipping.
+
+RegisterExecutionPolicyException /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/VoiceClarity.app (in target 'VoiceClarity' from project 'VoiceClarity')
+    cd /Users/runner/work/voice-clarity/voice-clarity/ios
+    builtin-RegisterExecutionPolicyException /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/VoiceClarity.app
+
+Validate /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/VoiceClarity.app (in target 'VoiceClarity' from project 'VoiceClarity')
+    cd /Users/runner/work/voice-clarity/voice-clarity/ios
+    builtin-validationUtility /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/VoiceClarity.app -shallow-bundle -infoplist-subpath Info.plist
+
+Touch /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/VoiceClarity.app (in target 'VoiceClarity' from project 'VoiceClarity')
+    cd /Users/runner/work/voice-clarity/voice-clarity/ios
+    /usr/bin/touch -c /Users/runner/Library/Developer/Xcode/DerivedData/VoiceClarity-hbreurzvjbbwkycbctkxluaafkrr/Build/Products/Debug-iphonesimulator/VoiceClarity.app
+
+note: Run script build phase '[CP-User] [Hermes] Replace Hermes for the right configuration, if needed' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'hermes-engine' from project 'Pods')
+note: Run script build phase '[CP-User] [RNDeps] Replace React Native Dependencies for the right configuration, if needed' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'ReactNativeDependencies' from project 'Pods')
+note: Run script build phase '[CP-User] [RN]Check FBReactNativeSpec' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'React-RCTFBReactNativeSpec' from project 'Pods')
+note: Run script build phase '[CP-User] [RNCore] Replace React Native Core for the right configuration, if needed' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'React-Core-prebuilt' from project 'Pods')
+note: Run script build phase '[CP-User] [Expo] Switch ExpoModulesWorklets XCFramework for build configuration' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'ExpoModulesWorklets' from project 'Pods')
+note: Run script build phase '[CP-User] Build ExpoModulesJSI xcframework' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'ExpoModulesJSI' from project 'Pods')
+note: Run script build phase '[CP-User] [Expo] Switch ExpoModulesCore XCFramework for build configuration' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'ExpoModulesCore' from project 'Pods')
+note: Run script build phase '[CP-User] [Expo] Switch ExpoFont XCFramework for build configuration' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'ExpoFont' from project 'Pods')
+note: Run script build phase '[CP-User] [Expo] Switch ExpoFileSystem XCFramework for build configuration' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'ExpoFileSystem' from project 'Pods')
+note: Run script build phase '[Expo] Configure project' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'VoiceClarity' from project 'VoiceClarity')
+note: Run script build phase 'Bundle React Native code and images' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'VoiceClarity' from project 'VoiceClarity')
+/Users/runner/work/voice-clarity/voice-clarity/ios/Pods/Pods.xcodeproj: warning: tasks in 'Copy Headers' are delayed by unsandboxed script phases; set ENABLE_USER_SCRIPT_SANDBOXING=YES to enable sandboxing (in target 'RNAudioAPI' from project 'Pods')
+note: Run script build phase '[CP-User] Download RNAudioAPI prebuilt binaries' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'RNAudioAPI' from project 'Pods')
+note: Run script build phase '[CP-User] Generate app.config for prebuilt Constants.manifest' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'EXConstants' from project 'Pods')
+** BUILD SUCCEEDED **
+
