@@ -160,3 +160,15 @@ test('10 minutes of audio are enhanced with roughly constant memory', async () =
   assert.ok(peak < 90e6, `peak extra memory ${(peak / 1e6).toFixed(0)} MB`);
   console.log(`# 10 min @16 kHz: peak extra memory ${(peak / 1e6).toFixed(0)} MB`);
 });
+
+test('preview part: the 15 s stretch with the most speech', async () => {
+  const { bestPreviewStart, RangeSource } = await import('../src/dsp/stream');
+  const segs = [{ start: 1, end: 3 }, { start: 40, end: 52 }, { start: 53, end: 58 }];
+  assert.equal(bestPreviewStart(segs, 120, 15), 39.5);
+  assert.equal(bestPreviewStart(segs, 10, 15), 0);
+  assert.equal(bestPreviewStart([], 120, 15), 0);
+  // never past the end
+  assert.equal(bestPreviewStart([{ start: 115, end: 119 }], 120, 15), 105);
+  const r = new RangeSource(new MemorySource(Float32Array.from([0, 1, 2, 3, 4, 5]), 8000), 2, 3);
+  assert.deepEqual(Array.from(await r.read(0, 10)), [2, 3, 4]);
+});

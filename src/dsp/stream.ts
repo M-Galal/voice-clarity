@@ -53,6 +53,30 @@ export class MemorySource implements SampleSource {
   async read(start: number, count: number) { return this.data.slice(start, start + count); }
 }
 
+/** A part of another source, starting at `offset`. */
+export class RangeSource implements SampleSource {
+  constructor(private readonly inner: SampleSource, private readonly offset: number, readonly length: number) {}
+  get sampleRate() { return this.inner.sampleRate; }
+  async read(start: number, count: number) {
+    const n = Math.max(0, Math.min(count, this.length - start));
+    return this.inner.read(this.offset + start, n);
+  }
+}
+
+/** Picks the start (s) of the `windowSec` stretch with the most speech, for previews. */
+export function bestPreviewStart(segments: Segment[], durationSec: number, windowSec: number): number {
+  if (durationSec <= windowSec) return 0;
+  const coverage = (a: number) => segments.reduce((t, s) => t + Math.max(0, Math.min(a + windowSec, s.end) - Math.max(a, s.start)), 0);
+  let best = 0, bestCov = -1;
+  const candidates = [0, ...segments.map((s) => Math.max(0, s.start - 0.5))];
+  for (const c of candidates) {
+    const a = Math.min(c, durationSec - windowSec);
+    const cov = coverage(a);
+    if (cov > bestCov + 1e-9) { best = a; bestCov = cov; }
+  }
+  return Math.round(best * 10) / 10;
+}
+
 export class MemorySink implements SampleSink {
   private parts: Float32Array[] = [];
   async write(chunk: Float32Array) { this.parts.push(Float32Array.from(chunk)); }

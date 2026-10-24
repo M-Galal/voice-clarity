@@ -9,8 +9,8 @@ import VoiceEncoder from '../../modules/voice-encoder/src/VoiceEncoderModule';
 import { aacBitrate, MIME, saveTarget, type SaveTarget } from '../edit/saveFormat';
 import { CancelledError } from '../dsp/denoise';
 import type { EnhanceSettings, EnhanceSummary } from '../dsp/pipeline';
-import { analyseStream, enhanceStream } from '../dsp/stream';
-import { decodeToPcmFile, fileTemp, WavFileSink } from './pcm';
+import { analyseStream, enhanceStream, memoryTemp, RangeSource } from '../dsp/stream';
+import { decodeToPcmFile, fileTemp, WavFileSink, type DecodedPcm } from './pcm';
 import type { Segment } from '../dsp/vad';
 import { toJson, toSrt, toTxt, toVtt, type Transcript } from '../transcript/format';
 import type { Bookmark, Recording } from '../types';
@@ -176,6 +176,69 @@ export async function enhanceToPreview(
     throw e;
   } finally {
     decoded.dispose();
+  }
+}
+
+export const PREVIEW_SEC = 15;
+
+/**
+ * Quick previews of enhancement settings on a short part of the recording. The recording is
+ * decoded once (at the processing rate) and kept as a temporary PCM file while the settings
+ * screen is open; each preview processes only the chosen 15 s, in memory, and writes a WAV.
+ * Smart mode and the loudness/noise measurements then look only at that part, so the full run
+ * can differ slightly.
+ */
+export class EnhancePreviewer {
+  private decoded: DecodedPcm | null = null;
+  private decodedRate = 0;
+  private files: File[] = [];
+
+  constructor(private readonly rec: Recording) {}
+
+  async prepare(rate: number, onProgress: (f: number) => void, isCancelled: () => boolean): Promise<void> {
+    if (this.decoded && this.decodedRate === rate) return;
+    this.decoded?.dispose();
+    this.decoded = null;
+    this.decoded = await decodeToPcmFile(originalUri(this.rec), rate, this.rec.durationSec, onProgress, isCancelled);
+    this.decodedRate = rate;
+  }
+
+  /** Writes the original part and the processed part; returns their URIs and the report. */
+  async render(startSec: number, settings: EnhanceSettings, isCancelled: () => boolean): Promise<{ originalUri: string; enhancedUri: string; report: EnhanceSummary['report'] }> {
+    if (!this.decoded) throw new Error('preview not prepared');
+    const src = this.decoded.source;
+    const sr = src.sampleRate;
+    const start = Math.max(0, Math.min(src.length - 1, Math.round(startSec * sr)));
+    const part = new RangeSource(src, start, Math.min(Math.round(PREVIEW_SEC * sr), src.length - start));
+    const stamp = Date.now();
+    const orig = new File(tempDir(), `${this.rec.id}-pv-orig-${stamp}.wav`);
+    const enh = new File(tempDir(), `${this.rec.id}-pv-enh-${stamp}.wav`);
+    const so = new WavFileSink(orig, sr);
+    for (let pos = 0; pos < part.length; pos += sr * 5) await so.write(await part.read(pos, Math.min(sr * 5, part.length - pos)));
+    so.close();
+    const se = new WavFileSink(enh, sr);
+    try {
+      const { report } = await enhanceStream(part, se, settings, memoryTemp, { isCancelled, yieldFn: yieldToUi });
+      se.close();
+      this.cleanup();
+      this.files = [orig, enh];
+      return { originalUri: orig.uri, enhancedUri: enh.uri, report };
+    } catch (e) {
+      try { se.close(); } catch { /* closed */ }
+      for (const f of [orig, enh]) { try { if (f.exists) f.delete(); } catch { /* gone */ } }
+      throw e;
+    }
+  }
+
+  private cleanup() {
+    for (const f of this.files) { try { if (f.exists) f.delete(); } catch { /* gone */ } }
+    this.files = [];
+  }
+
+  dispose() {
+    this.cleanup();
+    this.decoded?.dispose();
+    this.decoded = null;
   }
 }
 

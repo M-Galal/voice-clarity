@@ -101,23 +101,21 @@ appId: com.example.voiceclarity
 # ---- Speed and skip silence ----
 - scrollUntilVisible:
     element:
-      id: "speed-1.5"
+      id: "speed-slider"
     direction: UP
-- tapOn:
-    id: "speed-5"
+# drag the speed slider all the way right: 5×
+- swipe:
+    from:
+      id: "speed-slider"
+    direction: RIGHT
 - assertVisible:
-    id: "speed-5"
-    checked: true
-# the rate label sits above the chips; scrolling to it proves the player took 5×
-- scrollUntilVisible:
-    element: "5.00×"
-    direction: UP
-- scrollUntilVisible:
-    element:
-      id: "speed-1.5"
-    direction: DOWN
+    id: "speed-slider-value"
+    text: "5.00×"
 - tapOn:
-    id: "speed-1.5"
+    id: "speed-reset"
+- assertVisible:
+    id: "speed-slider-value"
+    text: "1.00×"
 - tapOn:
     id: "skip-silence"
 - takeScreenshot: 09_speed_skip
@@ -132,6 +130,43 @@ appId: com.example.voiceclarity
     visible: ".*These settings will be used.*|.*Strength.*"
     timeout: 15000
 - takeScreenshot: 10_enhance_setup
+# preview 15 s with the current (Smart) settings, compare, then change a setting: it re-renders
+- scrollUntilVisible:
+    element:
+      id: "pv-render"
+- tapOn:
+    id: "pv-render"
+- extendedWaitUntil:
+    visible:
+      id: "pv-summary"
+    timeout: 120000
+- tapOn:
+    id: "pv-play"
+- tapOn:
+    id: "pv-ab-original"
+- tapOn:
+    id: "pv-ab-enhanced"
+- takeScreenshot: 10b_preview
+- scrollUntilVisible:
+    element:
+      id: "strength-strong"
+    direction: UP
+- tapOn:
+    id: "strength-strong"
+- scrollUntilVisible:
+    element:
+      id: "pv-summary"
+    timeout: 60000
+- tapOn:
+    id: "pv-play"
+    optional: true
+- takeScreenshot: 10c_preview_strong
+- scrollUntilVisible:
+    element:
+      id: "strength-auto"
+    direction: UP
+- tapOn:
+    id: "strength-auto"
 - scrollUntilVisible:
     element:
       id: "start-enhance"

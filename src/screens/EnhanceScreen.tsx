@@ -4,7 +4,8 @@ import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useKeepAwake } from 'expo-keep-awake';
 import { settingsForPreset, type EnhanceSummary as EnhanceResult, type EnhanceSettings, type Strength, type WarningCode } from '../dsp/pipeline';
 import { dbToPercent, formatDb, formatLevel, percentToDb } from '../dsp/units';
-import { audioUri, commitPreview, deleteEnhanced, discardPreview, enhanceToPreview, type CancelToken } from '../services/processing';
+import { audioUri, commitPreview, deleteEnhanced, discardPreview, EnhancePreviewer, enhanceToPreview, PREVIEW_SEC, type CancelToken } from '../services/processing';
+import { bestPreviewStart } from '../dsp/stream';
 import { useApp } from '../state/AppContext';
 import { clock } from '../transcript/format';
 import type { Recording } from '../types';
@@ -141,6 +142,8 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
             ) : null}
           </Section>
 
+          <PreviewPanel rec={rec} settings={s} rate={rate} />
+
           <Card style={{ borderColor: colors.primary, borderWidth: 2 }}>
             <Txt bold>{t('settings_summary')}</Txt>
             <Txt size="sm">{summary(s, rate, t)}</Txt>
@@ -158,6 +161,129 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
         </ScrollView>
       )}
     </View>
+  );
+}
+
+type PreviewState =
+  | { kind: 'idle' }
+  | { kind: 'working'; label: string; progress?: number }
+  | { kind: 'ready'; originalUri: string; enhancedUri: string; report: EnhanceResult['report'] };
+
+/**
+ * Listen to a 15 s part processed with the current settings before running the whole file.
+ * After the first preview, any settings change renders a new one (debounced).
+ */
+function PreviewPanel({ rec, settings, rate }: { rec: Recording; settings: EnhanceSettings; rate: number }) {
+  const app = useApp();
+  const { t } = app;
+  const [pv] = useState(() => new EnhancePreviewer(rec));
+  useEffect(() => () => pv.dispose(), [pv]);
+  const maxStart = Math.max(0, Math.floor(rec.durationSec - PREVIEW_SEC));
+  const [start, setStart] = useState(() => Math.min(maxStart, bestPreviewStart(rec.segments ?? [], rec.durationSec, PREVIEW_SEC)));
+  const [state, setState] = useState<PreviewState>({ kind: 'idle' });
+  const [which, setWhich] = useState<'original' | 'enhanced'>('enhanced');
+  const [auto, setAuto] = useState(false);
+  const player = useAudioPlayer(null, { updateInterval: 250 });
+  const status = useAudioPlayerStatus(player);
+  const gen = useRef(0);
+  useEffect(() => () => { try { player.pause(); } catch { /* released */ } }, [player]);
+  // loop the 15 s part so it can be heard while settings change
+  useEffect(() => {
+    if (status.didJustFinish) { player.seekTo(0); player.play(); }
+  }, [status.didJustFinish]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const renderNow = async () => {
+    const my = ++gen.current;
+    const stale = () => my !== gen.current;
+    try {
+      setState({ kind: 'working', label: t('pv_preparing'), progress: 0 });
+      await pv.prepare(rate, (f) => { if (!stale()) setState({ kind: 'working', label: t('pv_preparing'), progress: f }); }, stale);
+      if (stale()) return;
+      setState({ kind: 'working', label: t('pv_rendering') });
+      const vad = { ...settings, vad: { ...settings.vad, thresholdDb: app.settings.vadThresholdDb, whisper: app.settings.vadWhisper } };
+      const r = await pv.render(start, vad, stale);
+      if (stale()) return;
+      const wasPlaying = player.playing;
+      const pos = player.currentTime;
+      player.replace({ uri: which === 'enhanced' ? r.enhancedUri : r.originalUri, name: rec.name });
+      setTimeout(() => {
+        if (pos > 0) player.seekTo(pos);
+        if (wasPlaying) player.play();
+      }, 150);
+      setState({ kind: 'ready', ...r });
+      setAuto(true);
+    } catch (e) {
+      if (stale()) return;
+      setState({ kind: 'idle' });
+      app.showError(e);
+    }
+  };
+
+  // after the first preview, follow every settings change
+  useEffect(() => {
+    if (!auto) return;
+    const h = setTimeout(() => { void renderNow(); }, 600);
+    return () => clearTimeout(h);
+  }, [settings, rate, start]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const switchTo = (w: 'original' | 'enhanced') => {
+    if (w === which || state.kind !== 'ready') { setWhich(w); return; }
+    const pos = player.currentTime;
+    const wasPlaying = player.playing;
+    setWhich(w);
+    player.replace({ uri: w === 'enhanced' ? state.enhancedUri : state.originalUri, name: rec.name });
+    setTimeout(() => { player.seekTo(pos); if (wasPlaying) player.play(); }, 150);
+  };
+
+  const r = state.kind === 'ready' ? state.report : null;
+  return (
+    <Section title={t('pv_title')}>
+      <Txt size="sm" muted>{t('pv_hint')}</Txt>
+      {maxStart > 0 ? (
+        <LabeledSlider
+          testID="pv-start"
+          label={t('pv_part')}
+          value={start}
+          min={0}
+          max={maxStart}
+          step={1}
+          onChange={setStart}
+          format={(v) => `${clock(v)} – ${clock(Math.min(rec.durationSec, v + PREVIEW_SEC))}`}
+        />
+      ) : null}
+      {state.kind === 'working' ? (
+        <ProgressBar value={state.progress ?? 0.5} label={state.label} />
+      ) : (
+        <Button testID="pv-render" kind={state.kind === 'ready' ? 'secondary' : 'primary'} icon="🎧" label={state.kind === 'ready' ? t('pv_update') : t('pv_listen')} onPress={() => { void renderNow(); }} />
+      )}
+      {state.kind === 'ready' || (state.kind === 'working' && auto) ? (
+        <>
+          <Row>
+            <IconButton
+              testID="pv-play"
+              icon={status.playing ? '❚❚' : '▶'}
+              label={status.playing ? t('pause') : t('play')}
+              onPress={() => (status.playing ? player.pause() : player.play())}
+              disabled={state.kind !== 'ready'}
+            />
+            <View style={{ flex: 1 }}>
+              <Choice
+                testID="pv-ab"
+                value={which}
+                onChange={switchTo}
+                options={[{ value: 'original', label: t('original') }, { value: 'enhanced', label: t('enhanced') }]}
+              />
+            </View>
+          </Row>
+          {r ? (
+            <Txt size="sm" muted testID="pv-summary">
+              {t('pv_result', { gain: `${r.appliedGainDb >= 0 ? '+' : ''}${r.appliedGainDb.toFixed(1)}`, lufs: Number.isFinite(r.output.speechLufs) ? r.output.speechLufs.toFixed(1) : '—' })}
+              {settings.strength === 'auto' ? `\n${summary(r.appliedSettings, rate, t)}` : ''}
+            </Txt>
+          ) : null}
+        </>
+      ) : null}
+    </Section>
   );
 }
 

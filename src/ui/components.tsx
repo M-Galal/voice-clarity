@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   AccessibilityActionEvent, ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet,
   Switch, Text, TextStyle, View, ViewStyle,
@@ -186,13 +186,19 @@ export function Choice<T extends string | number>({
  * formatted value.
  */
 export function LabeledSlider({
-  label, value, min, max, step, onChange, format, hint, disabled,
+  label, value, min, max, step, onChange, format, hint, disabled, onLive, testID,
 }: {
   label: string; value: number; min: number; max: number; step: number;
   onChange: (v: number) => void; format: (v: number) => string; hint?: string; disabled?: boolean;
+  /** Called while dragging; onChange is called on release. */
+  onLive?: (v: number) => void;
+  testID?: string;
 }) {
   const { colors } = useApp();
+  // value shown while the thumb is being dragged
+  const [dragging, setDragging] = useState<number | null>(null);
   const clampStep = (v: number) => Math.min(max, Math.max(min, Math.round(v / step) * step));
+  const shown = dragging ?? value;
   const onAction = (e: AccessibilityActionEvent) => {
     if (e.nativeEvent.actionName === 'increment') onChange(clampStep(value + step));
     if (e.nativeEvent.actionName === 'decrement') onChange(clampStep(value - step));
@@ -204,13 +210,14 @@ export function LabeledSlider({
       accessibilityRole="adjustable"
       accessibilityLabel={label}
       accessibilityHint={hint}
-      accessibilityValue={{ text: format(value) }}
+      accessibilityValue={{ text: format(shown) }}
+      testID={testID}
       accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
       onAccessibilityAction={onAction}
     >
       <Row style={{ justifyContent: 'space-between' }}>
         <Txt style={{ flex: 1 }}>{label}</Txt>
-        <Txt bold>{format(value)}</Txt>
+        <Txt bold testID={testID ? `${testID}-value` : undefined}>{format(shown)}</Txt>
       </Row>
       <Slider
         value={value}
@@ -218,7 +225,12 @@ export function LabeledSlider({
         maximumValue={max}
         step={step}
         disabled={disabled}
-        onSlidingComplete={(v) => onChange(clampStep(v))}
+        onValueChange={(v) => {
+          const c = clampStep(v);
+          setDragging(c);
+          onLive?.(c);
+        }}
+        onSlidingComplete={(v) => { setDragging(null); onChange(clampStep(v)); }}
         minimumTrackTintColor={colors.primary}
         maximumTrackTintColor={colors.border}
         thumbTintColor={colors.primary}
