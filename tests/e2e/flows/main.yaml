@@ -137,8 +137,9 @@ appId: com.example.voiceclarity
       id: "pv-render"
 - tapOn:
     id: "pv-render"
-- extendedWaitUntil:
-    visible:
+# the result line appears below the buttons: scroll while waiting for it
+- scrollUntilVisible:
+    element:
       id: "pv-summary"
     timeout: 120000
 - tapOn:

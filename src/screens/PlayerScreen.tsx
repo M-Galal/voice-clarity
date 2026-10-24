@@ -53,8 +53,11 @@ function Player({ rec, queueIndex, autoplay }: { rec: Recording; queueIndex?: nu
     }, [status.isLoaded, nativeLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
     const loaded = status.isLoaded || nativeLoaded;
 
+    const loggedLoad = useRef(false);
     useEffect(() => {
-      if (loaded) console.log(`[VC] player loaded ${rec.format}${rec.external ? ' (folder)' : ''} in ${Date.now() - mountedAt} ms${status.isLoaded ? '' : ' (status update missed)'}`);
+      if (!loaded || loggedLoad.current) return;
+      loggedLoad.current = true;
+      console.log(`[VC] player loaded ${rec.format}${rec.external ? ' (folder)' : ''} in ${Date.now() - mountedAt} ms${status.isLoaded ? '' : ' (status update missed)'}`);
     }, [loaded]); // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => {
       if (status.error) console.warn(`[VC] player error ${rec.format}: ${status.error}`);
