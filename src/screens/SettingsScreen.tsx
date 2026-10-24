@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Alert, ScrollView, View } from 'react-native';
+import { Alert, View } from 'react-native';
+import { KeyboardAwareScrollView } from '../ui/KeyboardAwareScrollView';
 import { releaseWhisper, deleteModel, downloadModel, isModelReady, MODELS } from '../services/transcription';
 import { deleteAllData } from '../services/storage';
 import { useApp } from '../state/AppContext';
@@ -23,9 +24,7 @@ export function SettingsScreen() {
   return (
     <View style={{ flex: 1 }}>
       <Header title={t('settings')} onBack={goBack} />
-      {/* One scroll container: a nested non-scrolling ScrollView kept the keyboard from bringing
-          a focused field (custom skip interval) into view on Android. */}
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: space.lg, paddingTop: space.lg, paddingBottom: space.xl, gap: space.lg }}>
+      <KeyboardAwareScrollView contentContainerStyle={{ paddingHorizontal: space.lg, paddingTop: space.lg, paddingBottom: space.xl, gap: space.lg }}>
         <Section title={t('privacy')}>
           <Txt>{t('privacy_text')}</Txt>
         </Section>
@@ -90,7 +89,7 @@ export function SettingsScreen() {
             }
           />
         </Section>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </View>
   );
 }

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { FlatList, Pressable, TextInput, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useKeepAwake } from 'expo-keep-awake';
+import { KeyboardAwareScrollView } from '../ui/KeyboardAwareScrollView';
 import { audioUri, shareTranscript } from '../services/processing';
 import { downloadModel, isModelReady, MODELS, startTranscription, type TranscribeJob } from '../services/transcription';
 import { useApp } from '../state/AppContext';
@@ -68,7 +69,7 @@ function TranscriptView({ rec }: { rec: Recording }) {
       {running !== null ? (
         <RunningView progress={running} onCancel={() => job.current?.stop()} />
       ) : showSetup ? (
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.lg, gap: space.lg }}>
+        <KeyboardAwareScrollView contentContainerStyle={{ padding: space.lg, gap: space.lg }}>
             <View style={{ gap: space.lg }}>
               <Txt size="sm" muted>{t('processing_local')}</Txt>
               <Section title={t('transcript_language')}>
@@ -101,7 +102,7 @@ function TranscriptView({ rec }: { rec: Recording }) {
               <Button testID="start-transcribe" label={t('transcribe')} icon="📝" onPress={start} disabled={!modelReady} />
               {rec.transcript ? <Button kind="ghost" label={t('cancel')} onPress={() => setRedo(false)} /> : null}
             </View>
-        </ScrollView>
+        </KeyboardAwareScrollView>
       ) : (
         <TranscriptBody rec={rec} onRedo={() => setRedo(true)} />
       )}
