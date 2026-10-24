@@ -5,10 +5,20 @@ set -uo pipefail
 APK=$(ls apk/*.apk | head -1)
 RES=results
 mkdir -p "$RES/screens"
+# A retry reuses the results folder: keep the first attempt's output under attempt1/
+if [ -f "$RES/STATUS" ]; then
+  mkdir -p "$RES/attempt1"
+  mv "$RES"/STATUS "$RES"/maestro.txt "$RES"/junit.xml "$RES"/logcat-js.txt "$RES"/app-errors.txt "$RES"/crashes.txt "$RES"/final-ui.xml "$RES/attempt1/" 2>/dev/null || true
+  mv "$RES/screens" "$RES/attempt1/screens" 2>/dev/null || true
+  mkdir -p "$RES/screens"
+fi
 adb wait-for-device
 adb shell settings put global window_animation_scale 0
 adb shell settings put global transition_animation_scale 0
 adb shell settings put global animator_duration_scale 0
+# start clean: no app data or play-list changes left from an earlier attempt
+adb uninstall com.example.voiceclarity > /dev/null 2>&1 || true
+adb shell rm -rf /sdcard/Music/vc-playlist
 adb install -r -g "$APK" > "$RES/install.txt" 2>&1 || { echo "INSTALL_FAILED" > "$RES/STATUS"; exit 1; }
 for f in e2e-audio/*; do adb push "$f" /sdcard/Download/ >/dev/null; done
 # play-list folder (Android 11+ does not allow picking Download itself)

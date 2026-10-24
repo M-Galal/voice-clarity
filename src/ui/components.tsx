@@ -32,6 +32,13 @@ export function Txt({
   );
 }
 
+/**
+ * Android draws symbols such as ▶ ⏮ ⏩ as colour emoji, which ignore the text colour (a white ▶ on
+ * the light-blue dark-theme button). U+FE0E asks for the plain text form, so icons take the theme
+ * colour. Symbols that only exist as emoji are unaffected.
+ */
+export const textGlyph = (icon: string) => icon.replace(/([\u2190-\u21FF\u2300-\u2BFF])(?![\uFE0E\uFE0F])/g, '$1\uFE0E');
+
 export function Button({
   label, onPress, kind = 'primary', disabled, icon, accessibilityHint, style, compact, testID,
 }: {
@@ -74,7 +81,7 @@ export function Button({
         style,
       ]}
     >
-      {icon ? <Text style={{ color: fg, fontSize: fs.lg }} accessible={false}>{icon}</Text> : null}
+      {icon ? <Text style={{ color: fg, fontSize: fs.lg }} accessible={false}>{textGlyph(icon)}</Text> : null}
       <Text style={{ color: fg, fontSize: fs.md, fontWeight: '600' }}>{label}</Text>
     </Pressable>
   );
@@ -102,7 +109,7 @@ export function IconButton({ icon, label, onPress, big, disabled, testID }: { ic
         opacity: disabled ? 0.4 : pressed ? 0.8 : 1,
       })}
     >
-      <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize: big ? fs.xxl : long ? fs.xs : fs.lg, fontWeight: long ? '700' : '400', color: big ? colors.onPrimary : colors.text }}>{icon}</Text>
+      <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize: big ? fs.xxl : long ? fs.xs : fs.lg, fontWeight: long ? '700' : '400', color: big ? colors.onPrimary : colors.text }}>{textGlyph(icon)}</Text>
     </Pressable>
   );
 }
