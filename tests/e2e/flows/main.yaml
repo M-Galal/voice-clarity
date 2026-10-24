@@ -136,10 +136,13 @@ appId: com.example.voiceclarity
     visible:
       id: "smart-ready"
     timeout: 120000
-- assertVisible:
-    id: "smart-auto_sections"
-- assertVisible:
-    id: "per-section"
+- scrollUntilVisible:
+    element:
+      id: "smart-auto_sections"
+    centerElement: true
+- scrollUntilVisible:
+    element:
+      id: "per-section"
 - takeScreenshot: 10_enhance_setup
 # preview 15 s with the current (Smart) settings, compare, then change a setting: it re-renders
 - scrollUntilVisible:
