@@ -1,0 +1,489 @@
+
+> voice-clarity@1.0.0 test
+> tsx --test tests/*.test.ts
+
+TAP version 13
+# Subtest: light theme text pairs meet WCAG AA 4.5:1
+ok 1 - light theme text pairs meet WCAG AA 4.5:1
+  ---
+  duration_ms: 1.562663
+  type: 'test'
+  ...
+# Subtest: dark theme text pairs meet WCAG AA 4.5:1
+ok 2 - dark theme text pairs meet WCAG AA 4.5:1
+  ---
+  duration_ms: 0.448547
+  type: 'test'
+  ...
+# Subtest: skip interval: 1 s to 1 h, parsing and formatting
+ok 3 - skip interval: 1 s to 1 h, parsing and formatting
+  ---
+  duration_ms: 2.319185
+  type: 'test'
+  ...
+# Subtest: playback rate is limited to 0.1x-5x
+ok 4 - playback rate is limited to 0.1x-5x
+  ---
+  duration_ms: 3.42746
+  type: 'test'
+  ...
+# Subtest: saved-file speed change also covers 0.1x-5x and keeps pitch
+ok 5 - saved-file speed change also covers 0.1x-5x and keeps pitch
+  ---
+  duration_ms: 269.854281
+  type: 'test'
+  ...
+# Subtest: dB ↔ percent mapping is consistent and invertible
+ok 6 - dB ↔ percent mapping is consistent and invertible
+  ---
+  duration_ms: 2.412779
+  type: 'test'
+  ...
+# Subtest: K-weighting coefficients at 48 kHz match ITU-R BS.1770-4 Table 1 / 2
+ok 7 - K-weighting coefficients at 48 kHz match ITU-R BS.1770-4 Table 1 / 2
+  ---
+  duration_ms: 1.415912
+  type: 'test'
+  ...
+# Subtest: BS.1770: full-scale 997 Hz sine in one channel reads −3.01 LUFS
+ok 8 - BS.1770: full-scale 997 Hz sine in one channel reads −3.01 LUFS
+  ---
+  duration_ms: 51.709951
+  type: 'test'
+  ...
+# Subtest: loudness works at 16 kHz and 44.1 kHz too (within 0.1 LU)
+ok 9 - loudness works at 16 kHz and 44.1 kHz too (within 0.1 LU)
+  ---
+  duration_ms: 83.771789
+  type: 'test'
+  ...
+# Subtest: gating ignores silence: tone + long silence ≈ tone alone
+ok 10 - gating ignores silence: tone + long silence ≈ tone alone
+  ---
+  duration_ms: 28.067601
+  type: 'test'
+  ...
+# Subtest: speech loudness only uses blocks inside segments
+ok 11 - speech loudness only uses blocks inside segments
+  ---
+  duration_ms: 31.522522
+  type: 'test'
+  ...
+# Subtest: true peak ≥ sample peak, and catches inter-sample peaks
+ok 12 - true peak ≥ sample peak, and catches inter-sample peaks
+  ---
+  duration_ms: 9.660542
+  type: 'test'
+  ...
+# Subtest: FFT round trip
+ok 13 - FFT round trip
+  ---
+  duration_ms: 1.918446
+  type: 'test'
+  ...
+# Subtest: real FFT matches the complex FFT and inverts
+ok 14 - real FFT matches the complex FFT and inverts
+  ---
+  duration_ms: 11.612381
+  type: 'test'
+  ...
+# Subtest: VAD finds the speech bursts and their timing
+ok 15 - VAD finds the speech bursts and their timing
+  ---
+  duration_ms: 79.834097
+  type: 'test'
+  ...
+# Subtest: navigation helpers: next / previous / skip-silence
+ok 16 - navigation helpers: next / previous / skip-silence
+  ---
+  duration_ms: 0.367916
+  type: 'test'
+  ...
+# Subtest: denoise with gain 1 path reconstructs input (no noise → near-identity)
+ok 17 - denoise with gain 1 path reconstructs input (no noise → near-identity)
+  ---
+  duration_ms: 72.627401
+  type: 'test'
+  ...
+# Subtest: denoise lowers noise in pauses by > 10 dB and keeps speech within 3 dB
+ok 18 - denoise lowers noise in pauses by > 10 dB and keeps speech within 3 dB
+  ---
+  duration_ms: 203.055589
+  type: 'test'
+  ...
+# Subtest: hum detector finds 50 Hz and 60 Hz, ignores white noise
+ok 19 - hum detector finds 50 Hz and 60 Hz, ignores white noise
+  ---
+  duration_ms: 98.237702
+  type: 'test'
+  ...
+# Subtest: limiter keeps every sample under the ceiling and reports reduction
+ok 20 - limiter keeps every sample under the ceiling and reports reduction
+  ---
+  duration_ms: 33.704716
+  type: 'test'
+  ...
+# Subtest: clipping detector counts flat-topped runs
+ok 21 - clipping detector counts flat-topped runs
+  ---
+  duration_ms: 3.048784
+  type: 'test'
+  ...
+# Subtest: pause attenuation leaves speech alone and lowers gaps
+ok 22 - pause attenuation leaves speech alone and lowers gaps
+  ---
+  duration_ms: 10.484948
+  type: 'test'
+  ...
+# Subtest: WAV 16-bit encode/decode round trip
+ok 23 - WAV 16-bit encode/decode round trip
+  ---
+  duration_ms: 4.429058
+  type: 'test'
+  ...
+# Subtest: silence removal shortens pauses and remaps time
+ok 24 - silence removal shortens pauses and remaps time
+  ---
+  duration_ms: 0.958197
+  type: 'test'
+  ...
+# Subtest: resample length and tone preservation
+ok 25 - resample length and tone preservation
+  ---
+  duration_ms: 13.334511
+  type: 'test'
+  ...
+# Subtest: pipeline: hits LUFS target on speech, respects ceiling, keeps original untouched
+ok 26 - pipeline: hits LUFS target on speech, respects ceiling, keeps original untouched
+  ---
+  duration_ms: 634.45686
+  type: 'test'
+  ...
+# Subtest: pipeline: manual gain, cancel, and warnings
+ok 27 - pipeline: manual gain, cancel, and warnings
+  ---
+  duration_ms: 161.390285
+  type: 'test'
+  ...
+# Subtest: presets differ and advanced keeps user values
+ok 28 - presets differ and advanced keeps user values
+  ---
+  duration_ms: 0.255606
+  type: 'test'
+  ...
+# Subtest: speed change keeps pitch and scales length
+ok 29 - speed change keeps pitch and scales length
+  ---
+  duration_ms: 203.755744
+  type: 'test'
+  ...
+# Subtest: speed 1 is an exact copy
+ok 30 - speed 1 is an exact copy
+  ---
+  duration_ms: 1.940358
+  type: 'test'
+  ...
+# Subtest: speed change moves events in time correctly
+ok 31 - speed change moves events in time correctly
+  ---
+  duration_ms: 36.385729
+  type: 'test'
+  ...
+# Subtest: stereo channels stay aligned after a speed change
+ok 32 - stereo channels stay aligned after a speed change
+  ---
+  duration_ms: 36.86364
+  type: 'test'
+  ...
+# Subtest: keep (trim) and cut lengths, with fades only at joins
+ok 33 - keep (trim) and cut lengths, with fades only at joins
+  ---
+  duration_ms: 1.885466
+  type: 'test'
+  ...
+# Subtest: spec normalisation, edited duration and bookmark remap
+ok 34 - spec normalisation, edited duration and bookmark remap
+  ---
+  duration_ms: 0.653559
+  type: 'test'
+  ...
+# Subtest: applyEdit combines trim and speed
+ok 35 - applyEdit combines trim and speed
+  ---
+  duration_ms: 22.919943
+  type: 'test'
+  ...
+# Subtest: cancel stops a long speed change
+ok 36 - cancel stops a long speed change
+  ---
+  duration_ms: 86.276849
+  type: 'test'
+  ...
+# Subtest: parseExtensions accepts dots, stars, case and separators
+ok 37 - parseExtensions accepts dots, stars, case and separators
+  ---
+  duration_ms: 2.237541
+  type: 'test'
+  ...
+# Subtest: nameMatcher: plain text is a case-insensitive substring
+ok 38 - nameMatcher: plain text is a case-insensitive substring
+  ---
+  duration_ms: 0.416647
+  type: 'test'
+  ...
+# Subtest: nameMatcher: * and ? patterns match the whole name, with or without extension
+ok 39 - nameMatcher: * and ? patterns match the whole name, with or without extension
+  ---
+  duration_ms: 0.583919
+  type: 'test'
+  ...
+# Subtest: nameMatcher: ; separates alternatives; empty matches all
+ok 40 - nameMatcher: ; separates alternatives; empty matches all
+  ---
+  duration_ms: 0.310048
+  type: 'test'
+  ...
+# Subtest: applyFilter keeps supported and chosen extensions, natural name order
+ok 41 - applyFilter keeps supported and chosen extensions, natural name order
+  ---
+  duration_ms: 0.773172
+  type: 'test'
+  ...
+# Subtest: applyFilter sorts by date both ways and groups by subfolder for name sort
+ok 42 - applyFilter sorts by date both ways and groups by subfolder for name sort
+  ---
+  duration_ms: 0.443717
+  type: 'test'
+  ...
+# Subtest: displayName decodes SAF document ids and plain file URIs
+ok 43 - displayName decodes SAF document ids and plain file URIs
+  ---
+  duration_ms: 1.639076
+  type: 'test'
+  ...
+# Subtest: folderLabel reads SAF tree URIs and file paths
+ok 44 - folderLabel reads SAF tree URIs and file paths
+  ---
+  duration_ms: 0.39678
+  type: 'test'
+  ...
+# Subtest: stepIndex stops at both ends
+ok 45 - stepIndex stops at both ends
+  ---
+  duration_ms: 0.468694
+  type: 'test'
+  ...
+# Subtest: short recordings are analysed whole
+ok 46 - short recordings are analysed whole
+  ---
+  duration_ms: 2.161279
+  type: 'test'
+  ...
+# Subtest: long recordings: 16 parts of 20 s from the start to the end
+ok 47 - long recordings: 16 parts of 20 s from the start to the end
+  ---
+  duration_ms: 0.460889
+  type: 'test'
+  ...
+# Subtest: sections found in the joined parts are placed back in the recording
+ok 48 - sections found in the joined parts are placed back in the recording
+  ---
+  duration_ms: 6.66149
+  type: 'test'
+  ...
+# Subtest: edits keep the original extension where the phone can encode it
+ok 49 - edits keep the original extension where the phone can encode it
+  ---
+  duration_ms: 2.479964
+  type: 'test'
+  ...
+# Subtest: formats without an encoder fall back to M4A, or WAV without the native module
+ok 50 - formats without an encoder fall back to M4A, or WAV without the native module
+  ---
+  duration_ms: 0.549765
+  type: 'test'
+  ...
+# Subtest: version names: base-v1, then the next free counter
+ok 51 - version names: base-v1, then the next free counter
+  ---
+  duration_ms: 0.640905
+  type: 'test'
+  ...
+# Subtest: AAC bit rate follows the original within encoder limits
+ok 52 - AAC bit rate follows the original within encoder limits
+  ---
+  duration_ms: 0.346085
+  type: 'test'
+  ...
+# Subtest: close, distant and whispered speech become separate sections with their own settings
+ok 53 - close, distant and whispered speech become separate sections with their own settings
+  ---
+  duration_ms: 3.016824
+  type: 'test'
+  ...
+# Subtest: a short dip does not make its own section
+ok 54 - a short dip does not make its own section
+  ---
+  duration_ms: 0.466059
+  type: 'test'
+  ...
+# Subtest: noise reduction follows the noise around each section
+ok 55 - noise reduction follows the noise around each section
+  ---
+  duration_ms: 0.231241
+  type: 'test'
+  ...
+# Subtest: section curve: constant inside sections, short ramps at the edges, monotone across pauses
+ok 56 - section curve: constant inside sections, short ramps at the edges, monotone across pauses
+  ---
+  duration_ms: 0.433428
+  type: 'test'
+  ...
+# Subtest: spectrum: a 1 kHz sine peaks in the band around 1 kHz, chunking does not matter
+ok 57 - spectrum: a 1 kHz sine peaks in the band around 1 kHz, chunking does not matter
+  ---
+  duration_ms: 56.411093
+  type: 'test'
+  ...
+# \# 10 min @16 kHz: peak extra memory 35 MB
+# Subtest: chunked Smart enhancement matches the whole-buffer pipeline (24 kHz whisper fixture)
+ok 58 - chunked Smart enhancement matches the whole-buffer pipeline (24 kHz whisper fixture)
+  ---
+  duration_ms: 982.941793
+  type: 'test'
+  ...
+# Subtest: chunked enhancement matches for every preset, manual gain and silence removal
+ok 59 - chunked enhancement matches for every preset, manual gain and silence removal
+  ---
+  duration_ms: 1750.158151
+  type: 'test'
+  ...
+# Subtest: chunked enhancement handles a file without pauses (noise profile fallback)
+ok 60 - chunked enhancement handles a file without pauses (noise profile fallback)
+  ---
+  duration_ms: 258.903401
+  type: 'test'
+  ...
+# Subtest: odd chunk sizes (joins inside FFT frames and limiter look-ahead) give the same result
+ok 61 - odd chunk sizes (joins inside FFT frames and limiter look-ahead) give the same result
+  ---
+  duration_ms: 1773.396617
+  type: 'test'
+  ...
+# Subtest: chunked analysis matches whole-buffer speech detection and waveform
+ok 62 - chunked analysis matches whole-buffer speech detection and waveform
+  ---
+  duration_ms: 17.681135
+  type: 'test'
+  ...
+# Subtest: 10 minutes of audio are enhanced with roughly constant memory
+ok 63 - 10 minutes of audio are enhanced with roughly constant memory
+  ---
+  duration_ms: 4143.324358
+  type: 'test'
+  ...
+# Subtest: preview part: the 15 s stretch with the most speech
+ok 64 - preview part: the 15 s stretch with the most speech
+  ---
+  duration_ms: 17.761585
+  type: 'test'
+  ...
+# Subtest: whole-file Smart analysis chooses exactly what a full Smart run uses
+ok 65 - whole-file Smart analysis chooses exactly what a full Smart run uses
+  ---
+  duration_ms: 345.121202
+  type: 'test'
+  ...
+# Subtest: per-section Smart mode: same result whatever the chunk size, and it changes the audio
+ok 66 - per-section Smart mode: same result whatever the chunk size, and it changes the audio
+  ---
+  duration_ms: 952.907329
+  type: 'test'
+  ...
+# Subtest: preview with the whole file's measurements uses them for the file settings and the sections
+ok 67 - preview with the whole file's measurements uses them for the file settings and the sections
+  ---
+  duration_ms: 194.324608
+  type: 'test'
+  ...
+# Subtest: Arabic detection and punctuation
+ok 68 - Arabic detection and punctuation
+  ---
+  duration_ms: 2.683473
+  type: 'test'
+  ...
+# Subtest: Arabic search normalisation
+ok 69 - Arabic search normalisation
+  ---
+  duration_ms: 1.415139
+  type: 'test'
+  ...
+# Subtest: timecodes and formats
+ok 70 - timecodes and formats
+  ---
+  duration_ms: 1.05679
+  type: 'test'
+  ...
+# Subtest: whisper time scale: 10 ms units by default, seconds when they fit
+ok 71 - whisper time scale: 10 ms units by default, seconds when they fit
+  ---
+  duration_ms: 0.287156
+  type: 'test'
+  ...
+# Subtest: flags: repetition and low audio quality
+ok 72 - flags: repetition and low audio quality
+  ---
+  duration_ms: 0.463914
+  type: 'test'
+  ...
+# Subtest: decoder paths keep or gain the file:// prefix (Android release builds need it)
+ok 73 - decoder paths keep or gain the file:// prefix (Android release builds need it)
+  ---
+  duration_ms: 0.229728
+  type: 'test'
+  ...
+# Subtest: clockTenths rounds before formatting
+ok 74 - clockTenths rounds before formatting
+  ---
+  duration_ms: 1.32465
+  type: 'test'
+  ...
+# Subtest: whispered speech 20 dB below normal speech is detected and labelled
+ok 75 - whispered speech 20 dB below normal speech is detected and labelled
+  ---
+  duration_ms: 63.424756
+  type: 'test'
+  ...
+# Subtest: steady background noise alone is not detected as speech
+ok 76 - steady background noise alone is not detected as speech
+  ---
+  duration_ms: 13.638679
+  type: 'test'
+  ...
+# Subtest: leveller raises quiet speech to the louder speech, never cuts, caps the boost
+ok 77 - leveller raises quiet speech to the louder speech, never cuts, caps the boost
+  ---
+  duration_ms: 17.585437
+  type: 'test'
+  ...
+# Subtest: Smart settings follow the measurements
+ok 78 - Smart settings follow the measurements
+  ---
+  duration_ms: 0.688975
+  type: 'test'
+  ...
+# Subtest: Smart enhancement makes the whispers about as loud as normal speech
+ok 79 - Smart enhancement makes the whispers about as loud as normal speech
+  ---
+  duration_ms: 364.581857
+  type: 'test'
+  ...
+1..79
+# tests 79
+# suites 0
+# pass 79
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 12795.855272

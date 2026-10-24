@@ -1,0 +1,4 @@
+total 69864
+drwxr-xr-x  2 runner runner     4096 Oct 24 21:04 .
+drwxr-xr-x 17 runner runner     4096 Oct 24 21:04 ..
+-rw-r--r--  1 runner runner 71532218 Oct 24 21:04 voice-clarity-449025c.apk

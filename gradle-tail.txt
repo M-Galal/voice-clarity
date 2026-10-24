@@ -1,0 +1,400 @@
+C/C++: 1 warning generated.
+
+> Task :react-native-safe-area-context:extractDeepLinksForAarRelease
+> Task :react-native-safe-area-context:extractReleaseAnnotations
+> Task :react-native-safe-area-context:mergeReleaseConsumerProguardFiles
+> Task :react-native-safe-area-context:mergeReleaseJavaResource
+> Task :react-native-safe-area-context:syncReleaseLibJars
+> Task :react-native-safe-area-context:bundleReleaseLocalLintAar
+> Task :react-native-community_slider:checkReleaseAarMetadata
+> Task :react-native-community_slider:stripReleaseDebugSymbols NO-SOURCE
+> Task :react-native-community_slider:copyReleaseJniLibsProjectAndLocalJars
+> Task :react-native-community_slider:extractDeepLinksForAarRelease
+> Task :react-native-community_slider:extractReleaseAnnotations
+> Task :react-native-community_slider:mergeReleaseConsumerProguardFiles
+> Task :react-native-community_slider:mergeReleaseJavaResource
+> Task :react-native-community_slider:syncReleaseLibJars
+> Task :react-native-community_slider:bundleReleaseLocalLintAar
+> Task :expo:checkReleaseAarMetadata
+> Task :expo:stripReleaseDebugSymbols NO-SOURCE
+> Task :expo:copyReleaseJniLibsProjectAndLocalJars
+> Task :expo:extractDeepLinksForAarRelease
+> Task :expo-log-box:checkReleaseAarMetadata
+> Task :expo-log-box:stripReleaseDebugSymbols NO-SOURCE
+> Task :expo-log-box:copyReleaseJniLibsProjectAndLocalJars
+> Task :expo-log-box:extractDeepLinksForAarRelease
+> Task :expo-modules-core:checkReleaseAarMetadata
+> Task :expo-modules-core:stripReleaseDebugSymbols
+> Task :expo-modules-core:copyReleaseJniLibsProjectAndLocalJars
+> Task :expo-modules-core:extractDeepLinksForAarRelease
+> Task :expo-dom-webview:checkReleaseAarMetadata
+> Task :expo-dom-webview:stripReleaseDebugSymbols NO-SOURCE
+> Task :expo-dom-webview:copyReleaseJniLibsProjectAndLocalJars
+> Task :expo-dom-webview:extractDeepLinksForAarRelease
+> Task :expo-constants:checkReleaseAarMetadata
+> Task :expo-constants:stripReleaseDebugSymbols NO-SOURCE
+> Task :expo-constants:copyReleaseJniLibsProjectAndLocalJars
+> Task :expo-constants:extractDeepLinksForAarRelease
+> Task :voice-encoder:checkReleaseAarMetadata
+> Task :voice-encoder:stripReleaseDebugSymbols NO-SOURCE
+> Task :voice-encoder:copyReleaseJniLibsProjectAndLocalJars
+> Task :voice-encoder:extractDeepLinksForAarRelease
+> Task :expo-constants:writeReleaseLintModelMetadata
+> Task :expo-dom-webview:writeReleaseLintModelMetadata
+> Task :expo-log-box:writeReleaseLintModelMetadata
+> Task :expo-modules-core:writeReleaseLintModelMetadata
+> Task :voice-encoder:writeReleaseLintModelMetadata
+> Task :expo:writeReleaseLintModelMetadata
+> Task :react-native-community_slider:lintVitalAnalyzeRelease SKIPPED
+> Task :react-native-community_slider:writeReleaseLintModelMetadata
+> Task :react-native-safe-area-context:lintVitalAnalyzeRelease SKIPPED
+> Task :react-native-safe-area-context:writeReleaseLintModelMetadata
+> Task :react-native-community_slider:generateReleaseLintVitalModel
+> Task :react-native-safe-area-context:generateReleaseLintVitalModel
+> Task :app:collectReleaseDependencies
+> Task :app:sdkReleaseDependencyData
+> Task :app:validateSigningRelease
+> Task :app:writeReleaseAppMetadata
+> Task :app:writeReleaseSigningConfigVersions
+
+> Task :expo-modules-core:compileReleaseKotlin
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/jni/CppType.kt:42:23 'class NativeArrayBuffer : Destructible' is deprecated. Use ArrayBuffer instead.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/jni/JavaCallback.kt:38:10 'class NativeArrayBuffer : Destructible' is deprecated. Use ArrayBuffer instead.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/jni/JavaCallback.kt:96:45 'class NativeArrayBuffer : Destructible' is deprecated. Use ArrayBuffer instead.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/jni/NativeArrayBuffer.kt:49:15 'class NativeArrayBuffer : Destructible' is deprecated. Use ArrayBuffer instead.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/jni/NativeArrayBuffer.kt:64:30 'class NativeArrayBuffer : Destructible' is deprecated. Use ArrayBuffer instead.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/jni/NativeArrayBuffer.kt:66:14 'constructor(byteBuffer: ByteBuffer): NativeArrayBuffer' is deprecated. Use ArrayBuffer instead.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/jni/NativeArrayBuffer.kt:74:39 'class NativeArrayBuffer : Destructible' is deprecated. Use ArrayBuffer instead.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/jni/NativeArrayBuffer.kt:75:7 'constructor(byteBuffer: ByteBuffer): NativeArrayBuffer' is deprecated. Use ArrayBuffer instead.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/jni/NativeArrayBuffer.kt:80:37 'class NativeArrayBuffer : Destructible' is deprecated. Use ArrayBuffer instead.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/jni/NativeArrayBuffer.kt:86:47 'class NativeArrayBuffer : Destructible' is deprecated. Use ArrayBuffer instead.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/jni/NativeArrayBuffer.kt:92:23 'class NativeArrayBuffer : Destructible' is deprecated. Use ArrayBuffer instead.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/jni/NativeArrayBuffer.kt:92:43 'class NativeArrayBuffer : Destructible' is deprecated. Use ArrayBuffer instead.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/jni/NativeArrayBuffer.kt:95:41 'class NativeArrayBuffer : Destructible' is deprecated. Use ArrayBuffer instead.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/jni/NativeArrayBuffer.kt:105:14 'constructor(byteBuffer: ByteBuffer): NativeArrayBuffer' is deprecated. Use ArrayBuffer instead.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/types/ColorCompat.kt:115:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/types/JSTypeConverter.kt:7:8 'class NativeArrayBuffer : Destructible' is deprecated. Use ArrayBuffer instead.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/types/JSTypeConverter.kt:245:55 'class NativeArrayBuffer : Destructible' is deprecated. Use ArrayBuffer instead.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/types/JSTypeConverter.kt:247:19 'class NativeArrayBuffer : Destructible' is deprecated. Use ArrayBuffer instead.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/types/ReturnType.kt:6:8 'class NativeArrayBuffer : Destructible' is deprecated. Use ArrayBuffer instead.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/types/ReturnType.kt:45:5 'class NativeArrayBuffer : Destructible' is deprecated. Use ArrayBuffer instead.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/types/TypeConverterProvider.kt:19:8 'class NativeArrayBuffer : Destructible' is deprecated. Use ArrayBuffer instead.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/types/TypeConverterProvider.kt:254:7 'class NativeArrayBuffer : Destructible' is deprecated. Use ArrayBuffer instead.
+
+> Task :expo:mergeReleaseResources
+
+> Task :expo-modules-core:compileReleaseJavaWithJavac
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+
+> Task :expo-modules-core:bundleLibCompileToJarRelease
+> Task :expo-constants:compileReleaseKotlin
+> Task :expo-constants:compileReleaseJavaWithJavac NO-SOURCE
+> Task :expo-constants:bundleLibCompileToJarRelease
+> Task :expo:verifyReleaseResources
+> Task :expo-log-box:compileReleaseKotlin
+> Task :expo-log-box:compileReleaseJavaWithJavac
+> Task :expo-log-box:bundleLibCompileToJarRelease
+
+> Task :expo-dom-webview:compileReleaseKotlin
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo/node_modules/@expo/dom-webview/android/src/main/java/expo/modules/webview/DomWebView.kt:200:16 'var allowFileAccessFromFileURLs: Boolean' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo/node_modules/@expo/dom-webview/android/src/main/java/expo/modules/webview/DomWebView.kt:254:18 'fun executeOnJavaScriptThread(runnable: Runnable): Unit' is deprecated. Use RuntimeContext.schedule instead.
+
+> Task :expo-dom-webview:compileReleaseJavaWithJavac NO-SOURCE
+> Task :expo-dom-webview:bundleLibCompileToJarRelease
+> Task :expo-log-box:mergeReleaseGeneratedProguardFiles
+> Task :expo-log-box:exportReleaseConsumerProguardFiles
+> Task :expo-modules-core:mergeReleaseGeneratedProguardFiles
+> Task :expo-modules-core:exportReleaseConsumerProguardFiles
+> Task :expo-dom-webview:mergeReleaseGeneratedProguardFiles
+> Task :expo-dom-webview:exportReleaseConsumerProguardFiles
+> Task :expo-constants:mergeReleaseGeneratedProguardFiles
+> Task :expo-constants:exportReleaseConsumerProguardFiles
+> Task :expo-constants:bundleLibRuntimeToJarRelease
+> Task :expo-dom-webview:bundleLibRuntimeToJarRelease
+> Task :expo-log-box:bundleLibRuntimeToJarRelease
+> Task :expo-modules-core:bundleLibRuntimeToJarRelease
+> Task :expo-constants:processReleaseJavaRes
+> Task :expo-dom-webview:processReleaseJavaRes
+> Task :expo-log-box:processReleaseJavaRes
+> Task :expo-modules-core:processReleaseJavaRes
+> Task :expo-constants:createFullJarRelease
+> Task :expo-modules-core:createFullJarRelease
+> Task :expo-modules-core:generateReleaseLintModel
+> Task :expo-constants:generateReleaseLintModel
+> Task :expo-dom-webview:createFullJarRelease
+> Task :expo-dom-webview:generateReleaseLintModel
+> Task :expo-log-box:createFullJarRelease
+> Task :expo-log-box:generateReleaseLintModel
+> Task :expo-log-box:extractReleaseAnnotations
+> Task :expo-log-box:mergeReleaseConsumerProguardFiles
+> Task :expo-log-box:mergeReleaseJavaResource
+> Task :expo-log-box:syncReleaseLibJars
+> Task :expo-log-box:bundleReleaseLocalLintAar
+> Task :expo-modules-core:extractReleaseAnnotations
+> Task :expo-modules-core:mergeReleaseConsumerProguardFiles
+> Task :expo-modules-core:mergeReleaseJavaResource
+> Task :expo-modules-core:syncReleaseLibJars
+> Task :expo-modules-core:bundleReleaseLocalLintAar
+> Task :expo-dom-webview:extractReleaseAnnotations
+> Task :expo-dom-webview:mergeReleaseConsumerProguardFiles
+> Task :expo-dom-webview:mergeReleaseJavaResource
+> Task :expo-dom-webview:syncReleaseLibJars
+> Task :expo-dom-webview:bundleReleaseLocalLintAar
+> Task :expo-constants:extractReleaseAnnotations
+> Task :expo-constants:mergeReleaseConsumerProguardFiles
+> Task :expo-constants:mergeReleaseJavaResource
+> Task :expo-constants:syncReleaseLibJars
+> Task :expo-constants:bundleReleaseLocalLintAar
+> Task :expo-constants:lintVitalAnalyzeRelease SKIPPED
+> Task :expo-dom-webview:lintVitalAnalyzeRelease SKIPPED
+> Task :expo-log-box:lintVitalAnalyzeRelease SKIPPED
+> Task :expo-modules-core:lintVitalAnalyzeRelease SKIPPED
+> Task :expo-constants:generateReleaseLintVitalModel
+> Task :expo-dom-webview:generateReleaseLintVitalModel
+> Task :expo-log-box:generateReleaseLintVitalModel
+> Task :expo-modules-core:generateReleaseLintVitalModel
+> Task :expo-constants:bundleReleaseAar
+> Task :expo-constants:mergeReleaseResources
+> Task :voice-encoder:compileReleaseKotlin
+> Task :voice-encoder:compileReleaseJavaWithJavac NO-SOURCE
+> Task :voice-encoder:bundleLibCompileToJarRelease
+> Task :expo-constants:verifyReleaseResources
+> Task :voice-encoder:mergeReleaseGeneratedProguardFiles
+> Task :voice-encoder:exportReleaseConsumerProguardFiles
+> Task :voice-encoder:bundleLibRuntimeToJarRelease
+> Task :voice-encoder:processReleaseJavaRes
+> Task :voice-encoder:createFullJarRelease
+> Task :voice-encoder:generateReleaseLintModel
+> Task :voice-encoder:extractReleaseAnnotations
+> Task :voice-encoder:mergeReleaseConsumerProguardFiles
+> Task :voice-encoder:mergeReleaseJavaResource
+> Task :voice-encoder:syncReleaseLibJars
+> Task :voice-encoder:bundleReleaseLocalLintAar
+> Task :voice-encoder:lintVitalAnalyzeRelease SKIPPED
+> Task :voice-encoder:generateReleaseLintVitalModel
+> Task :expo-constants:assembleRelease
+> Task :expo-dom-webview:bundleReleaseAar
+> Task :expo-dom-webview:mergeReleaseResources
+> Task :expo-dom-webview:verifyReleaseResources
+> Task :expo-dom-webview:assembleRelease
+> Task :expo-log-box:bundleReleaseAar
+> Task :expo-log-box:mergeReleaseResources
+
+> Task :expo:compileReleaseKotlin
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo/android/src/main/java/expo/modules/ExpoModulesPackage.kt:34:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo/android/src/main/java/expo/modules/ReactActivityDelegateWrapper.kt:22:8 'class ReactInstanceManager : Any' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo/android/src/main/java/expo/modules/ReactActivityDelegateWrapper.kt:103:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo/android/src/main/java/expo/modules/ReactActivityDelegateWrapper.kt:103:43 'class ReactInstanceManager : Any' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo/android/src/main/java/expo/modules/ReactActivityDelegateWrapper.kt:104:21 'val reactInstanceManager: ReactInstanceManager' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo/android/src/main/java/expo/modules/fetch/ExpoFetchModule.kt:15:8 'class NativeArrayBuffer : Destructible' is deprecated. Use ArrayBuffer instead.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo/android/src/main/java/expo/modules/fetch/ExpoFetchModule.kt:33:39 'constructor(reactContext: ReactContext): ForwardingCookieHandler' is deprecated. Use the default constructor.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo/android/src/main/java/expo/modules/fetch/ExpoFetchModule.kt:111:27 'constructor(byteBuffer: ByteBuffer): NativeArrayBuffer' is deprecated. Use ArrayBuffer instead.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo/android/src/main/java/expo/modules/fetch/NativeResponse.kt:44:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/expo/android/src/main/java/expo/modules/fetch/NativeResponse.kt:46:11 'fun deallocate(): Unit' is deprecated. Use sharedObjectDidRelease() instead.
+
+> Task :expo:compileReleaseJavaWithJavac NO-SOURCE
+> Task :expo:mergeReleaseGeneratedProguardFiles
+> Task :expo:exportReleaseConsumerProguardFiles
+> Task :expo:bundleLibCompileToJarRelease
+> Task :expo:bundleLibRuntimeToJarRelease
+> Task :expo:processReleaseJavaRes
+> Task :expo:createFullJarRelease
+> Task :expo:generateReleaseLintModel
+> Task :expo:extractReleaseAnnotations
+> Task :expo:mergeReleaseConsumerProguardFiles
+> Task :expo:mergeReleaseJavaResource
+> Task :expo:syncReleaseLibJars
+> Task :expo:bundleReleaseLocalLintAar
+> Task :expo:lintVitalAnalyzeRelease SKIPPED
+> Task :expo:generateReleaseLintVitalModel
+> Task :expo:bundleReleaseAar
+> Task :expo:assembleRelease
+> Task :expo-modules-core:bundleReleaseAar
+> Task :expo-log-box:verifyReleaseResources
+> Task :expo-log-box:assembleRelease
+> Task :react-native-community_slider:bundleReleaseAar
+> Task :expo-modules-core:mergeReleaseResources
+> Task :react-native-community_slider:mergeReleaseResources
+> Task :expo-modules-core:verifyReleaseResources
+> Task :expo-modules-core:assembleRelease
+> Task :react-native-safe-area-context:bundleReleaseAar
+> Task :react-native-community_slider:verifyReleaseResources
+> Task :react-native-community_slider:assembleRelease
+> Task :voice-encoder:bundleReleaseAar
+> Task :voice-encoder:mergeReleaseResources
+> Task :voice-encoder:verifyReleaseResources
+> Task :voice-encoder:assembleRelease
+> Task :react-native-safe-area-context:mergeReleaseResources
+> Task :react-native-safe-area-context:verifyReleaseResources
+> Task :react-native-safe-area-context:assembleRelease
+
+> Task :react-native-audio-api:buildCMakeRelWithDebInfo[x86_64]
+C/C++: In file included from /home/runner/work/voice-clarity/voice-clarity/node_modules/react-native-audio-api/common/cpp/audioapi/utils/MiniaudioImplementation.cpp:7:
+C/C++: /home/runner/work/voice-clarity/voice-clarity/node_modules/react-native-audio-api/android/../common/cpp/audioapi/libs/miniaudio/miniaudio.h:78885:23: warning: variable 'metadataBytesRead' set but not used [-Wunused-but-set-variable]
+C/C++:  78885 |             ma_uint64 metadataBytesRead;
+C/C++:        |                       ^
+C/C++: 1 warning generated.
+
+> Task :react-native-audio-api:mergeReleaseJniLibFolders
+> Task :react-native-audio-api:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :react-native-audio-api:generateReleaseBuildConfig
+> Task :react-native-audio-api:generateReleaseResources
+> Task :react-native-audio-api:packageReleaseResources
+> Task :react-native-audio-api:processReleaseNavigationResources
+> Task :react-native-audio-api:javaPreCompileRelease
+> Task :react-native-audio-api:prepareReleaseArtProfile
+> Task :react-native-audio-api:writeReleaseAarMetadata
+> Task :react-native-audio-api:extractDeepLinksRelease
+> Task :react-native-audio-api:processReleaseManifest
+> Task :react-native-audio-api:parseReleaseLocalResources
+> Task :react-native-audio-api:mapReleaseSourceSetPaths
+> Task :react-native-audio-api:generateReleaseRFile
+> Task :react-native-audio-api:compileReleaseLibraryResources
+> Task :react-native-audio-api:generateReleaseAssets UP-TO-DATE
+> Task :react-native-audio-api:mergeReleaseAssets
+> Task :react-native-audio-api:extractProguardFiles
+> Task :react-native-audio-api:prepareLintJarForPublish
+> Task :react-native-audio-api:checkReleaseAarMetadata
+> Task :react-native-audio-api:extractDeepLinksForAarRelease
+> Task :react-native-audio-api:writeReleaseLintModelMetadata
+> Task :react-native-audio-api:mergeReleaseNativeLibs
+> Task :react-native-audio-api:mergeReleaseResources
+> Task :react-native-audio-api:copyReleaseJniLibsProjectOnly
+> Task :react-native-audio-api:stripReleaseDebugSymbols
+> Task :react-native-audio-api:copyReleaseJniLibsProjectAndLocalJars
+> Task :react-native-audio-api:verifyReleaseResources
+
+> Task :react-native-audio-api:compileReleaseKotlin
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/react-native-audio-api/android/src/main/java/com/swmansion/audioapi/system/AudioFocusListener.kt:67:27 'fun requestAudioFocus(p0: AudioManager.OnAudioFocusChangeListener!, p1: Int, p2: Int): Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/react-native-audio-api/android/src/main/java/com/swmansion/audioapi/system/AudioFocusListener.kt:75:27 'fun abandonAudioFocus(p0: AudioManager.OnAudioFocusChangeListener!): Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/voice-clarity/voice-clarity/node_modules/react-native-audio-api/android/src/main/java/com/swmansion/audioapi/system/notification/PlaybackNotification.kt:475:14 'fun getInstance(): ResourceDrawableIdHelper' is deprecated. Use .instance instead, this API is for backward compat.
+
+> Task :react-native-audio-api:compileReleaseJavaWithJavac
+> Task :react-native-audio-api:mergeReleaseGeneratedProguardFiles
+> Task :react-native-audio-api:exportReleaseConsumerProguardFiles
+> Task :react-native-audio-api:bundleLibCompileToJarRelease
+> Task :react-native-audio-api:bundleLibRuntimeToJarRelease
+> Task :react-native-audio-api:processReleaseJavaRes
+> Task :react-native-audio-api:createFullJarRelease
+> Task :react-native-audio-api:generateReleaseLintModel
+> Task :react-native-audio-api:extractReleaseAnnotations
+> Task :react-native-audio-api:mergeReleaseConsumerProguardFiles
+> Task :react-native-audio-api:lintVitalAnalyzeRelease SKIPPED
+> Task :react-native-audio-api:mergeReleaseJavaResource
+> Task :react-native-audio-api:generateReleaseLintVitalModel
+> Task :react-native-audio-api:syncReleaseLibJars
+> Task :react-native-audio-api:bundleReleaseLocalLintAar
+> Task :react-native-audio-api:bundleReleaseAar
+> Task :react-native-audio-api:assembleRelease
+> Task :whisper.rn:mergeReleaseJniLibFolders
+> Task :whisper.rn:generateReleaseBuildConfig
+> Task :whisper.rn:generateReleaseResources
+> Task :whisper.rn:packageReleaseResources
+> Task :whisper.rn:processReleaseNavigationResources
+> Task :whisper.rn:javaPreCompileRelease
+> Task :whisper.rn:prepareReleaseArtProfile
+> Task :whisper.rn:parseReleaseLocalResources
+> Task :whisper.rn:writeReleaseAarMetadata
+> Task :whisper.rn:extractDeepLinksRelease
+> Task :whisper.rn:generateReleaseRFile
+
+> Task :whisper.rn:processReleaseManifest
+package="com.rnwhisper" found in source AndroidManifest.xml: /home/runner/work/voice-clarity/voice-clarity/node_modules/whisper.rn/android/src/main/AndroidManifest.xml.
+Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+Recommendation: remove package="com.rnwhisper" from the source AndroidManifest.xml: /home/runner/work/voice-clarity/voice-clarity/node_modules/whisper.rn/android/src/main/AndroidManifest.xml.
+
+> Task :whisper.rn:mergeReleaseNativeLibs
+
+> Task :whisper.rn:compileReleaseJavaWithJavac
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+
+> Task :whisper.rn:mergeReleaseGeneratedProguardFiles
+> Task :whisper.rn:exportReleaseConsumerProguardFiles
+> Task :whisper.rn:bundleLibCompileToJarRelease
+> Task :whisper.rn:mapReleaseSourceSetPaths
+> Task :whisper.rn:compileReleaseLibraryResources
+> Task :whisper.rn:bundleLibRuntimeToJarRelease
+> Task :whisper.rn:processReleaseJavaRes NO-SOURCE
+> Task :whisper.rn:generateReleaseAssets UP-TO-DATE
+> Task :whisper.rn:mergeReleaseAssets
+> Task :whisper.rn:createFullJarRelease
+> Task :whisper.rn:extractProguardFiles
+> Task :whisper.rn:generateReleaseLintModel
+> Task :whisper.rn:prepareLintJarForPublish
+> Task :whisper.rn:checkReleaseAarMetadata
+> Task :whisper.rn:extractDeepLinksForAarRelease
+> Task :whisper.rn:extractReleaseAnnotations
+> Task :whisper.rn:mergeReleaseConsumerProguardFiles
+> Task :whisper.rn:mergeReleaseJavaResource
+> Task :whisper.rn:syncReleaseLibJars
+> Task :whisper.rn:lintVitalAnalyzeRelease SKIPPED
+> Task :whisper.rn:writeReleaseLintModelMetadata
+> Task :whisper.rn:generateReleaseLintVitalModel
+> Task :whisper.rn:stripReleaseDebugSymbols
+> Task :whisper.rn:copyReleaseJniLibsProjectOnly
+> Task :whisper.rn:mergeReleaseResources
+> Task :app:processReleaseNavigationResources
+> Task :whisper.rn:copyReleaseJniLibsProjectAndLocalJars
+> Task :whisper.rn:bundleReleaseLocalLintAar
+> Task :app:mergeReleaseResources
+> Task :app:parseReleaseLocalResources
+> Task :app:generateReleaseRFile
+> Task :whisper.rn:verifyReleaseResources
+> Task :app:mergeReleaseArtProfile
+> Task :whisper.rn:bundleReleaseAar
+> Task :whisper.rn:assembleRelease
+> Task :app:compileReleaseNavigationResources
+> Task :app:checkReleaseAarMetadata
+
+> Task :app:processReleaseMainManifest
+/home/runner/work/voice-clarity/voice-clarity/android/app/src/main/AndroidManifest.xml:7:3-88 Warning:
+	uses-permission#android.permission.RECORD_AUDIO was tagged at AndroidManifest.xml:7 to remove other declarations but no other declaration present
+/home/runner/work/voice-clarity/voice-clarity/android/app/src/main/AndroidManifest.xml:8:3-95 Warning:
+	uses-permission#android.permission.SYSTEM_ALERT_WINDOW was tagged at AndroidManifest.xml:8 to remove other declarations but no other declaration present
+/home/runner/work/voice-clarity/voice-clarity/android/app/src/main/AndroidManifest.xml:9:3-83 Warning:
+	uses-permission#android.permission.VIBRATE was tagged at AndroidManifest.xml:9 to remove other declarations but no other declaration present
+/home/runner/work/voice-clarity/voice-clarity/android/app/src/main/AndroidManifest.xml Warning:
+	provider#expo.modules.filesystem.FileSystemFileProvider@android:authorities was tagged at AndroidManifest.xml:0 to replace other declarations but no other declaration present
+
+> Task :app:expoReleaseOverrideMaxSdkConflicts
+[33m---------- Expo Max Sdk Override Plugin ----------[0m
+[32m>>> No 'android:maxSdkVersion' conflicts found[0m
+[33m--------------------------------------------------[0m
+
+> Task :app:processReleaseManifest
+> Task :app:compileReleaseKotlin
+> Task :app:mergeReleaseNativeLibs
+> Task :app:mergeReleaseAssets
+> Task :app:compileReleaseJavaWithJavac
+> Task :app:processReleaseJavaRes
+> Task :app:processReleaseManifestForPackage
+> Task :app:compressReleaseAssets
+> Task :app:stripReleaseDebugSymbols
+> Task :app:generateReleaseLintVitalReportModel
+> Task :app:mergeReleaseJavaResource
+> Task :app:extractReleaseNativeSymbolTables
+> Task :app:processReleaseResources
+> Task :app:mergeReleaseGeneratedProguardFiles
+> Task :app:optimizeReleaseResources
+> Task :app:expandReleaseArtProfileWildcards
+> Task :app:mergeReleaseNativeDebugMetadata
+> Task :app:lintVitalAnalyzeRelease
+> Task :app:lintVitalReportRelease
+> Task :app:lintVitalRelease
+> Task :app:minifyReleaseWithR8
+> Task :app:compileReleaseArtProfile
+> Task :app:packageRelease
+> Task :app:createReleaseApkListingFileRedirect
+> Task :app:assembleRelease
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_4-1792875057566.json
+
+[Incubating] Problems report is available at: file:///home/runner/work/voice-clarity/voice-clarity/android/build/reports/problems/problems-report.html
+
+BUILD SUCCESSFUL in 13m 29s
+508 actionable tasks: 508 executed
