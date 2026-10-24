@@ -16,4 +16,8 @@ appId: com.example.voiceclarity
           text: "Downloads"
           optional: true
       - takeScreenshot: ${SHOT}_picker_downloads
+# the Downloads list can be longer than the screen
+- scrollUntilVisible:
+    element: ${FILE}
+    timeout: 20000
 - tapOn: ${FILE}

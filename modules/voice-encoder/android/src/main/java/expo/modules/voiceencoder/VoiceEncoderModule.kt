@@ -127,9 +127,12 @@ class VoiceEncoderModule : Module() {
     val chunk = ByteArray(8192)
     try {
       while (true) {
+        // queue input without waiting; wait briefly for output only when no input could be queued
+        var fed = false
         if (!inputDone) {
-          val inIdx = codec.dequeueInputBuffer(10_000)
+          val inIdx = codec.dequeueInputBuffer(0)
           if (inIdx >= 0) {
+            fed = true
             val buf = codec.getInputBuffer(inIdx)!!
             buf.clear()
             val cap = (minOf(buf.capacity(), chunk.size) / bytesPerFrame) * bytesPerFrame
@@ -147,7 +150,7 @@ class VoiceEncoderModule : Module() {
             }
           }
         }
-        val outIdx = codec.dequeueOutputBuffer(info, 10_000)
+        val outIdx = codec.dequeueOutputBuffer(info, if (fed) 0L else 2_000L)
         if (outIdx == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
           if (muxer != null) {
             track = muxer.addTrack(codec.outputFormat)

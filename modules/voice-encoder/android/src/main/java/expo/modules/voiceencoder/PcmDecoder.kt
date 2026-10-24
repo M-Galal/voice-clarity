@@ -64,9 +64,13 @@ class PcmDecoder(private val context: Context) {
     try {
       while (true) {
         if (cancelled()) throw InterruptedException("cancelled")
+        // Feed input without waiting; only wait (briefly) for output when no input could be queued.
+        // A 10 ms wait per buffer made AAC decoding wait ~10 ms for every 23 ms of audio.
+        var fed = false
         if (!inputDone) {
-          val inIdx = codec.dequeueInputBuffer(10_000)
+          val inIdx = codec.dequeueInputBuffer(0)
           if (inIdx >= 0) {
+            fed = true
             val buf = codec.getInputBuffer(inIdx)!!
             val n = ex.readSampleData(buf, 0)
             if (n < 0) {
@@ -82,7 +86,7 @@ class PcmDecoder(private val context: Context) {
             }
           }
         }
-        val outIdx = codec.dequeueOutputBuffer(info, 10_000)
+        val outIdx = codec.dequeueOutputBuffer(info, if (fed) 0L else 2_000L)
         if (outIdx == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
           val of = codec.outputFormat
           inRate = of.getInteger(MediaFormat.KEY_SAMPLE_RATE)
