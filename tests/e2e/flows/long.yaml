@@ -30,9 +30,16 @@ appId: com.example.voiceclarity
       id: "auto-enhance"
 - tapOn:
     id: "auto-enhance"
+# wait for the Smart analysis: its result (and the section strip) changes the page height
+- extendedWaitUntil:
+    visible:
+      id: "smart-ready"
+    timeout: 180000
 - scrollUntilVisible:
     element:
       id: "start-enhance"
+    centerElement: true
+    timeout: 30000
 - tapOn:
     id: "start-enhance"
 - takeScreenshot: 73_long_enhancing
