@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { useApp } from '../state/AppContext';
-import { radius, space, TOUCH } from './theme';
+import { HIT_SLOP, radius, space, TOUCH } from './theme';
 
 export function Txt({
   children, size = 'md', muted, bold, style, numberOfLines, selectable, testID,
@@ -64,6 +64,7 @@ export function Button({
       accessibilityState={{ disabled: !!disabled }}
       disabled={disabled}
       onPress={onPress}
+      hitSlop={HIT_SLOP}
       style={({ pressed }) => [
         {
           minHeight: TOUCH,
@@ -92,8 +93,8 @@ export function IconButton({ icon, label, onPress, big, disabled, testID }: { ic
   // longer text labels (e.g. "−1m30") use a smaller font so they fit the round button
   const long = !big && icon.length > 3;
   const { colors, fs } = useApp();
-  // 48 dp (minimum touch target) and 64 dp for the main button: five of them fit a 320 dp screen
-  const size = big ? 64 : TOUCH;
+  // 40 dp (48 dp touch area with hitSlop) and 52 dp for the main button: five fit a 320 dp screen
+  const size = big ? 52 : 40;
   return (
     <Pressable
       testID={testID}
@@ -101,7 +102,7 @@ export function IconButton({ icon, label, onPress, big, disabled, testID }: { ic
       accessibilityLabel={label}
       disabled={disabled}
       onPress={onPress}
-      hitSlop={6}
+      hitSlop={big ? 2 : 4}
       style={({ pressed }) => ({
         width: size, height: size, borderRadius: size / 2,
         backgroundColor: big ? colors.primary : colors.surface2,
@@ -137,6 +138,7 @@ export function Toggle({ label, value, onChange, hint, disabled, testID }: { lab
       accessibilityHint={hint}
       accessibilityState={{ checked: value, disabled }}
       onPress={() => !disabled && onChange(!value)}
+      hitSlop={HIT_SLOP}
       style={{ flexDirection: 'row', alignItems: 'center', minHeight: TOUCH, gap: space.md, opacity: disabled ? 0.5 : 1 }}
     >
       <View style={{ flex: 1 }}>
@@ -167,8 +169,9 @@ export function Choice<T extends string | number>({
               accessibilityState={{ checked: on }}
               accessibilityLabel={o.label}
               onPress={() => onChange(o.value)}
+              hitSlop={HIT_SLOP}
               style={{
-                minHeight: TOUCH, paddingHorizontal: space.md, justifyContent: 'center', borderRadius: radius,
+                minHeight: TOUCH - 4, paddingHorizontal: space.md, justifyContent: 'center', borderRadius: radius,
                 backgroundColor: on ? colors.primary : colors.surface2,
               }}
             >
@@ -226,7 +229,7 @@ export function LabeledSlider({
         minimumTrackTintColor={colors.primary}
         maximumTrackTintColor={colors.border}
         thumbTintColor={colors.primary}
-        style={{ height: 40 }}
+        style={{ height: 32 }}
       />
       {hint ? <Txt size="sm" muted>{hint}</Txt> : null}
     </View>
@@ -273,7 +276,7 @@ export function Header({ title, onBack, right }: { title: string; onBack?: () =>
 export function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <Card>
-      <Txt size="lg" bold>{title}</Txt>
+      <Txt size="md" bold>{title}</Txt>
       {children}
     </Card>
   );

@@ -9,7 +9,8 @@ import VoiceEncoder from '../../modules/voice-encoder/src/VoiceEncoderModule';
 import { aacBitrate, MIME, saveTarget, type SaveTarget } from '../edit/saveFormat';
 import { CancelledError } from '../dsp/denoise';
 import type { EnhanceSettings, EnhanceSummary } from '../dsp/pipeline';
-import { analyseStream, enhanceStream, memoryTemp, RangeSource } from '../dsp/stream';
+import { analyseForSmart, analyseStream, enhanceStream, memoryTemp, RangeSource, type SampleSink, type SmartAnalysis } from '../dsp/stream';
+import { SpectrumMeter, type Spectrum } from '../dsp/spectrum';
 import { decodeToPcmFile, fileTemp, WavFileSink, type DecodedPcm } from './pcm';
 import type { Segment } from '../dsp/vad';
 import { toJson, toSrt, toTxt, toVtt, type Transcript } from '../transcript/format';
@@ -148,13 +149,16 @@ export async function enhanceToPreview(
   processingRate: number,
   token: CancelToken,
   onProgress: (f: number, stage: string) => void,
+  /** Already-decoded audio at `processingRate` (kept by the caller, not deleted here). */
+  reuse?: DecodedPcm | null,
 ): Promise<{ result: EnhanceSummary; previewUri: string }> {
   checkStorage(estimateWorkBytes(rec.durationSec, processingRate));
   const t0 = Date.now();
   onProgress(0, 'decode');
   // Long recordings never sit in memory: the file is decoded to a temporary PCM file, processed
   // in chunks (dsp/stream.ts) and written straight to the preview WAV.
-  const decoded = await decodeToPcmFile(originalUri(rec), processingRate, rec.durationSec, (f) => onProgress(0.1 * f, 'decode'), () => token.cancelled);
+  const own = !reuse;
+  const decoded = reuse ?? await decodeToPcmFile(originalUri(rec), processingRate, rec.durationSec, (f) => onProgress(0.1 * f, 'decode'), () => token.cancelled);
   const preview = new File(tempDir(), `${rec.id}-preview-${Date.now()}.wav`);
   let sink: WavFileSink | null = null;
   try {
@@ -164,7 +168,7 @@ export async function enhanceToPreview(
       isCancelled: () => token.cancelled,
       yieldFn: yieldToUi,
       onProgress: (f) => onProgress(0.1 + f * 0.9, f < 0.94 ? 'process' : 'write'),
-    }, () => decoded.dispose());
+    }, own ? () => decoded.dispose() : undefined);
     sink.close();
     sink = null;
     console.log(`[VC] enhance ${rec.durationSec.toFixed(1)}s @${processingRate}: ${Date.now() - t0} ms, gain ${report.appliedGainDb.toFixed(1)} dB, speech ${report.output.speechLufs.toFixed(1)} LUFS, TP ${report.output.truePeakDb.toFixed(2)}, hum ${report.humHz}, warnings ${report.warnings.join(',') || 'none'}`);
@@ -175,11 +179,22 @@ export async function enhanceToPreview(
     if (preview.exists) preview.delete();
     throw e;
   } finally {
-    decoded.dispose();
+    if (own) decoded.dispose();
   }
 }
 
-export const PREVIEW_SEC = 15;
+export const PREVIEW_SEC = 60;
+
+export interface PreviewRender {
+  originalUri: string;
+  enhancedUri: string;
+  report: EnhanceSummary['report'];
+  /** Where the previewed part starts in the recording, and its length (s). */
+  startSec: number;
+  lengthSec: number;
+  /** Average spectra of the part before and after processing. */
+  spectrum: { original: Spectrum; enhanced: Spectrum };
+}
 
 /**
  * Quick previews of enhancement settings on a short part of the recording. The recording is
@@ -195,6 +210,20 @@ export class EnhancePreviewer {
 
   constructor(private readonly rec: Recording) {}
 
+  /** The decoded recording, for reuse by the full run (owned by this previewer). */
+  decodedFor(rate: number): DecodedPcm | null {
+    return this.decoded && this.decodedRate === rate ? this.decoded : null;
+  }
+
+  /** Smart mode on the whole recording (call prepare first). */
+  async analyseSmart(settings: EnhanceSettings, onProgress: (f: number) => void, isCancelled: () => boolean): Promise<SmartAnalysis> {
+    if (!this.decoded) throw new Error('preview not prepared');
+    const t0 = Date.now();
+    const r = await analyseForSmart(this.decoded.source, settings, { onProgress, isCancelled, yieldFn: yieldToUi });
+    console.log(`[VC] smart analysis ${this.rec.durationSec.toFixed(1)}s: snr ${r.measures.snrDb.toFixed(1)} dB, whispers ${(r.measures.whisperShare * 100).toFixed(0)}%, spread ${r.measures.spreadDb.toFixed(1)} dB, rumble ${r.measures.rumbleDb.toFixed(1)} dB, hum ${r.humHz} in ${Date.now() - t0} ms`);
+    return r;
+  }
+
   async prepare(rate: number, onProgress: (f: number) => void, isCancelled: () => boolean): Promise<void> {
     if (this.decoded && this.decodedRate === rate) return;
     this.decoded?.dispose();
@@ -204,7 +233,7 @@ export class EnhancePreviewer {
   }
 
   /** Writes the original part and the processed part; returns their URIs and the report. */
-  async render(startSec: number, settings: EnhanceSettings, isCancelled: () => boolean): Promise<{ originalUri: string; enhancedUri: string; report: EnhanceSummary['report'] }> {
+  async render(startSec: number, settings: EnhanceSettings, isCancelled: () => boolean): Promise<PreviewRender> {
     if (!this.decoded) throw new Error('preview not prepared');
     const src = this.decoded.source;
     const sr = src.sampleRate;
@@ -214,15 +243,29 @@ export class EnhancePreviewer {
     const orig = new File(tempDir(), `${this.rec.id}-pv-orig-${stamp}.wav`);
     const enh = new File(tempDir(), `${this.rec.id}-pv-enh-${stamp}.wav`);
     const so = new WavFileSink(orig, sr);
-    for (let pos = 0; pos < part.length; pos += sr * 5) await so.write(await part.read(pos, Math.min(sr * 5, part.length - pos)));
+    const specOrig = new SpectrumMeter(sr);
+    for (let pos = 0; pos < part.length; pos += sr * 5) {
+      const x = await part.read(pos, Math.min(sr * 5, part.length - pos));
+      specOrig.push(x);
+      await so.write(x);
+    }
     so.close();
     const se = new WavFileSink(enh, sr);
+    const specEnh = new SpectrumMeter(sr);
+    const tee: SampleSink = { write: async (x) => { specEnh.push(x); await se.write(x); } };
     try {
-      const { report } = await enhanceStream(part, se, settings, memoryTemp, { isCancelled, yieldFn: yieldToUi });
+      const { report } = await enhanceStream(part, tee, settings, memoryTemp, { isCancelled, yieldFn: yieldToUi });
       se.close();
       this.cleanup();
       this.files = [orig, enh];
-      return { originalUri: orig.uri, enhancedUri: enh.uri, report };
+      return {
+        originalUri: orig.uri,
+        enhancedUri: enh.uri,
+        report,
+        startSec: start / sr,
+        lengthSec: part.length / sr,
+        spectrum: { original: specOrig.bands(), enhanced: specEnh.bands() },
+      };
     } catch (e) {
       try { se.close(); } catch { /* closed */ }
       for (const f of [orig, enh]) { try { if (f.exists) f.delete(); } catch { /* gone */ } }

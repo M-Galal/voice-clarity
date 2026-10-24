@@ -130,6 +130,11 @@ appId: com.example.voiceclarity
 - extendedWaitUntil:
     visible: ".*These settings will be used.*|.*Strength.*"
     timeout: 15000
+# Smart mode analyses the whole recording as soon as the screen opens
+- extendedWaitUntil:
+    visible:
+      id: "smart-ready"
+    timeout: 120000
 - takeScreenshot: 10_enhance_setup
 # preview 15 s with the current (Smart) settings, compare, then change a setting: it re-renders
 - scrollUntilVisible:
@@ -148,6 +153,9 @@ appId: com.example.voiceclarity
     id: "pv-ab-original"
 - tapOn:
     id: "pv-ab-enhanced"
+- scrollUntilVisible:
+    element:
+      id: "pv-spectrum"
 - takeScreenshot: 10b_preview
 - scrollUntilVisible:
     element:

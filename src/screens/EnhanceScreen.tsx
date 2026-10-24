@@ -4,7 +4,11 @@ import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useKeepAwake } from 'expo-keep-awake';
 import { settingsForPreset, type EnhanceSummary as EnhanceResult, type EnhanceSettings, type Strength, type WarningCode } from '../dsp/pipeline';
 import { dbToPercent, formatDb, formatLevel, percentToDb } from '../dsp/units';
-import { audioUri, commitPreview, deleteEnhanced, discardPreview, EnhancePreviewer, enhanceToPreview, PREVIEW_SEC, type CancelToken } from '../services/processing';
+import { audioUri, commitPreview, deleteEnhanced, discardPreview, EnhancePreviewer, enhanceToPreview, PREVIEW_SEC, type CancelToken, type PreviewRender } from '../services/processing';
+import { chooseSettings } from '../dsp/autoTune';
+import type { SmartAnalysis } from '../dsp/stream';
+import type { Spectrum } from '../dsp/spectrum';
+import { Waveform } from '../ui/Waveform';
 import { bestPreviewStart } from '../dsp/stream';
 import { useApp } from '../state/AppContext';
 import { clock } from '../transcript/format';
@@ -34,6 +38,38 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
   const [rate, setRate] = useState(settings.processingRate);
   const [phase, setPhase] = useState<Phase>({ kind: 'setup' });
   const token = useRef<CancelToken>({ cancelled: false });
+  // decoded recording shared by the Smart analysis, the preview and the full run
+  const [pv] = useState(() => new EnhancePreviewer(rec));
+  useEffect(() => () => pv.dispose(), [pv]);
+  const vadOf = (x: EnhanceSettings) => ({ ...x, vad: { ...x.vad, thresholdDb: settings.vadThresholdDb, whisper: settings.vadWhisper } });
+
+  // Smart mode: analyse the whole recording as soon as the screen opens (and when the rate changes)
+  const [smart, setSmart] = useState<SmartState>({ kind: 'idle' });
+  const smartGen = useRef(0);
+  const analyse = async () => {
+    const my = ++smartGen.current;
+    const stale = () => my !== smartGen.current;
+    try {
+      setSmart({ kind: 'running', label: t('smart_reading'), progress: 0 });
+      await pv.prepare(rate, (f) => { if (!stale()) setSmart({ kind: 'running', label: t('smart_reading'), progress: 0.4 * f }); }, stale);
+      if (stale()) return;
+      const analysis = await pv.analyseSmart(vadOf(s), (f) => { if (!stale()) setSmart({ kind: 'running', label: t('smart_measuring'), progress: 0.4 + 0.6 * f }); }, stale);
+      if (!stale()) setSmart({ kind: 'ready', analysis });
+    } catch (e) {
+      if (!stale()) setSmart({ kind: 'error', message: e instanceof Error ? e.message : String(e) });
+    }
+  };
+  const wantSmart = s.strength === 'auto';
+  useEffect(() => {
+    if (!wantSmart) return;
+    const h = setTimeout(() => { void analyse(); }, 0);
+    return () => clearTimeout(h);
+  }, [wantSmart, rate]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The preview uses the whole-file Smart choice (re-applied to the current loudness settings),
+  // not a choice made from the previewed minute alone.
+  const previewSettings: EnhanceSettings = wantSmart && smart.kind === 'ready'
+    ? { ...chooseSettings(s, smart.analysis.measures).settings, strength: 'advanced' }
+    : s;
 
   const patch = (p: Partial<EnhanceSettings>) => setS((prev) => ({ ...prev, ...p, strength: p.strength ?? (Object.keys(p).some((k) => k !== 'gainMode' && k !== 'targetLufs' && k !== 'manualGainDb' && k !== 'removeSilence' && k !== 'keepGapMs' && k !== 'limiterCeilingDb') ? 'advanced' : prev.strength) }));
 
@@ -44,7 +80,7 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
     setPhase({ kind: 'running', progress: 0, stage: 'decode' });
     try {
       const vadSettings = { ...s, vad: { ...s.vad, thresholdDb: settings.vadThresholdDb, whisper: settings.vadWhisper } };
-      const { result, previewUri } = await enhanceToPreview(rec, vadSettings, rate, token.current, (p, stage) => setPhase({ kind: 'running', progress: p, stage }));
+      const { result, previewUri } = await enhanceToPreview(rec, vadSettings, rate, token.current, (p, stage) => setPhase({ kind: 'running', progress: p, stage }), pv.decodedFor(rate));
       setPhase({ kind: 'review', result, previewUri });
     } catch (e) {
       setPhase({ kind: 'setup' });
@@ -107,7 +143,10 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
               options={(['auto', 'light', 'balanced', 'strong', 'advanced'] as Strength[]).map((v) => ({ value: v, label: t(v) }))}
             />
             {s.strength === 'auto' ? (
-              <Txt size="sm" testID="auto-hint">{t('auto_hint')}</Txt>
+              <>
+                <Txt size="sm" testID="auto-hint">{t('auto_hint')}</Txt>
+                <SmartCard state={smart} onRetry={() => { void analyse(); }} />
+              </>
             ) : (
               <>
                 <Toggle label={t('noise_suppression')} value={s.noiseSuppression} onChange={(v) => patch({ noiseSuppression: v })} />
@@ -142,7 +181,7 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
             ) : null}
           </Section>
 
-          <PreviewPanel rec={rec} settings={s} rate={rate} />
+          <PreviewPanel rec={rec} pv={pv} settings={previewSettings} rate={rate} />
 
           <Card style={{ borderColor: colors.primary, borderWidth: 2 }}>
             <Txt bold>{t('settings_summary')}</Txt>
@@ -167,17 +206,81 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
 type PreviewState =
   | { kind: 'idle' }
   | { kind: 'working'; label: string; progress?: number }
-  | { kind: 'ready'; originalUri: string; enhancedUri: string; report: EnhanceResult['report'] };
+  | ({ kind: 'ready' } & PreviewRender);
+
+type SmartState =
+  | { kind: 'idle' }
+  | { kind: 'running'; label: string; progress: number }
+  | { kind: 'ready'; analysis: SmartAnalysis }
+  | { kind: 'error'; message: string };
+
+/** Smart mode: the whole recording is analysed when the screen opens; the result is shown here. */
+function SmartCard({ state, onRetry }: { state: SmartState; onRetry: () => void }) {
+  const { t } = useApp();
+  if (state.kind === 'idle') return null;
+  return (
+    <Card>
+      <Txt bold>{t('smart_title')}</Txt>
+      {state.kind === 'running' ? <ProgressBar value={state.progress} label={state.label} /> : null}
+      {state.kind === 'error' ? (
+        <>
+          <Warning text={state.message} />
+          <Button compact kind="secondary" label={t('retry')} onPress={onRetry} />
+        </>
+      ) : null}
+      {state.kind === 'ready' ? (
+        <View testID="smart-ready" style={{ gap: 2 }}>
+          <Txt size="sm" muted>{t('smart_done')}</Txt>
+          {state.analysis.reasons.map((x, i) => (
+            <Txt key={i} size="sm" testID={`smart-${x.key}`}>{`• ${t(x.key, x.vars)}`}</Txt>
+          ))}
+          {state.analysis.humHz ? <Txt size="sm">{`• ${t('smart_hum', { hz: state.analysis.humHz })}`}</Txt> : null}
+        </View>
+      ) : null}
+    </Card>
+  );
+}
+
+/** Average spectrum of the previewed part, original (grey) behind enhanced (blue), log frequency. */
+function SpectrumChart({ original, enhanced, height = 72 }: { original: Spectrum; enhanced: Spectrum; height?: number }) {
+  const { t, colors } = useApp();
+  const all = [...original.db, ...enhanced.db].filter(Number.isFinite);
+  const top = Math.max(...all);
+  const range = 60; // dB shown
+  const h = (db: number) => Math.max(1, Math.min(1, (db - (top - range)) / range) * height);
+  const f0 = original.freqs[0], f1 = original.freqs[original.freqs.length - 1];
+  const xPct = (f: number) => `${(Math.log(f / f0) / Math.log(f1 / f0)) * 100}%` as const;
+  return (
+    <View testID="pv-spectrum" accessible accessibilityLabel={t('pv_spectrum')} style={{ gap: 2 }}>
+      <View style={{ height, flexDirection: 'row', alignItems: 'flex-end', gap: 1, direction: 'ltr', backgroundColor: colors.surface2, borderRadius: 8, overflow: 'hidden', paddingHorizontal: 2 }}>
+        {original.db.map((d, i) => (
+          <View key={i} style={{ flex: 1, height, justifyContent: 'flex-end' }}>
+            <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: h(d), backgroundColor: colors.waveDim, borderTopLeftRadius: 1, borderTopRightRadius: 1 }} />
+            <View style={{ position: 'absolute', bottom: 0, left: '20%', right: '20%', height: h(enhanced.db[i]), backgroundColor: colors.primary, borderTopLeftRadius: 1, borderTopRightRadius: 1 }} />
+          </View>
+        ))}
+      </View>
+      <View style={{ height: 14, direction: 'ltr' }}>
+        {[100, 1000, 10000].filter((f) => f >= f0 && f <= f1).map((f) => (
+          <Txt key={f} size="xs" muted style={{ position: 'absolute', left: xPct(f) }}>{f >= 1000 ? `${f / 1000} kHz` : `${f} Hz`}</Txt>
+        ))}
+      </View>
+      <Row style={{ gap: 12 }}>
+        <Row style={{ gap: 4 }}><View style={{ width: 10, height: 10, backgroundColor: colors.waveDim }} /><Txt size="xs" muted>{t('original')}</Txt></Row>
+        <Row style={{ gap: 4 }}><View style={{ width: 10, height: 10, backgroundColor: colors.primary }} /><Txt size="xs" muted>{t('enhanced')}</Txt></Row>
+      </Row>
+    </View>
+  );
+}
 
 /**
- * Listen to a 15 s part processed with the current settings before running the whole file.
- * After the first preview, any settings change renders a new one (debounced).
+ * Listen to a 1-minute part processed with the current settings before running the whole file.
+ * The timeline shows where the part sits in the recording (tap inside it to seek, outside to
+ * move it); after the first preview, any settings change renders a new one (debounced).
  */
-function PreviewPanel({ rec, settings, rate }: { rec: Recording; settings: EnhanceSettings; rate: number }) {
+function PreviewPanel({ rec, pv, settings, rate }: { rec: Recording; pv: EnhancePreviewer; settings: EnhanceSettings; rate: number }) {
   const app = useApp();
   const { t } = app;
-  const [pv] = useState(() => new EnhancePreviewer(rec));
-  useEffect(() => () => pv.dispose(), [pv]);
   const maxStart = Math.max(0, Math.floor(rec.durationSec - PREVIEW_SEC));
   const [start, setStart] = useState(() => Math.min(maxStart, bestPreviewStart(rec.segments ?? [], rec.durationSec, PREVIEW_SEC)));
   const [state, setState] = useState<PreviewState>({ kind: 'idle' });
@@ -187,7 +290,7 @@ function PreviewPanel({ rec, settings, rate }: { rec: Recording; settings: Enhan
   const status = useAudioPlayerStatus(player);
   const gen = useRef(0);
   useEffect(() => () => { try { player.pause(); } catch { /* released */ } }, [player]);
-  // loop the 15 s part so it can be heard while settings change
+  // loop the part so it can be heard while settings change
   useEffect(() => {
     if (status.didJustFinish) { void player.seekTo(0); player.play(); }
   }, [status.didJustFinish]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -207,7 +310,7 @@ function PreviewPanel({ rec, settings, rate }: { rec: Recording; settings: Enhan
       const pos = player.currentTime;
       player.replace({ uri: which === 'enhanced' ? r.enhancedUri : r.originalUri, name: rec.name });
       setTimeout(() => {
-        if (pos > 0) void player.seekTo(pos);
+        if (pos > 0 && pos < r.lengthSec) void player.seekTo(pos);
         if (wasPlaying) player.play();
       }, 150);
       setState({ kind: 'ready', ...r });
@@ -222,7 +325,7 @@ function PreviewPanel({ rec, settings, rate }: { rec: Recording; settings: Enhan
   // after the first preview, follow every settings change
   useEffect(() => {
     if (!auto) return;
-    const h = setTimeout(() => { void renderNow(); }, 600);
+    const h = setTimeout(() => { void renderNow(); }, 700);
     return () => clearTimeout(h);
   }, [settings, rate, start]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -235,28 +338,41 @@ function PreviewPanel({ rec, settings, rate }: { rec: Recording; settings: Enhan
     setTimeout(() => { void player.seekTo(pos); if (wasPlaying) player.play(); }, 150);
   };
 
-  const r = state.kind === 'ready' ? state.report : null;
+  // timeline: inside the part seeks the preview, outside moves the part there
+  const onTimeline = (time: number) => {
+    const len = state.kind === 'ready' ? state.lengthSec : PREVIEW_SEC;
+    if (state.kind === 'ready' && time >= start && time <= start + len) { void player.seekTo(time - start); return; }
+    setStart(Math.max(0, Math.min(maxStart, Math.round(time - len / 2))));
+  };
+
+  const ready = state.kind === 'ready' ? state : null;
+  const partEnd = Math.min(rec.durationSec, start + PREVIEW_SEC);
   return (
     <Section title={t('pv_title')}>
       <Txt size="sm" muted>{t('pv_hint')}</Txt>
-      {maxStart > 0 ? (
-        <LabeledSlider
-          testID="pv-start"
-          label={t('pv_part')}
-          value={start}
-          min={0}
-          max={maxStart}
-          step={1}
-          onChange={setStart}
-          format={(v) => `${clock(v)} – ${clock(Math.min(rec.durationSec, v + PREVIEW_SEC))}`}
+      <View testID="pv-timeline">
+        <Waveform
+          peaks={rec.waveform ?? []}
+          duration={rec.durationSec}
+          position={ready ? start + status.currentTime : start}
+          segments={rec.segments ?? []}
+          bookmarks={[]}
+          onSeek={onTimeline}
+          height={48}
+          selection={{ start, end: partEnd }}
+          selectionMode="keep"
         />
-      ) : null}
+      </View>
+      <Row style={{ justifyContent: 'space-between', direction: 'ltr' }}>
+        <Txt size="xs" muted testID="pv-range">{`${clock(start)} – ${clock(partEnd)}`}</Txt>
+        <Txt size="xs" muted>{ready ? `${clock(status.currentTime)} / ${clock(ready.lengthSec)}` : clock(rec.durationSec)}</Txt>
+      </Row>
       {state.kind === 'working' ? (
         <ProgressBar value={state.progress ?? 0.5} label={state.label} />
       ) : (
-        <Button testID="pv-render" kind={state.kind === 'ready' ? 'secondary' : 'primary'} icon="🎧" label={state.kind === 'ready' ? t('pv_update') : t('pv_listen')} onPress={() => { void renderNow(); }} />
+        <Button testID="pv-render" compact kind={ready ? 'secondary' : 'primary'} icon="🎧" label={ready ? t('pv_update') : t('pv_listen')} onPress={() => { void renderNow(); }} />
       )}
-      {state.kind === 'ready' || (state.kind === 'working' && auto) ? (
+      {ready || (state.kind === 'working' && auto) ? (
         <>
           <Row>
             <IconButton
@@ -264,7 +380,7 @@ function PreviewPanel({ rec, settings, rate }: { rec: Recording; settings: Enhan
               icon={status.playing ? '❚❚' : '▶'}
               label={status.playing ? t('pause') : t('play')}
               onPress={() => (status.playing ? player.pause() : player.play())}
-              disabled={state.kind !== 'ready'}
+              disabled={!ready}
             />
             <View style={{ flex: 1 }}>
               <Choice
@@ -275,11 +391,13 @@ function PreviewPanel({ rec, settings, rate }: { rec: Recording; settings: Enhan
               />
             </View>
           </Row>
-          {r ? (
-            <Txt size="sm" muted testID="pv-summary">
-              {t('pv_result', { gain: `${r.appliedGainDb >= 0 ? '+' : ''}${r.appliedGainDb.toFixed(1)}`, lufs: Number.isFinite(r.output.speechLufs) ? r.output.speechLufs.toFixed(1) : '—' })}
-              {settings.strength === 'auto' ? `\n${summary(r.appliedSettings, rate, t)}` : ''}
-            </Txt>
+          {ready ? (
+            <>
+              <SpectrumChart original={ready.spectrum.original} enhanced={ready.spectrum.enhanced} />
+              <Txt size="sm" muted testID="pv-summary">
+                {t('pv_result', { gain: `${ready.report.appliedGainDb >= 0 ? '+' : ''}${ready.report.appliedGainDb.toFixed(1)}`, lufs: Number.isFinite(ready.report.output.speechLufs) ? ready.report.output.speechLufs.toFixed(1) : '—' })}
+              </Txt>
+            </>
           ) : null}
         </>
       ) : null}

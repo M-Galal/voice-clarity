@@ -10,7 +10,7 @@ import { useApp } from '../state/AppContext';
  * Kept left-to-right in Arabic layout too: time runs left to right on media scrubbers.
  */
 export function Waveform({
-  peaks, duration, position, segments, bookmarks, onSeek, height = 96, selection, selectionMode = 'keep',
+  peaks, duration, position, segments, bookmarks, onSeek, height = 72, selection, selectionMode = 'keep',
 }: {
   peaks: number[]; duration: number; position: number; segments: Segment[]; bookmarks: Bookmark[];
   onSeek: (t: number) => void; height?: number;

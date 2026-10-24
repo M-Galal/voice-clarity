@@ -172,3 +172,15 @@ test('preview part: the 15 s stretch with the most speech', async () => {
   const r = new RangeSource(new MemorySource(Float32Array.from([0, 1, 2, 3, 4, 5]), 8000), 2, 3);
   assert.deepEqual(Array.from(await r.read(0, 10)), [2, 3, 4]);
 });
+
+test('whole-file Smart analysis chooses exactly what a full Smart run uses', async () => {
+  const { analyseForSmart } = await import('../src/dsp/stream');
+  const s = settingsForPreset('auto');
+  const a = await analyseForSmart(new MemorySource(X24, 24000), s);
+  const sink = new MemorySink();
+  const r = await enhanceStream(new MemorySource(X24, 24000), sink, s, memoryTemp);
+  assert.deepEqual(a.settings, r.report.appliedSettings);
+  assert.deepEqual(a.reasons, r.report.autoReasons);
+  assert.equal(a.humHz, r.report.humHz);
+  assert.deepEqual(a.segments, r.report.segments);
+});

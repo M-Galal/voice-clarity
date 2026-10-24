@@ -593,6 +593,126 @@ export async function analyseStream(src: SampleSource, vad: Partial<{ thresholdD
 
 // ------------------------------------------------------------------ enhancement
 
+interface FileMeasures {
+  segments: Segment[];
+  analysis: ReturnType<FrameAnalyzer['finish']>;
+  snrDb: number;
+  input: LevelReport;
+  clip: ClipCounter;
+  /** Up to 10 s of non-speech audio, for hum detection. */
+  humAudio: Float32Array;
+  /** Smart-mode measurements (only when asked for). */
+  measures?: AutoMeasures;
+}
+
+/** Passes 1-2 of the enhancement: speech, input levels, Smart-mode measures, audio for hum detection. */
+async function measureFile(src: SampleSource, vad: EnhanceSettings['vad'], wantAuto: boolean, tick: Tick): Promise<FileMeasures> {
+  const sr = src.sampleRate;
+  const len = src.length;
+  const durationSec = len / sr;
+  const half = async (from: number, to: number, f: number) => tick(from + (to - from) * f);
+  // pass 1: frame levels, loudness blocks, peaks, clipping
+  const fa = new FrameAnalyzer(sr, vad.frameMs ?? 20);
+  const inMeter = new KLoudnessMeter(sr);
+  const inTp = new TruePeakMeter();
+  const clip = new ClipCounter(sr);
+  let inPeak = 0;
+  await eachChunk(src, (x, start) => {
+    fa.push(x);
+    inMeter.push(x);
+    inTp.push(x, start + x.length >= len);
+    clip.push(x, start);
+    inPeak = peakOf(x, inPeak);
+  }, (f) => half(0, 0.6, f));
+  const { segments, analysis } = detectSpeechFromAnalysis(fa.finish(), durationSec, vad);
+  const snrDb = estimateSnrDb(analysis, segments);
+  const inLoud = loudnessFromBlocks(inMeter.blocks(), sr, segments);
+  const input: LevelReport = {
+    integratedLufs: inLoud.integrated,
+    speechLufs: inLoud.speech,
+    samplePeakDb: inPeak > 0 ? 20 * Math.log10(inPeak) : -Infinity,
+    truePeakDb: inTp.db,
+  };
+
+  // pass 2: Smart-mode measures and hum audio
+  const gaps = gapsOf(segments, durationSec);
+  const humRanges: { a: number; b: number }[] = [];
+  {
+    let total = 0;
+    const maxLen = sr * 10;
+    for (const [gs, ge] of gaps) {
+      if (total >= maxLen) break;
+      const a = Math.round(gs * sr);
+      const b = Math.min(Math.round(ge * sr), a + (maxLen - total));
+      if (b - a > sr * 0.25) { humRanges.push({ a, b }); total += b - a; }
+    }
+  }
+  const humAudio = humRanges.map((r) => new Float32Array(r.b - r.a));
+  const gapRanges = gaps.map(([a, b]) => ({ a: Math.round(a * sr), b: Math.min(len, Math.round(b * sr)) }));
+  const spreadWins = speechWindows(segments, sr, len, 1);
+  const spreadE = new RangeEnergy(spreadWins);
+  const kw = new BiquadChainState(kWeightingCoeffs(sr));
+  const lowF = new BiquadChainState([designBiquad('lowpass', sr, 100, 0.707), designBiquad('lowpass', sr, 100, 0.707)]);
+  const midF = new BiquadChainState([designBiquad('highpass', sr, 100, 0.707), designBiquad('lowpass', sr, Math.min(4000, sr * 0.45), 0.707)]);
+  const lowE = new RangeEnergy(gapRanges);
+  const midE = new RangeEnergy(gapRanges);
+  await eachChunk(src, (x, start) => {
+    const end = start + x.length;
+    humRanges.forEach((r, i) => {
+      const a = Math.max(r.a, start), b = Math.min(r.b, end);
+      if (b > a) humAudio[i].set(x.subarray(a - start, b - start), a - r.a);
+    });
+    if (wantAuto) {
+      spreadE.push(kw.process(x), start);
+      lowE.push(lowF.process(x), start);
+      midE.push(midF.process(x), start);
+    }
+  }, (f) => half(0.6, 1, f));
+  let measures: AutoMeasures | undefined;
+  if (wantAuto) {
+    const levels = spreadWins.map((w, i) => 10 * Math.log10(spreadE.sums[i] / Math.max(1, w.b - w.a) + 1e-12)).sort((p, q) => p - q);
+    const pick = (p: number) => (levels.length ? levels[Math.min(levels.length - 1, Math.floor(p * levels.length))] : 0);
+    const n = (rs: { a: number; b: number }[]) => rs.reduce((t, r) => t + Math.max(0, r.b - r.a), 0);
+    const gapN = n(gapRanges);
+    const low = gapN ? lowE.sums.reduce((a, b) => a + b, 0) / gapN : 0;
+    const mid = gapN ? midE.sums.reduce((a, b) => a + b, 0) / gapN : 0;
+    const speechTime = segments.reduce((t, s) => t + (s.end - s.start), 0);
+    const whisperTime = segments.filter((s) => s.kind === 'whisper').reduce((t, s) => t + (s.end - s.start), 0);
+    measures = {
+      snrDb,
+      whisperShare: speechTime > 0 ? whisperTime / speechTime : 0,
+      spreadDb: levels.length >= 2 ? pick(0.9) - pick(0.1) : 0,
+      rumbleDb: low > 0 && mid > 0 ? 10 * Math.log10(low / mid) : -60,
+    };
+  }
+  const total = humAudio.reduce((t, h) => t + h.length, 0);
+  const joined = new Float32Array(total);
+  let off = 0;
+  for (const h of humAudio) { joined.set(h, off); off += h.length; }
+  return { segments, analysis, snrDb, input, clip, humAudio: joined, measures };
+}
+
+export interface SmartAnalysis {
+  measures: AutoMeasures;
+  settings: EnhanceSettings;
+  reasons: AutoReason[];
+  humHz: 50 | 60 | null;
+  segments: Segment[];
+  input: LevelReport;
+}
+
+/**
+ * Smart mode on the whole file: measures the recording (speech, noise, whispers, level spread,
+ * rumble, hum) and chooses the settings for the clearest speech. Same measurements and choices
+ * as enhanceStream makes in Smart mode.
+ */
+export async function analyseForSmart(src: SampleSource, requested: EnhanceSettings, progress: Progress = {}): Promise<SmartAnalysis> {
+  const fm = await measureFile(src, requested.vad, true, makeTicker(progress)(0, 1));
+  const chosen = chooseSettings(requested, fm.measures!);
+  const humHz = chosen.settings.humRemoval && fm.humAudio.length >= src.sampleRate ? detectHum(fm.humAudio, src.sampleRate, []) : null;
+  return { measures: fm.measures!, settings: chosen.settings, reasons: chosen.reasons, humHz, segments: fm.segments, input: fm.input };
+}
+
 export interface StreamEnhanceResult {
   report: EnhanceReport;
   /** Output length in samples. */
@@ -618,85 +738,17 @@ export async function enhanceStream(
   const tracks: TempTrack[] = [];
 
   try {
-    // ---- pass 1: frame levels, loudness blocks, peaks, clipping
-    const fa = new FrameAnalyzer(sr, settings.vad.frameMs ?? 20);
-    const inMeter = new KLoudnessMeter(sr);
-    const inTp = new TruePeakMeter();
-    const clip = new ClipCounter(sr);
-    let inPeak = 0;
-    await eachChunk(src, (x, start) => {
-      fa.push(x);
-      inMeter.push(x);
-      inTp.push(x, start + x.length >= len);
-      clip.push(x, start);
-      inPeak = peakOf(x, inPeak);
-    }, ticker(0, 0.12));
-    const { segments, analysis } = detectSpeechFromAnalysis(fa.finish(), durationSec, settings.vad);
-    const snrDb = estimateSnrDb(analysis, segments);
-    const inLoud = loudnessFromBlocks(inMeter.blocks(), sr, segments);
-    const input: LevelReport = {
-      integratedLufs: inLoud.integrated,
-      speechLufs: inLoud.speech,
-      samplePeakDb: inPeak > 0 ? 20 * Math.log10(inPeak) : -Infinity,
-      truePeakDb: inTp.db,
-    };
+    // ---- passes 1-2: speech, levels, Smart-mode measures, hum audio
+    const fm = await measureFile(src, settings.vad, requested.strength === 'auto', ticker(0, 0.2));
+    const { segments, analysis, snrDb, input, clip, humAudio } = fm;
     stages.push('analyse');
-
-    // ---- pass 2: Smart-mode measures and hum audio
-    const gaps = gapsOf(segments, durationSec);
-    const humRanges: { a: number; b: number }[] = [];
-    {
-      let total = 0;
-      const maxLen = sr * 10;
-      for (const [gs, ge] of gaps) {
-        if (total >= maxLen) break;
-        const a = Math.round(gs * sr);
-        const b = Math.min(Math.round(ge * sr), a + (maxLen - total));
-        if (b - a > sr * 0.25) { humRanges.push({ a, b }); total += b - a; }
-      }
-    }
-    const humAudio = humRanges.map((r) => new Float32Array(r.b - r.a));
-    const gapRanges = gaps.map(([a, b]) => ({ a: Math.round(a * sr), b: Math.min(len, Math.round(b * sr)) }));
-    const spreadWins = speechWindows(segments, sr, len, 1);
-    const spreadE = new RangeEnergy(spreadWins);
-    const kw = new BiquadChainState(kWeightingCoeffs(sr));
-    const lowF = new BiquadChainState([designBiquad('lowpass', sr, 100, 0.707), designBiquad('lowpass', sr, 100, 0.707)]);
-    const midF = new BiquadChainState([designBiquad('highpass', sr, 100, 0.707), designBiquad('lowpass', sr, Math.min(4000, sr * 0.45), 0.707)]);
-    const lowE = new RangeEnergy(gapRanges);
-    const midE = new RangeEnergy(gapRanges);
-    const wantAuto = requested.strength === 'auto';
-    await eachChunk(src, (x, start) => {
-      const end = start + x.length;
-      humRanges.forEach((r, i) => {
-        const a = Math.max(r.a, start), b = Math.min(r.b, end);
-        if (b > a) humAudio[i].set(x.subarray(a - start, b - start), a - r.a);
-      });
-      if (wantAuto) {
-        spreadE.push(kw.process(x), start);
-        lowE.push(lowF.process(x), start);
-        midE.push(midF.process(x), start);
-      }
-    }, ticker(0.12, 0.2));
-    if (wantAuto) {
-      const levels = spreadWins.map((w, i) => 10 * Math.log10(spreadE.sums[i] / Math.max(1, w.b - w.a) + 1e-12)).sort((p, q) => p - q);
-      const pick = (p: number) => (levels.length ? levels[Math.min(levels.length - 1, Math.floor(p * levels.length))] : 0);
-      const n = (rs: { a: number; b: number }[]) => rs.reduce((t, r) => t + Math.max(0, r.b - r.a), 0);
-      const gapN = n(gapRanges);
-      const low = gapN ? lowE.sums.reduce((a, b) => a + b, 0) / gapN : 0;
-      const mid = gapN ? midE.sums.reduce((a, b) => a + b, 0) / gapN : 0;
-      const speechTime = segments.reduce((t, s) => t + (s.end - s.start), 0);
-      const whisperTime = segments.filter((s) => s.kind === 'whisper').reduce((t, s) => t + (s.end - s.start), 0);
-      const m: AutoMeasures = {
-        snrDb,
-        whisperShare: speechTime > 0 ? whisperTime / speechTime : 0,
-        spreadDb: levels.length >= 2 ? pick(0.9) - pick(0.1) : 0,
-        rumbleDb: low > 0 && mid > 0 ? 10 * Math.log10(low / mid) : -60,
-      };
-      const chosen = chooseSettings(requested, m);
+    if (fm.measures) {
+      const chosen = chooseSettings(requested, fm.measures);
       settings = chosen.settings;
       autoReasons = chosen.reasons;
       stages.push('smart-settings');
     }
+    void analysis;
 
     const chain: BiquadCoeffs[] = [];
     if (settings.highPassHz > 0) {
@@ -705,11 +757,7 @@ export async function enhanceStream(
     }
     let humHz: 50 | 60 | null = null;
     if (settings.humRemoval) {
-      const total = humAudio.reduce((t, h) => t + h.length, 0);
-      const joined = new Float32Array(total);
-      let off = 0;
-      for (const h of humAudio) { joined.set(h, off); off += h.length; }
-      humHz = total >= sr ? detectHum(joined, sr, []) : null;
+      humHz = humAudio.length >= sr ? detectHum(humAudio, sr, []) : null;
       if (humHz) {
         for (let h = 1; h <= 4 && humHz * h < sr / 2; h++) chain.push(designBiquad('notch', sr, humHz * h, 30));
         stages.push(`hum-${humHz}`);

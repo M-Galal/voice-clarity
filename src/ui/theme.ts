@@ -64,18 +64,24 @@ export const DARK: Palette = {
 };
 
 export const fontSizes = (scale: number) => ({
-  xs: 12 * scale,
-  sm: 14 * scale,
-  md: 16 * scale,
-  lg: 19 * scale,
-  xl: 24 * scale,
-  xxl: 32 * scale,
+  xs: 11 * scale,
+  sm: 13 * scale,
+  md: 15 * scale,
+  lg: 17 * scale,
+  xl: 21 * scale,
+  xxl: 28 * scale,
 });
 
-export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 };
+/** Compact spacing (the text size setting still scales the text). */
+export const space = { xs: 2, sm: 6, md: 8, lg: 12, xl: 16 };
 
-export const radius = 12;
+export const radius = 10;
 
-/** Minimum touch target (Apple HIG 44 pt, Material 48 dp): use the larger. */
-export const TOUCH = 48;
+/**
+ * Visible height of buttons, chips, switches and list rows. It is below the 48 dp touch-target
+ * guideline (Material; Apple: 44 pt), so controls add HIT_SLOP around themselves: the area that
+ * reacts to touch stays about 48 dp.
+ */
+export const TOUCH = 36;
+export const HIT_SLOP = { top: 6, bottom: 6, left: 4, right: 4 };
 
