@@ -1,0 +1,331 @@
+# Second half of the end-to-end test. Runs as its own Maestro session right after main.yaml
+# (a single 11-minute session kept losing Maestro's device server); the app keeps its data.
+appId: com.example.voiceclarity
+---
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: "import"
+    timeout: 30000
+
+# ---- Whispers: detection, Smart settings, audibility ----
+- tapOn:
+    id: "import"
+- runFlow:
+    file: pick.yaml
+    env:
+      FILE: whisper_mix.m4a
+      SHOT: "40"
+- extendedWaitUntil:
+    visible: ".*whisper_mix.*Ready.*"
+    timeout: 120000
+- tapOn:
+    id: "rec-whisper_mix"
+- extendedWaitUntil:
+    visible: "4 speech sections"
+    timeout: 30000
+- scrollUntilVisible:
+    element: ".*· whisper"
+- takeScreenshot: 41_whisper_sections
+- scrollUntilVisible:
+    element:
+      id: "auto-enhance"
+    direction: UP
+- tapOn:
+    id: "auto-enhance"
+- assertVisible:
+    id: "auto-hint"
+- scrollUntilVisible:
+    element:
+      id: "start-enhance"
+- tapOn:
+    id: "start-enhance"
+- extendedWaitUntil:
+    visible:
+      id: "ab-original"
+    timeout: 600000
+- scrollUntilVisible:
+    element:
+      id: "reason-auto_whisper_protect"
+- assertVisible:
+    id: "reason-auto_level_on"
+- takeScreenshot: 42_whisper_smart_reasons
+- scrollUntilVisible:
+    element: "Whispered or distant sections"
+- takeScreenshot: 43_whisper_levels
+- tapOn:
+    id: "keep-enhanced"
+- extendedWaitUntil:
+    visible:
+      id: "source-enhanced"
+    timeout: 20000
+- back
+
+# ---- Back in the library: stereo MP3 and a broken file ----
+- tapOn:
+    id: "import"
+- runFlow:
+    file: pick.yaml
+    env:
+      FILE: english_stereo.mp3
+      SHOT: "21"
+- extendedWaitUntil:
+    visible: ".*english_stereo.*Ready.*"
+    timeout: 120000
+
+# ---- Edit with Save (replace): stereo MP3 at 1.25x becomes a WAV ----
+- tapOn:
+    id: "rec-english_stereo"
+- scrollUntilVisible:
+    element:
+      id: "edit-audio"
+- tapOn:
+    id: "edit-audio"
+- scrollUntilVisible:
+    element:
+      id: "trim-mode-none"
+- tapOn:
+    id: "trim-mode-none"
+- scrollUntilVisible:
+    element:
+      id: "edit-speed-1.25"
+- tapOn:
+    id: "edit-speed-1.25"
+- scrollUntilVisible:
+    element:
+      id: "edit-save"
+- assertVisible: "This phone cannot write MP3 files, so the edit is saved as M4A."
+- tapOn:
+    id: "edit-save"
+- takeScreenshot: 33_replace_confirm
+- tapOn: "Replace"
+- extendedWaitUntil:
+    visible: "M4A"
+    timeout: 120000
+- extendedWaitUntil:
+    visible: ".*[1-9] speech sections.*"
+    timeout: 120000
+- takeScreenshot: 34_replaced_player
+- back
+- tapOn:
+    id: "import"
+- runFlow:
+    file: pick.yaml
+    env:
+      FILE: broken.m4a
+      SHOT: "22"
+- extendedWaitUntil:
+    visible: ".*broken.*(Needs attention|Ready).*"
+    timeout: 120000
+- assertVisible: ".*arabic_noisy-v1.*Ready.*"
+- takeScreenshot: 23_library_four_files
+
+# ---- Play list from a folder: filters, play, next file ----
+- tapOn:
+    id: "open-playlist"
+- tapOn:
+    id: "pl-pick"
+- runFlow:
+    file: pick-folder.yaml
+- scrollUntilVisible:
+    element: "3 of 3 audio files match"
+    direction: UP
+    timeout: 20000
+- assertVisible: ".*Music/vc-playlist"
+- assertNotVisible: "notes.txt"
+- takeScreenshot: 52_playlist
+- tapOn:
+    id: "pl-ext"
+- inputText: "m4a"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "2 of 3 audio files match"
+    direction: UP
+    timeout: 20000
+- tapOn:
+    id: "pl-name"
+- inputText: "whisper"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "1 of 3 audio files match"
+    direction: UP
+    timeout: 20000
+- takeScreenshot: 53_playlist_filtered
+# tap each field first so the keyboard is open; hideKeyboard with no keyboard acts as Back
+- tapOn:
+    id: "pl-name"
+- eraseText:
+    charactersToErase: 20
+- hideKeyboard
+- tapOn:
+    id: "pl-ext"
+- eraseText:
+    charactersToErase: 10
+- hideKeyboard
+- scrollUntilVisible:
+    element: "3 of 3 audio files match"
+    direction: UP
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "pl-sort-oldest"
+- tapOn:
+    id: "pl-sort-oldest"
+- tapOn:
+    id: "pl-sort-name"
+# auto-advance was seen working (it played through all three files); switch it off so the
+# next-file steps below are deterministic
+- scrollUntilVisible:
+    element:
+      id: "pl-auto-next"
+- tapOn:
+    id: "pl-auto-next"
+    checked: true
+    optional: true
+- assertVisible:
+    id: "pl-auto-next"
+    checked: false
+- scrollUntilVisible:
+    element:
+      id: "pl-item-arabic_noisy.m4a"
+- tapOn:
+    id: "pl-item-arabic_noisy.m4a"
+- extendedWaitUntil:
+    visible: "File 1 of 3"
+    timeout: 30000
+# played in place from the folder, and speech is found without copying the file
+- assertVisible:
+    id: "in-folder"
+- extendedWaitUntil:
+    visible: "[1-9][0-9]* speech sections?"
+    timeout: 30000
+# it starts playing on its own
+- extendedWaitUntil:
+    notVisible:
+      id: "elapsed"
+      text: "0:00"
+    timeout: 15000
+- takeScreenshot: 54_playlist_player
+- tapOn:
+    id: "pl-next"
+- extendedWaitUntil:
+    visible: "File 2 of 3"
+    timeout: 30000
+- assertVisible: "english_stereo"
+- tapOn:
+    id: "play-pause"
+- takeScreenshot: 55_playlist_next
+# Save on a folder file: an MP3 cannot be written, so it becomes english_stereo.m4a in the folder
+- scrollUntilVisible:
+    element:
+      id: "edit-audio"
+- tapOn:
+    id: "edit-audio"
+- scrollUntilVisible:
+    element:
+      id: "edit-speed-1.25"
+- tapOn:
+    id: "edit-speed-1.25"
+- scrollUntilVisible:
+    element:
+      id: "edit-save"
+- tapOn:
+    id: "edit-save"
+- assertVisible: ".*saved in the same folder as “english_stereo.m4a”.*"
+- takeScreenshot: 56_folder_save_confirm
+- tapOn: "Replace"
+- extendedWaitUntil:
+    visible: "M4A"
+    timeout: 120000
+- extendedWaitUntil:
+    visible: ".*[1-9] speech sections.*"
+    timeout: 120000
+- assertVisible:
+    id: "in-folder"
+- takeScreenshot: 57_folder_saved_player
+- back
+- scrollUntilVisible:
+    element: "3 of 3 audio files match"
+    direction: UP
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "pl-item-english_stereo.m4a"
+- assertNotVisible:
+    id: "pl-item-english_stereo.mp3"
+- takeScreenshot: 58_folder_after_save
+# delete a file from the folder from its play-list row
+- scrollUntilVisible:
+    element:
+      id: "pl-del-whisper_mix.m4a"
+- tapOn:
+    id: "pl-del-whisper_mix.m4a"
+- assertVisible: ".*Delete “whisper_mix.m4a” from the folder.*"
+- takeScreenshot: 59_folder_delete_confirm
+- tapOn:
+    id: "android:id/button1"
+- scrollUntilVisible:
+    element: "2 of 2 audio files match"
+    direction: UP
+    timeout: 20000
+- assertNotVisible:
+    id: "pl-item-whisper_mix.m4a"
+- back
+
+# ---- Theme: the header button cycles Match system -> Light -> Dark ----
+- tapOn:
+    id: "theme-toggle"
+- assertVisible:
+    id: "theme-toggle"
+    text: "Appearance: Light"
+- takeScreenshot: 60_library_light
+- tapOn:
+    id: "theme-toggle"
+- assertVisible:
+    id: "theme-toggle"
+    text: "Appearance: Dark"
+- takeScreenshot: 61_library_dark
+- tapOn:
+    id: "rec-whisper_mix"
+- takeScreenshot: 62_player_dark
+- back
+- tapOn:
+    id: "theme-toggle"
+- assertVisible:
+    id: "theme-toggle"
+    text: "Appearance: Match system"
+
+# ---- Arabic interface ----
+- tapOn:
+    id: "open-settings"
+- scrollUntilVisible:
+    element:
+      id: "skip-back-custom"
+- tapOn:
+    id: "skip-back-custom"
+- inputText: "1:30"
+- tapOn:
+    id: "skip-back-apply"
+- assertVisible:
+    id: "skip-back-value"
+    text: "1 min 30 s"
+- takeScreenshot: 44_skip_custom
+- scrollUntilVisible:
+    element:
+      id: "ui-lang-ar"
+    direction: UP
+- tapOn:
+    id: "ui-lang-ar"
+- takeScreenshot: 24_rtl_prompt
+- tapOn:
+    text: "حسناً|OK"
+    optional: true
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: ".*التسجيلات.*"
+    timeout: 30000
+- takeScreenshot: 25_library_arabic_rtl
+- tapOn:
+    id: "rec-arabic_noisy"
+- takeScreenshot: 26_player_arabic_rtl
