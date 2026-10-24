@@ -5,7 +5,7 @@ import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useKeepAwake } from 'expo-keep-awake';
 import { KeyboardAwareScrollView } from '../ui/KeyboardAwareScrollView';
 import { audioUri, shareTranscript } from '../services/processing';
-import { downloadModel, isModelReady, MODELS, startTranscription, type TranscribeJob } from '../services/transcription';
+import { downloadModel, isModelReady, MODELS, releaseWhisper, startTranscription, type TranscribeJob } from '../services/transcription';
 import { useApp } from '../state/AppContext';
 import { clock, isMostlyArabic, searchTranscript, toTxt, type TranscriptSegment } from '../transcript/format';
 import type { Recording } from '../types';
@@ -47,6 +47,8 @@ function TranscriptView({ rec }: { rec: Recording }) {
     } finally {
       job.current = null;
       setRunning(null);
+      // free the speech model (hundreds of MB) instead of keeping it loaded; it reloads next time
+      releaseWhisper().catch(() => {});
     }
   };
 

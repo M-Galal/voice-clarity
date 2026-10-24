@@ -8,7 +8,7 @@ mkdir -p "$RES/screens"
 # A retry reuses the results folder: keep the first attempt's output under attempt1/
 if [ -f "$RES/STATUS" ]; then
   mkdir -p "$RES/attempt1"
-  mv "$RES"/STATUS "$RES"/maestro.txt "$RES"/junit.xml "$RES"/logcat-js.txt "$RES"/app-errors.txt "$RES"/crashes.txt "$RES"/final-ui.xml "$RES/attempt1/" 2>/dev/null || true
+  mv "$RES"/STATUS "$RES"/maestro.txt "$RES"/junit.xml "$RES"/logcat-js.txt "$RES"/app-errors.txt "$RES"/crashes.txt "$RES"/process-deaths.txt "$RES"/final-ui.xml "$RES/attempt1/" 2>/dev/null || true
   mv "$RES/screens" "$RES/attempt1/screens" 2>/dev/null || true
   mkdir -p "$RES/screens"
 fi
@@ -45,9 +45,11 @@ kill $LOGPID 2>/dev/null || true
 sleep 1
 grep -E "ReactNativeJS|\[VC\]" "$RES/logcat-full.txt" > "$RES/logcat-js.txt" || true
 grep -E -A30 "FATAL EXCEPTION|AndroidRuntime: |libc.*Fatal signal|DEBUG   : " "$RES/logcat-full.txt" > "$RES/crashes.txt" || true
+# processes the system killed or that died (to tell memory pressure from test-tool failures)
+grep -E "lowmemorykiller|lmkd|Process .* has died|Killing [0-9]+:(com.example|dev.mobile)" "$RES/logcat-full.txt" > "$RES/process-deaths.txt" || true
 grep -E "com.example.voiceclarity|whisper|RNWhisper|audioapi|ExoPlayer|ExpoAudio|AudioPlayer|MediaCodec|Codec2" "$RES/logcat-full.txt" | grep -E " [EW]/" > "$RES/app-errors.txt" || true
 # Maestro's own logging fills the log; keep everything else
-grep -vE "I/Maestro|UiDevice|AppOps|dev.mobile.maestro" "$RES/logcat-full.txt" | tail -c 5000000 > "$RES/logcat-tail.txt"; rm -f "$RES/logcat-full.txt"
+grep -vE "I/Maestro|UiDevice" "$RES/logcat-full.txt" | tail -c 5000000 > "$RES/logcat-tail.txt"; rm -f "$RES/logcat-full.txt"
 echo "maestro_exit=$CODE" > "$RES/STATUS"
 if [ -s "$RES/crashes.txt" ]; then echo "crashes=yes" >> "$RES/STATUS"; [ "$CODE" -eq 0 ] && CODE=1; fi
 # A failed flow or an app crash fails the job (the workflow then retries once on a fresh boot).
