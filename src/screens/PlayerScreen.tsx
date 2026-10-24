@@ -41,25 +41,24 @@ function Player({ rec, queueIndex, autoplay }: { rec: Recording; queueIndex?: nu
     const status = useAudioPlayerStatus(player);
     const [mountedAt] = useState(() => Date.now());
 
-    // Diagnostics, and one retry: if the player has not loaded the source after 5 s, the source is
-    // set again. (Seen once on the emulator with a folder file; the cause is not known yet.)
+    // useAudioPlayerStatus starts from the player's status at creation and subscribes to updates in
+    // an effect (expo-audio ExpoAudio.js), so a "loaded" update sent before the subscription is
+    // missed. That happened on the emulator when speech detection kept the JS thread busy while
+    // the player opened. Ask the player directly until the status catches up.
+    const [nativeLoaded, setNativeLoaded] = useState(false);
     useEffect(() => {
-      if (status.isLoaded) console.log(`[VC] player loaded ${rec.format}${rec.external ? ' (folder)' : ''} in ${Date.now() - mountedAt} ms`);
-    }, [status.isLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+      if (status.isLoaded || nativeLoaded) return;
+      const h = setInterval(() => { if (player.isLoaded) setNativeLoaded(true); }, 250);
+      return () => clearInterval(h);
+    }, [status.isLoaded, nativeLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+    const loaded = status.isLoaded || nativeLoaded;
+
+    useEffect(() => {
+      if (loaded) console.log(`[VC] player loaded ${rec.format}${rec.external ? ' (folder)' : ''} in ${Date.now() - mountedAt} ms${status.isLoaded ? '' : ' (status update missed)'}`);
+    }, [loaded]); // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => {
       if (status.error) console.warn(`[VC] player error ${rec.format}: ${status.error}`);
     }, [status.error]); // eslint-disable-line react-hooks/exhaustive-deps
-    const retried = useRef(false);
-    useEffect(() => {
-      if (status.isLoaded || retried.current) return;
-      const h = setTimeout(() => {
-        if (player.isLoaded || retried.current) return;
-        retried.current = true;
-        console.warn(`[VC] player not loaded after 5 s, setting the source again (${rec.external ? 'folder' : 'app'} file)`);
-        player.replace({ uri: audioUri(rec, source), name: rec.name });
-      }, 5000);
-      return () => clearTimeout(h);
-    }, [status.isLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
     const [editing, setEditing] = useState<Bookmark | null>(null);
     const [exportOpen, setExportOpen] = useState(false);
     const [notice, setNotice] = useState<string | null>(null);
@@ -78,7 +77,7 @@ function Player({ rec, queueIndex, autoplay }: { rec: Recording; queueIndex?: nu
 
     // restore position once loaded
     useEffect(() => {
-      if (status.isLoaded && !restored.current) {
+      if (loaded && !restored.current) {
         restored.current = true;
         // 'medium' = AVFoundation timeDomain on iOS (voice-oriented, 1/32x-32x); ignored on Android
         player.setPlaybackRate(clampRate(settings.playbackRate), 'medium');
@@ -88,7 +87,7 @@ function Player({ rec, queueIndex, autoplay }: { rec: Recording; queueIndex?: nu
           player.play();
         }
       }
-    }, [status.isLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [loaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // save position every 5 s and when leaving
     useEffect(() => {
@@ -245,7 +244,7 @@ function Player({ rec, queueIndex, autoplay }: { rec: Recording; queueIndex?: nu
           <Row style={{ justifyContent: 'space-between', direction: 'ltr', gap: 0 }}>
             <IconButton testID="prev-speech" icon="⏮" label={t('prev_speech')} onPress={() => { const s = previousSegmentStart(segments, here()); if (s !== null) seek(s); }} disabled={!segments.length} />
             <IconButton testID="back-10" icon={`−${shortSkip(settings.skipBackSec)}`} label={t('back_by', { t: formatSkip(settings.skipBackSec, units) })} onPress={() => seek(here() - settings.skipBackSec)} />
-            <IconButton testID="play-pause" big icon={status.playing ? '❚❚' : '▶'} label={status.playing ? t('pause') : t('play')} onPress={toggle} disabled={!status.isLoaded} />
+            <IconButton testID="play-pause" big icon={status.playing ? '❚❚' : '▶'} label={status.playing ? t('pause') : t('play')} onPress={toggle} disabled={!loaded} />
             <IconButton testID="fwd-10" icon={`+${shortSkip(settings.skipForwardSec)}`} label={t('fwd_by', { t: formatSkip(settings.skipForwardSec, units) })} onPress={() => seek(here() + settings.skipForwardSec)} />
             <IconButton testID="next-speech" icon="⏭" label={t('next_speech')} onPress={() => { const s = nextSegmentStart(segments, here()); if (s !== null) seek(s); }} disabled={!segments.length} />
           </Row>
