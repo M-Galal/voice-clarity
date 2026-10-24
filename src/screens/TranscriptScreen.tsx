@@ -68,7 +68,7 @@ function TranscriptView({ rec }: { rec: Recording }) {
       {running !== null ? (
         <RunningView progress={running} onCancel={() => job.current?.stop()} />
       ) : showSetup ? (
-        <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.lg }}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.lg, gap: space.lg }}>
             <View style={{ gap: space.lg }}>
               <Txt size="sm" muted>{t('processing_local')}</Txt>
               <Section title={t('transcript_language')}>
