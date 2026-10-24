@@ -125,6 +125,8 @@ export interface DecodedPcm {
 
 /** Files longer than this are only processed through the streaming decoder. */
 export const MAX_IN_MEMORY_SEC = 20 * 60;
+/** Files up to this length use the in-memory decoder (fast, small at this length). */
+export const SHORT_IN_MEMORY_SEC = 5 * 60;
 
 export class StreamDecodeUnavailableError extends Error {
   constructor(public detail: string) {
@@ -147,7 +149,10 @@ export async function decodeToPcmFile(
   const file = new File(tempDir(), `decode-${newId()}.pcm`);
   const dispose = () => { try { if (file.exists) file.delete(); } catch { /* gone */ } };
   let nativeError = 'native decoder not in this build';
-  if (VoiceEncoder) {
+  // Short files: the in-memory decoder is quick and needs little memory at this length. On the
+  // emulator the platform AAC decoder ran at ~2x real time (about 10 ms per AAC frame).
+  const preferMemory = durationSec > 0 && durationSec <= SHORT_IN_MEMORY_SEC;
+  if (VoiceEncoder && !preferMemory) {
     const id = newId();
     const sub = VoiceEncoder.addListener('onDecodeProgress', (e) => { if (e.id === id) onProgress?.(e.fraction); });
     const poll = isCancelled ? setInterval(() => { if (isCancelled()) VoiceEncoder!.cancelDecode(id); }, 200) : null;
@@ -169,7 +174,9 @@ export async function decodeToPcmFile(
   }
   if (durationSec > MAX_IN_MEMORY_SEC) throw new StreamDecodeUnavailableError(nativeError);
   // short file: decode in memory once and store it like the native decoder would
+  const t0 = Date.now();
   const d = await decodeFile(uri, sampleRate);
+  console.log(`[VC] memory-decoded ${(d.durationSec).toFixed(1)}s @${d.sampleRate} in ${Date.now() - t0} ms`);
   const n = d.channels[0]?.length ?? 0;
   const s = new Int16Array(n);
   for (let i = 0; i < n; i++) {

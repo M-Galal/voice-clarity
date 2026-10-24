@@ -101,8 +101,9 @@ appId: com.example.voiceclarity
 # ---- Speed and skip silence ----
 - scrollUntilVisible:
     element:
-      id: "speed-slider"
+      id: "speed-slider-track"
     direction: UP
+    centerElement: true
 # drag the speed slider all the way right: 5×
 - swipe:
     from:
