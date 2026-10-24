@@ -6,6 +6,8 @@ import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.net.Uri
+import android.os.SystemClock
+import android.util.Log
 import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -55,10 +57,18 @@ class PcmDecoder(private val context: Context) {
     var inputDone = false
     var lastProgress = -1.0
 
+    // timing breakdown, logged at the end (to see where decode time goes on a device)
+    var tWait = 0L; var tResample = 0L; var tWrite = 0L; var buffers = 0
+    val tStart = SystemClock.elapsedRealtime()
     fun writeMono(mono: FloatArray, n: Int) {
       val rs = resampler ?: Resampler(inRate, outRate).also { resampler = it }
+      val t0 = SystemClock.elapsedRealtimeNanos()
       val res = rs.process(mono, n)
+      val t1 = SystemClock.elapsedRealtimeNanos()
       frames += writeShorts(out, res.first, res.second)
+      tResample += t1 - t0
+      tWrite += SystemClock.elapsedRealtimeNanos() - t1
+      buffers++
     }
 
     try {
@@ -68,7 +78,9 @@ class PcmDecoder(private val context: Context) {
         // A 10 ms wait per buffer made AAC decoding wait ~10 ms for every 23 ms of audio.
         var fed = false
         if (!inputDone) {
+          val tw = SystemClock.elapsedRealtimeNanos()
           val inIdx = codec.dequeueInputBuffer(0)
+          tWait += SystemClock.elapsedRealtimeNanos() - tw
           if (inIdx >= 0) {
             fed = true
             val buf = codec.getInputBuffer(inIdx)!!
@@ -86,7 +98,9 @@ class PcmDecoder(private val context: Context) {
             }
           }
         }
+        val tw2 = SystemClock.elapsedRealtimeNanos()
         val outIdx = codec.dequeueOutputBuffer(info, if (fed) 0L else 2_000L)
+        tWait += SystemClock.elapsedRealtimeNanos() - tw2
         if (outIdx == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
           val of = codec.outputFormat
           inRate = of.getInteger(MediaFormat.KEY_SAMPLE_RATE)
@@ -119,6 +133,9 @@ class PcmDecoder(private val context: Context) {
       }
       resampler?.let { val tail = it.flush(); frames += writeShorts(out, tail.first, tail.second) }
       progress(1.0)
+      Log.i("VoiceClarity", "decode ${codec.name}: ${SystemClock.elapsedRealtime() - tStart} ms total, " +
+        "codec wait ${tWait / 1_000_000} ms, resample ${tResample / 1_000_000} ms, write ${tWrite / 1_000_000} ms, " +
+        "$buffers buffers, $inRate Hz x$channels -> $outRate Hz")
     } finally {
       try { codec.stop() } catch (_: Exception) {}
       codec.release()

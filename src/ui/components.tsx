@@ -231,6 +231,7 @@ export function LabeledSlider({
           onLive?.(c);
         }}
         onSlidingComplete={(v) => { setDragging(null); onChange(clampStep(v)); }}
+        testID={testID ? `${testID}-track` : undefined}
         minimumTrackTintColor={colors.primary}
         maximumTrackTintColor={colors.border}
         thumbTintColor={colors.primary}

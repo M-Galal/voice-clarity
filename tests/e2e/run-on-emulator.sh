@@ -33,12 +33,13 @@ LOGPID=$!
 
 ROOT=$PWD
 STAMP=$(mktemp)
-"$HOME/.maestro/bin/maestro" test tests/e2e/flows/main.yaml --format junit --output "$RES/junit.xml" \
+# hard time limits: a hung Maestro session must not use up the whole job
+timeout 40m "$HOME/.maestro/bin/maestro" test tests/e2e/flows/main.yaml --format junit --output "$RES/junit.xml" \
   --test-output-dir "$RES/maestro-out" > "$RES/maestro.txt" 2>&1
 CODE=$?
 # Long-file test (20 min recording, Smart enhance) in its own Maestro session
 if [ -f e2e-audio/long_20min.wav ]; then
-  "$HOME/.maestro/bin/maestro" test tests/e2e/flows/long.yaml --format junit --output "$RES/junit-long.xml" \
+  timeout 50m "$HOME/.maestro/bin/maestro" test tests/e2e/flows/long.yaml --format junit --output "$RES/junit-long.xml" \
     --test-output-dir "$RES/maestro-out-long" > "$RES/maestro-long.txt" 2>&1
   LONG=$?
   echo "long_exit=$LONG" > "$RES/LONG_STATUS"
@@ -51,11 +52,11 @@ adb exec-out screencap -p > "$RES/screens/zz_final.png" 2>/dev/null || true
 adb exec-out uiautomator dump /dev/tty > "$RES/final-ui.xml" 2>/dev/null || true
 kill $LOGPID 2>/dev/null || true
 sleep 1
-grep -E "ReactNativeJS|\[VC\]" "$RES/logcat-full.txt" > "$RES/logcat-js.txt" || true
+grep -E "ReactNativeJS|\[VC\]|VoiceClarity" "$RES/logcat-full.txt" > "$RES/logcat-js.txt" || true
 grep -E -A30 "FATAL EXCEPTION|AndroidRuntime: |libc.*Fatal signal|DEBUG   : " "$RES/logcat-full.txt" > "$RES/crashes.txt" || true
 # processes the system killed or that died (to tell memory pressure from test-tool failures)
 grep -E "lowmemorykiller|lmkd|Process .* has died|Killing [0-9]+:(com.example|dev.mobile)" "$RES/logcat-full.txt" > "$RES/process-deaths.txt" || true
-grep -E "com.example.voiceclarity|whisper|RNWhisper|audioapi|ExoPlayer|ExpoAudio|AudioPlayer|MediaCodec|Codec2" "$RES/logcat-full.txt" | grep -E " [EW]/" > "$RES/app-errors.txt" || true
+grep -E "VoiceClarity|com.example.voiceclarity|whisper|RNWhisper|audioapi|ExoPlayer|ExpoAudio|AudioPlayer|MediaCodec|Codec2" "$RES/logcat-full.txt" | grep -E " [EW]/" > "$RES/app-errors.txt" || true
 # Maestro's own logging fills the log; keep everything else
 grep -vE "I/Maestro|UiDevice" "$RES/logcat-full.txt" | tail -c 5000000 > "$RES/logcat-tail.txt"; rm -f "$RES/logcat-full.txt"
 echo "maestro_exit=$CODE" > "$RES/STATUS"

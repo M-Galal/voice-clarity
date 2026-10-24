@@ -106,7 +106,7 @@ appId: com.example.voiceclarity
 # drag the speed slider all the way right: 5×
 - swipe:
     from:
-      id: "speed-slider"
+      id: "speed-slider-track"
     direction: RIGHT
 - assertVisible:
     id: "speed-slider-value"
