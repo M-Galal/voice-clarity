@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  AccessibilityActionEvent, ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet,
+  ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet,
   Switch, Text, TextStyle, View, ViewStyle,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
@@ -199,22 +199,10 @@ export function LabeledSlider({
   const [dragging, setDragging] = useState<number | null>(null);
   const clampStep = (v: number) => Math.min(max, Math.max(min, Math.round(v / step) * step));
   const shown = dragging ?? value;
-  const onAction = (e: AccessibilityActionEvent) => {
-    if (e.nativeEvent.actionName === 'increment') onChange(clampStep(value + step));
-    if (e.nativeEvent.actionName === 'decrement') onChange(clampStep(value - step));
-  };
+  // The native slider (Android SeekBar, iOS UISlider) is adjustable with TalkBack/VoiceOver;
+  // it carries the label and value itself, so it stays reachable for screen readers and tests.
   return (
-    <View
-      style={{ gap: space.xs, opacity: disabled ? 0.5 : 1 }}
-      accessible
-      accessibilityRole="adjustable"
-      accessibilityLabel={label}
-      accessibilityHint={hint}
-      accessibilityValue={{ text: format(shown) }}
-      testID={testID}
-      accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
-      onAccessibilityAction={onAction}
-    >
+    <View style={{ gap: space.xs, opacity: disabled ? 0.5 : 1 }} testID={testID}>
       <Row style={{ justifyContent: 'space-between' }}>
         <Txt style={{ flex: 1 }}>{label}</Txt>
         <Txt bold testID={testID ? `${testID}-value` : undefined}>{format(shown)}</Txt>
@@ -232,6 +220,9 @@ export function LabeledSlider({
         }}
         onSlidingComplete={(v) => { setDragging(null); onChange(clampStep(v)); }}
         testID={testID ? `${testID}-track` : undefined}
+        accessibilityLabel={label}
+        accessibilityHint={hint}
+        accessibilityValue={{ text: format(shown) }}
         minimumTrackTintColor={colors.primary}
         maximumTrackTintColor={colors.border}
         thumbTintColor={colors.primary}

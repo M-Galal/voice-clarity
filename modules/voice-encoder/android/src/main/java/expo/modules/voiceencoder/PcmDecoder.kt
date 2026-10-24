@@ -6,6 +6,8 @@ import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.net.Uri
+import android.os.Handler
+import android.os.HandlerThread
 import android.os.SystemClock
 import android.util.Log
 import java.io.BufferedOutputStream
@@ -13,6 +15,10 @@ import java.io.File
 import java.io.FileOutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.floor
@@ -45,20 +51,17 @@ class PcmDecoder(private val context: Context) {
     var channels = fmt.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
     var floatPcm = false
     val codec = MediaCodec.createDecoderByType(fmt.getString(MediaFormat.KEY_MIME)!!)
-    codec.configure(fmt, null, null, 0)
-    codec.start()
 
     val outFile = File(outputPath)
     if (outFile.exists()) outFile.delete()
     val out = BufferedOutputStream(FileOutputStream(outFile), 1 shl 16)
     var resampler: Resampler? = null
     var frames = 0L
-    val info = MediaCodec.BufferInfo()
     var inputDone = false
     var lastProgress = -1.0
 
     // timing breakdown, logged at the end (to see where decode time goes on a device)
-    var tWait = 0L; var tResample = 0L; var tWrite = 0L; var buffers = 0
+    var tResample = 0L; var tWrite = 0L; var buffers = 0
     val tStart = SystemClock.elapsedRealtime()
     fun writeMono(mono: FloatArray, n: Int) {
       val rs = resampler ?: Resampler(inRate, outRate).also { resampler = it }
@@ -71,44 +74,38 @@ class PcmDecoder(private val context: Context) {
       buffers++
     }
 
-    try {
-      while (true) {
-        if (cancelled()) throw InterruptedException("cancelled")
-        // Feed input without waiting; only wait (briefly) for output when no input could be queued.
-        // A 10 ms wait per buffer made AAC decoding wait ~10 ms for every 23 ms of audio.
-        var fed = false
-        if (!inputDone) {
-          val tw = SystemClock.elapsedRealtimeNanos()
-          val inIdx = codec.dequeueInputBuffer(0)
-          tWait += SystemClock.elapsedRealtimeNanos() - tw
-          if (inIdx >= 0) {
-            fed = true
-            val buf = codec.getInputBuffer(inIdx)!!
-            val n = ex.readSampleData(buf, 0)
-            if (n < 0) {
-              codec.queueInputBuffer(inIdx, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
-              inputDone = true
-            } else {
-              codec.queueInputBuffer(inIdx, 0, n, ex.sampleTime, 0)
-              if (durationUs > 0) {
-                val p = ex.sampleTime.toDouble() / durationUs
-                if (p - lastProgress >= 0.01) { lastProgress = p; progress(min(1.0, p)) }
-              }
-              ex.advance()
+    // Asynchronous (callback) mode: the codec asks for input and hands back output as soon as it
+    // can, so buffers overlap. In synchronous polling, the platform AAC decoder on the emulator
+    // took ~10 ms per buffer in dequeue calls (~0.5x real time).
+    val thread = HandlerThread("pcm-decode").apply { start() }
+    val done = CountDownLatch(1)
+    val error = AtomicReference<Throwable?>(null)
+    val stopped = AtomicBoolean(false)
+    codec.setCallback(object : MediaCodec.Callback() {
+      override fun onInputBufferAvailable(c: MediaCodec, index: Int) {
+        if (stopped.get() || inputDone) return
+        try {
+          val buf = c.getInputBuffer(index) ?: return
+          val n = ex.readSampleData(buf, 0)
+          if (n < 0) {
+            c.queueInputBuffer(index, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+            inputDone = true
+          } else {
+            c.queueInputBuffer(index, 0, n, ex.sampleTime, 0)
+            if (durationUs > 0) {
+              val p = ex.sampleTime.toDouble() / durationUs
+              if (p - lastProgress >= 0.01) { lastProgress = p; progress(min(1.0, p)) }
             }
+            ex.advance()
           }
-        }
-        val tw2 = SystemClock.elapsedRealtimeNanos()
-        val outIdx = codec.dequeueOutputBuffer(info, if (fed) 0L else 2_000L)
-        tWait += SystemClock.elapsedRealtimeNanos() - tw2
-        if (outIdx == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-          val of = codec.outputFormat
-          inRate = of.getInteger(MediaFormat.KEY_SAMPLE_RATE)
-          channels = of.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
-          floatPcm = of.containsKey(MediaFormat.KEY_PCM_ENCODING) && of.getInteger(MediaFormat.KEY_PCM_ENCODING) == AudioFormat.ENCODING_PCM_FLOAT
-        } else if (outIdx >= 0) {
-          val buf = codec.getOutputBuffer(outIdx)!!
-          if (info.size > 0) {
+        } catch (e: Throwable) { error.set(e); done.countDown() }
+      }
+
+      override fun onOutputBufferAvailable(c: MediaCodec, index: Int, info: MediaCodec.BufferInfo) {
+        if (stopped.get()) return
+        try {
+          val buf = c.getOutputBuffer(index)
+          if (buf != null && info.size > 0) {
             buf.position(info.offset)
             buf.limit(info.offset + info.size)
             val bb = buf.slice().order(ByteOrder.nativeOrder())
@@ -118,27 +115,48 @@ class PcmDecoder(private val context: Context) {
               val fb = bb.asFloatBuffer()
               n = fb.remaining() / channels
               mono = FloatArray(n)
-              for (i in 0 until n) { var s = 0f; for (c in 0 until channels) s += fb.get(i * channels + c); mono[i] = s / channels }
+              for (i in 0 until n) { var s = 0f; for (ch in 0 until channels) s += fb.get(i * channels + ch); mono[i] = s / channels }
             } else {
               val sb = bb.asShortBuffer()
               n = sb.remaining() / channels
               mono = FloatArray(n)
-              for (i in 0 until n) { var s = 0f; for (c in 0 until channels) s += sb.get(i * channels + c) / 32768f; mono[i] = s / channels }
+              for (i in 0 until n) { var s = 0f; for (ch in 0 until channels) s += sb.get(i * channels + ch) / 32768f; mono[i] = s / channels }
             }
             writeMono(mono, n)
           }
-          codec.releaseOutputBuffer(outIdx, false)
-          if ((info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) break
-        }
+          c.releaseOutputBuffer(index, false)
+          if ((info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) done.countDown()
+        } catch (e: Throwable) { error.set(e); done.countDown() }
       }
+
+      override fun onOutputFormatChanged(c: MediaCodec, of: MediaFormat) {
+        inRate = of.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+        channels = of.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+        floatPcm = of.containsKey(MediaFormat.KEY_PCM_ENCODING) && of.getInteger(MediaFormat.KEY_PCM_ENCODING) == AudioFormat.ENCODING_PCM_FLOAT
+      }
+
+      override fun onError(c: MediaCodec, e: MediaCodec.CodecException) { error.set(e); done.countDown() }
+    }, Handler(thread.looper))
+    codec.configure(fmt, null, null, 0)
+
+    try {
+      codec.start()
+      while (!done.await(200, TimeUnit.MILLISECONDS)) {
+        if (cancelled()) { error.set(InterruptedException("cancelled")); break }
+      }
+      stopped.set(true)
+      try { codec.stop() } catch (_: Exception) {}
+      error.get()?.let { throw it }
       resampler?.let { val tail = it.flush(); frames += writeShorts(out, tail.first, tail.second) }
       progress(1.0)
-      Log.i("VoiceClarity", "decode ${codec.name}: ${SystemClock.elapsedRealtime() - tStart} ms total, " +
-        "codec wait ${tWait / 1_000_000} ms, resample ${tResample / 1_000_000} ms, write ${tWrite / 1_000_000} ms, " +
+      Log.i("VoiceClarity", "decode ${codec.name} (async): ${SystemClock.elapsedRealtime() - tStart} ms total, " +
+        "resample ${tResample / 1_000_000} ms, write ${tWrite / 1_000_000} ms, " +
         "$buffers buffers, $inRate Hz x$channels -> $outRate Hz")
     } finally {
+      stopped.set(true)
       try { codec.stop() } catch (_: Exception) {}
       codec.release()
+      thread.quitSafely()
       ex.release()
       out.close()
     }
