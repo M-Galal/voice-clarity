@@ -51,9 +51,9 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
     const stale = () => my !== smartGen.current;
     try {
       setSmart({ kind: 'running', label: t('smart_reading'), progress: 0 });
-      await pv.prepare(rate, (f) => { if (!stale()) setSmart({ kind: 'running', label: t('smart_reading'), progress: 0.4 * f }); }, stale);
-      if (stale()) return;
-      const analysis = await pv.analyseSmart(vadOf(s), (f) => { if (!stale()) setSmart({ kind: 'running', label: t('smart_measuring'), progress: 0.4 + 0.6 * f }); }, stale);
+      const analysis = await pv.analyseSmart(rate, vadOf(s), (f, stage) => {
+        if (!stale()) setSmart({ kind: 'running', label: t(stage === 'reading' ? 'smart_reading' : 'smart_measuring'), progress: f });
+      }, stale);
       if (!stale()) setSmart({ kind: 'ready', analysis });
     } catch (e) {
       if (!stale()) setSmart({ kind: 'error', message: e instanceof Error ? e.message : String(e) });
@@ -230,7 +230,7 @@ function SmartCard({ state, onRetry }: { state: SmartState; onRetry: () => void 
       ) : null}
       {state.kind === 'ready' ? (
         <View testID="smart-ready" style={{ gap: 2 }}>
-          <Txt size="sm" muted>{t('smart_done')}</Txt>
+          <Txt size="sm" muted>{state.analysis.sampled ? t('smart_done_sampled', { parts: state.analysis.sampled.parts, min: Math.max(1, Math.round(state.analysis.sampled.seconds / 60)) }) : t('smart_done')}</Txt>
           {state.analysis.reasons.map((x, i) => (
             <Txt key={i} size="sm" testID={`smart-${x.key}`}>{`• ${t(x.key, x.vars)}`}</Txt>
           ))}
@@ -300,11 +300,13 @@ function PreviewPanel({ rec, pv, settings, rate }: { rec: Recording; pv: Enhance
     const stale = () => my !== gen.current;
     try {
       setState({ kind: 'working', label: t('pv_preparing'), progress: 0 });
-      await pv.prepare(rate, (f) => { if (!stale()) setState({ kind: 'working', label: t('pv_preparing'), progress: f }); }, stale);
-      if (stale()) return;
-      setState({ kind: 'working', label: t('pv_rendering') });
       const vad = { ...settings, vad: { ...settings.vad, thresholdDb: app.settings.vadThresholdDb, whisper: app.settings.vadWhisper } };
-      const r = await pv.render(start, vad, stale);
+      let prepared = false;
+      const r = await pv.render(start, rate, vad, stale, (f) => {
+        if (stale()) return;
+        if (f >= 1 && !prepared) { prepared = true; setState({ kind: 'working', label: t('pv_rendering') }); }
+        else if (!prepared) setState({ kind: 'working', label: t('pv_preparing'), progress: f });
+      });
       if (stale()) return;
       const wasPlaying = player.playing;
       const pos = player.currentTime;

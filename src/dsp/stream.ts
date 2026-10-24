@@ -699,6 +699,8 @@ export interface SmartAnalysis {
   humHz: 50 | 60 | null;
   segments: Segment[];
   input: LevelReport;
+  /** Set when only parts of a long recording were analysed. */
+  sampled?: { parts: number; seconds: number };
 }
 
 /**

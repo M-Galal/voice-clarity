@@ -9,9 +9,9 @@ import VoiceEncoder from '../../modules/voice-encoder/src/VoiceEncoderModule';
 import { aacBitrate, MIME, saveTarget, type SaveTarget } from '../edit/saveFormat';
 import { CancelledError } from '../dsp/denoise';
 import type { EnhanceSettings, EnhanceSummary } from '../dsp/pipeline';
-import { analyseForSmart, analyseStream, enhanceStream, memoryTemp, RangeSource, type SampleSink, type SmartAnalysis } from '../dsp/stream';
+import { analyseForSmart, analyseStream, enhanceStream, memoryTemp, RangeSource, type SampleSink, type SampleSource, type SmartAnalysis } from '../dsp/stream';
 import { SpectrumMeter, type Spectrum } from '../dsp/spectrum';
-import { decodeToPcmFile, fileTemp, WavFileSink, type DecodedPcm } from './pcm';
+import { decodeRangesToPcmFile, decodeToPcmFile, fileTemp, samplePlan, WavFileSink, type DecodedPcm } from './pcm';
 import type { Segment } from '../dsp/vad';
 import { toJson, toSrt, toTxt, toVtt, type Transcript } from '../transcript/format';
 import type { Bookmark, Recording } from '../types';
@@ -203,24 +203,51 @@ export interface PreviewRender {
  * Smart mode and the loudness/noise measurements then look only at that part, so the full run
  * can differ slightly.
  */
+/** Longer recordings are analysed and previewed from parts decoded by seeking (Android). */
+export const FULL_DECODE_MAX_SEC = 12 * 60;
+
 export class EnhancePreviewer {
   private decoded: DecodedPcm | null = null;
   private decodedRate = 0;
   private files: File[] = [];
+  /** Last previewed part of a long recording (decoded by seeking), reused while start and rate stay. */
+  private part: { key: string; decoded: DecodedPcm } | null = null;
+  private readonly long: boolean;
 
-  constructor(private readonly rec: Recording) {}
+  constructor(private readonly rec: Recording) {
+    this.long = rec.durationSec > FULL_DECODE_MAX_SEC;
+  }
 
   /** The decoded recording, for reuse by the full run (owned by this previewer). */
   decodedFor(rate: number): DecodedPcm | null {
     return this.decoded && this.decodedRate === rate ? this.decoded : null;
   }
 
-  /** Smart mode on the whole recording (call prepare first). */
-  async analyseSmart(settings: EnhanceSettings, onProgress: (f: number) => void, isCancelled: () => boolean): Promise<SmartAnalysis> {
-    if (!this.decoded) throw new Error('preview not prepared');
+  /**
+   * Smart mode. Short recordings: the whole file at the processing rate (exactly what the full
+   * run measures). Long ones: 16 parts of 20 s spread over the file, decoded by seeking at 16 kHz,
+   * so the analysis takes about as long as for a 5-minute file whatever the length.
+   */
+  async analyseSmart(rate: number, settings: EnhanceSettings, onProgress: (f: number, stage: 'reading' | 'measuring') => void, isCancelled: () => boolean): Promise<SmartAnalysis> {
     const t0 = Date.now();
-    const r = await analyseForSmart(this.decoded.source, settings, { onProgress, isCancelled, yieldFn: yieldToUi });
-    console.log(`[VC] smart analysis ${this.rec.durationSec.toFixed(1)}s: snr ${r.measures.snrDb.toFixed(1)} dB, whispers ${(r.measures.whisperShare * 100).toFixed(0)}%, spread ${r.measures.spreadDb.toFixed(1)} dB, rumble ${r.measures.rumbleDb.toFixed(1)} dB, hum ${r.humHz} in ${Date.now() - t0} ms`);
+    let r: SmartAnalysis | null = null;
+    if (this.long) {
+      const plan = samplePlan(this.rec.durationSec);
+      const parts = await decodeRangesToPcmFile(originalUri(this.rec), 16000, plan, (f) => onProgress(0.5 * f, 'reading'), isCancelled);
+      if (parts) {
+        try {
+          r = await analyseForSmart(parts.source, settings, { onProgress: (f) => onProgress(0.5 + 0.5 * f, 'measuring'), isCancelled, yieldFn: yieldToUi });
+          r = { ...r, sampled: { parts: plan.length, seconds: parts.source.length / 16000 } };
+        } finally {
+          parts.dispose();
+        }
+      }
+    }
+    if (!r) {
+      await this.prepare(rate, (f) => onProgress(0.4 * f, 'reading'), isCancelled);
+      r = await analyseForSmart(this.decoded!.source, settings, { onProgress: (f) => onProgress(0.4 + 0.6 * f, 'measuring'), isCancelled, yieldFn: yieldToUi });
+    }
+    console.log(`[VC] smart analysis ${this.rec.durationSec.toFixed(1)}s${r.sampled ? ` (${r.sampled.parts} parts, ${r.sampled.seconds.toFixed(0)}s)` : ''}: snr ${r.measures.snrDb.toFixed(1)} dB, whispers ${(r.measures.whisperShare * 100).toFixed(0)}%, spread ${r.measures.spreadDb.toFixed(1)} dB, rumble ${r.measures.rumbleDb.toFixed(1)} dB, hum ${r.humHz} in ${Date.now() - t0} ms`);
     return r;
   }
 
@@ -232,13 +259,31 @@ export class EnhancePreviewer {
     this.decodedRate = rate;
   }
 
-  /** Writes the original part and the processed part; returns their URIs and the report. */
-  async render(startSec: number, settings: EnhanceSettings, isCancelled: () => boolean): Promise<PreviewRender> {
-    if (!this.decoded) throw new Error('preview not prepared');
-    const src = this.decoded.source;
+  /** The audio of the part to preview: decoded by seeking for long recordings, else from the whole decode. */
+  private async partSource(startSec: number, rate: number, onProgress: (f: number) => void, isCancelled: () => boolean): Promise<{ src: SampleSource; startSec: number }> {
+    if (this.long) {
+      const start = Math.max(0, Math.min(startSec, this.rec.durationSec - 1));
+      const key = `${rate}|${start}`;
+      if (this.part?.key === key) return { src: this.part.decoded.source, startSec: start };
+      const length = Math.min(PREVIEW_SEC, this.rec.durationSec - start);
+      const d = await decodeRangesToPcmFile(originalUri(this.rec), rate, [{ start, length }], onProgress, isCancelled);
+      if (d) {
+        this.part?.decoded.dispose();
+        this.part = { key, decoded: d };
+        return { src: d.source, startSec: start };
+      }
+    }
+    await this.prepare(rate, onProgress, isCancelled);
+    const src = this.decoded!.source;
     const sr = src.sampleRate;
     const start = Math.max(0, Math.min(src.length - 1, Math.round(startSec * sr)));
-    const part = new RangeSource(src, start, Math.min(Math.round(PREVIEW_SEC * sr), src.length - start));
+    return { src: new RangeSource(src, start, Math.min(Math.round(PREVIEW_SEC * sr), src.length - start)), startSec: start / sr };
+  }
+
+  /** Writes the original part and the processed part; returns their URIs, report and spectra. */
+  async render(startSec: number, rate: number, settings: EnhanceSettings, isCancelled: () => boolean, onPrepare: (f: number) => void = () => {}): Promise<PreviewRender> {
+    const { src: part, startSec: actualStart } = await this.partSource(startSec, rate, onPrepare, isCancelled);
+    const sr = part.sampleRate;
     const stamp = Date.now();
     const orig = new File(tempDir(), `${this.rec.id}-pv-orig-${stamp}.wav`);
     const enh = new File(tempDir(), `${this.rec.id}-pv-enh-${stamp}.wav`);
@@ -262,7 +307,7 @@ export class EnhancePreviewer {
         originalUri: orig.uri,
         enhancedUri: enh.uri,
         report,
-        startSec: start / sr,
+        startSec: actualStart,
         lengthSec: part.length / sr,
         spectrum: { original: specOrig.bands(), enhanced: specEnh.bands() },
       };
@@ -280,6 +325,8 @@ export class EnhancePreviewer {
 
   dispose() {
     this.cleanup();
+    this.part?.decoded.dispose();
+    this.part = null;
     this.decoded?.dispose();
     this.decoded = null;
   }

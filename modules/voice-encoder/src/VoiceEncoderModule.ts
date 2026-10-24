@@ -14,6 +14,8 @@ declare class VoiceEncoderModule extends NativeModule<Events> {
    * PCM at `sampleRate`, without loading it into memory. Progress arrives as onDecodeProgress.
    */
   decodeToPcm(id: string, inputUri: string, outputUri: string, sampleRate: number): Promise<{ frames: number; sourceRate: number; sourceChannels: number }>;
+  /** Android only (for now): decodes only the given parts (seconds) into one PCM file. */
+  decodeRangesToPcm?(id: string, inputUri: string, outputUri: string, sampleRate: number, starts: number[], lengths: number[]): Promise<{ frames: number[]; sourceRate: number; sourceChannels: number }>;
   cancelDecode(id: string): void;
 }
 

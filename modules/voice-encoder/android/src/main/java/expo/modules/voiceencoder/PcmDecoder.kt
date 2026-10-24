@@ -145,6 +145,118 @@ class PcmDecoder(private val context: Context) {
     return Result(frames, inRate, channels)
   }
 
+  /**
+   * Decodes only the given parts of the file (start and length in seconds), one after another,
+   * into one mono 16-bit PCM file. The extractor seeks to each part (previous sync sample), the
+   * codec is flushed, and samples before the part's start are dropped by presentation time.
+   * Returns the number of frames written for each part (shorter if the file ends early).
+   */
+  fun decodeRanges(input: String, outputPath: String, outRate: Int, starts: List<Double>, lengths: List<Double>, cancelled: () -> Boolean, progress: (Double) -> Unit): Pair<LongArray, Result> {
+    val ex = MediaExtractor()
+    if (input.startsWith("content://")) ex.setDataSource(context, Uri.parse(input), null)
+    else ex.setDataSource(toPath(input))
+    var track = -1
+    for (i in 0 until ex.trackCount) {
+      if (ex.getTrackFormat(i).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true) { track = i; break }
+    }
+    if (track < 0) { ex.release(); throw IllegalArgumentException("No audio track found") }
+    ex.selectTrack(track)
+    val fmt = ex.getTrackFormat(track)
+    var inRate = fmt.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+    var channels = fmt.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+    var floatPcm = false
+    val codec = MediaCodec.createDecoderByType(fmt.getString(MediaFormat.KEY_MIME)!!)
+    codec.configure(fmt, null, null, 0)
+    codec.start()
+    val outFile = File(outputPath)
+    if (outFile.exists()) outFile.delete()
+    val out = BufferedOutputStream(FileOutputStream(outFile), 1 shl 16)
+    val perRange = LongArray(starts.size)
+    val info = MediaCodec.BufferInfo()
+    val tStart = SystemClock.elapsedRealtime()
+    try {
+      for (r in starts.indices) {
+        if (cancelled()) throw InterruptedException("cancelled")
+        val startUs = (starts[r] * 1_000_000).toLong()
+        val endUs = startUs + (lengths[r] * 1_000_000).toLong()
+        val target = (lengths[r] * outRate).roundToInt().toLong()
+        if (r > 0) codec.flush()
+        ex.seekTo(startUs, MediaExtractor.SEEK_TO_PREVIOUS_SYNC)
+        var resampler: Resampler? = null
+        var written = 0L
+        var inputDone = false
+        fun put(x: FloatArray, n: Int) {
+          if (written >= target || n <= 0) return
+          val keep = minOf(n.toLong(), target - written).toInt()
+          written += writeShorts(out, x, keep)
+        }
+        while (written < target) {
+          if (cancelled()) throw InterruptedException("cancelled")
+          var fed = false
+          if (!inputDone) {
+            val inIdx = codec.dequeueInputBuffer(0)
+            if (inIdx >= 0) {
+              fed = true
+              val buf = codec.getInputBuffer(inIdx)!!
+              val n = ex.readSampleData(buf, 0)
+              // stop feeding a little past the part's end (or at the end of the file)
+              if (n < 0 || ex.sampleTime > endUs + 200_000) {
+                codec.queueInputBuffer(inIdx, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                inputDone = true
+              } else {
+                codec.queueInputBuffer(inIdx, 0, n, ex.sampleTime, 0)
+                ex.advance()
+              }
+            }
+          }
+          val outIdx = codec.dequeueOutputBuffer(info, if (fed) 0L else 2_000L)
+          if (outIdx == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+            val of = codec.outputFormat
+            inRate = of.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+            channels = of.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+            floatPcm = of.containsKey(MediaFormat.KEY_PCM_ENCODING) && of.getInteger(MediaFormat.KEY_PCM_ENCODING) == AudioFormat.ENCODING_PCM_FLOAT
+          } else if (outIdx >= 0) {
+            val buf = codec.getOutputBuffer(outIdx)!!
+            if (info.size > 0) {
+              buf.position(info.offset)
+              buf.limit(info.offset + info.size)
+              val bb = buf.slice().order(ByteOrder.nativeOrder())
+              val total = if (floatPcm) bb.remaining() / 4 / channels else bb.remaining() / 2 / channels
+              // drop samples that come before the part's start
+              val skip = (((startUs - info.presentationTimeUs).coerceAtLeast(0) * inRate) / 1_000_000).toInt().coerceAtMost(total)
+              val n = total - skip
+              if (n > 0) {
+                val mono = FloatArray(n)
+                if (floatPcm) {
+                  val fb = bb.asFloatBuffer()
+                  for (i in 0 until n) { var v = 0f; for (c in 0 until channels) v += fb.get((skip + i) * channels + c); mono[i] = v / channels }
+                } else {
+                  val sb = bb.asShortBuffer()
+                  for (i in 0 until n) { var v = 0f; for (c in 0 until channels) v += sb.get((skip + i) * channels + c) / 32768f; mono[i] = v / channels }
+                }
+                val rs = resampler ?: Resampler(inRate, outRate).also { resampler = it }
+                val res = rs.process(mono, n)
+                put(res.first, res.second)
+              }
+            }
+            codec.releaseOutputBuffer(outIdx, false)
+            if ((info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) break
+          }
+        }
+        resampler?.let { val tail = it.flush(); put(tail.first, tail.second) }
+        perRange[r] = written
+        progress((r + 1).toDouble() / starts.size)
+      }
+      Log.i("VoiceClarity", "decode ${starts.size} ranges (${codec.name}): ${SystemClock.elapsedRealtime() - tStart} ms, ${perRange.sum()} frames, $inRate Hz -> $outRate Hz")
+    } finally {
+      try { codec.stop() } catch (_: Exception) {}
+      codec.release()
+      ex.release()
+      out.close()
+    }
+    return Pair(perRange, Result(perRange.sum(), inRate, channels))
+  }
+
   private fun writeShorts(out: BufferedOutputStream, x: FloatArray, n: Int): Long {
     if (n == 0) return 0
     val bytes = ByteBuffer.allocate(n * 2).order(ByteOrder.LITTLE_ENDIAN)

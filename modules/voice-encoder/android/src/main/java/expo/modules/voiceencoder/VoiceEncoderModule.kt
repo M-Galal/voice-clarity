@@ -43,6 +43,20 @@ class VoiceEncoderModule : Module() {
       }
     }
 
+    // Decodes only the given parts (seconds) into one PCM file; used for quick analysis and previews.
+    AsyncFunction("decodeRangesToPcm") { id: String, inputUri: String, outputUri: String, sampleRate: Int, starts: List<Double>, lengths: List<Double> ->
+      val ctx = appContext.reactContext ?: throw IllegalStateException("No React context")
+      cancelled.remove(id)
+      try {
+        val (per, r) = PcmDecoder(ctx).decodeRanges(inputUri, toPath(outputUri), sampleRate, starts, lengths, { cancelled.contains(id) }) { p ->
+          sendEvent("onDecodeProgress", mapOf("id" to id, "fraction" to p))
+        }
+        mapOf("frames" to per.map { it.toDouble() }, "sourceRate" to r.sourceRate, "sourceChannels" to r.sourceChannels)
+      } finally {
+        cancelled.remove(id)
+      }
+    }
+
     Function("cancelDecode") { id: String -> cancelled.add(id) }
   }
 

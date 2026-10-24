@@ -190,3 +190,48 @@ export async function decodeToPcmFile(
   const source = new PcmFileSource(file, d.sampleRate, n, 'i16');
   return { source, file, channels: d.channels.length, dispose: () => { source.close(); dispose(); } };
 }
+
+export interface DecodedParts extends DecodedPcm {
+  /** Frames decoded for each requested part, in order. */
+  partFrames: number[];
+}
+
+/**
+ * Decodes only some parts of a recording (start/length in seconds) into one temporary PCM file,
+ * by seeking: a few minutes of a long recording are ready quickly. Returns null when this build
+ * or format cannot do that, so the caller can fall back to decoding everything.
+ */
+export async function decodeRangesToPcmFile(
+  uri: string,
+  sampleRate: number,
+  parts: { start: number; length: number }[],
+  onProgress?: (f: number) => void,
+  isCancelled?: () => boolean,
+): Promise<DecodedParts | null> {
+  if (!VoiceEncoder?.decodeRangesToPcm || parts.length === 0) return null;
+  const file = new File(tempDir(), `parts-${newId()}.pcm`);
+  const id = newId();
+  const sub = VoiceEncoder.addListener('onDecodeProgress', (e) => { if (e.id === id) onProgress?.(e.fraction); });
+  const poll = isCancelled ? setInterval(() => { if (isCancelled()) VoiceEncoder!.cancelDecode(id); }, 200) : null;
+  try {
+    const t0 = Date.now();
+    const r = await VoiceEncoder.decodeRangesToPcm(id, uri, file.uri, sampleRate, parts.map((p) => p.start), parts.map((p) => p.length));
+    const total = r.frames.reduce((a, b) => a + b, 0);
+    console.log(`[VC] range-decoded ${parts.length} parts, ${(total / sampleRate).toFixed(1)}s @${sampleRate} in ${Date.now() - t0} ms`);
+    const source = new PcmFileSource(file, sampleRate, total, 'i16');
+    return {
+      source, file, channels: r.sourceChannels, partFrames: r.frames,
+      dispose: () => { source.close(); try { if (file.exists) file.delete(); } catch { /* gone */ } },
+    };
+  } catch (e) {
+    try { if (file.exists) file.delete(); } catch { /* gone */ }
+    if (isCancelled?.()) throw Object.assign(new Error('Processing was cancelled'), { name: 'CancelledError' });
+    console.warn(`[VC] range decode failed, decoding everything instead: ${e instanceof Error ? e.message : String(e)}`);
+    return null;
+  } finally {
+    sub.remove();
+    if (poll) clearInterval(poll);
+  }
+}
+
+export { samplePlan } from './samplePlan';
