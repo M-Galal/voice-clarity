@@ -9,11 +9,9 @@ import VoiceEncoder from '../../modules/voice-encoder/src/VoiceEncoderModule';
 import { aacBitrate, MIME, saveTarget, type SaveTarget } from '../edit/saveFormat';
 import { CancelledError } from '../dsp/denoise';
 import type { EnhanceSettings, EnhanceSummary } from '../dsp/pipeline';
-import { analyseForSmart, analyseStream, enhanceStream, memoryTemp, RangeSource, type SampleSink, type SampleSource, type SmartAnalysis } from '../dsp/stream';
-import { SpectrumMeter, type Spectrum } from '../dsp/spectrum';
-import { decodeRangesToPcmFile, decodeToPcmFile, fileTemp, samplePlan, WavFileSink, type DecodedPcm } from './pcm';
+import { analyseForSmart, analyseStream, enhanceStream, type SampleSource, type SmartAnalysis } from '../dsp/stream';
+import { decodeRangesToPcmFile, decodeToPcmFile, fileTemp, samplePlan, SeekingSource, WavFileSink, type DecodedPcm } from './pcm';
 import { mapToParts } from './samplePlan';
-import type { SectionSetting } from '../dsp/autoTune';
 import type { Segment } from '../dsp/vad';
 import { toJson, toSrt, toTxt, toVtt, type Transcript } from '../transcript/format';
 import type { Bookmark, Recording } from '../types';
@@ -185,20 +183,6 @@ export async function enhanceToPreview(
   }
 }
 
-export const PREVIEW_SEC = 60;
-
-export interface PreviewRender {
-  originalUri: string;
-  enhancedUri: string;
-  report: EnhanceSummary['report'];
-  /** Where the previewed part starts in the recording, and its length (s). */
-  startSec: number;
-  lengthSec: number;
-  /** Average spectra of the part before and after processing. */
-  spectrum: { original: Spectrum; enhanced: Spectrum };
-  /** Smart mode per section: the sections of this part (seconds from the part's start). */
-  sections: SectionSetting[] | null;
-}
 
 /**
  * Quick previews of enhancement settings on a short part of the recording. The recording is
@@ -213,9 +197,7 @@ export const FULL_DECODE_MAX_SEC = 12 * 60;
 export class EnhancePreviewer {
   private decoded: DecodedPcm | null = null;
   private decodedRate = 0;
-  private files: File[] = [];
-  /** Last previewed part of a long recording (decoded by seeking), reused while start and rate stay. */
-  private part: { key: string; decoded: DecodedPcm } | null = null;
+  private seeking: SeekingSource | null = null;
   private readonly long: boolean;
 
   constructor(private readonly rec: Recording) {
@@ -255,83 +237,40 @@ export class EnhancePreviewer {
     return r;
   }
 
+  private pending: { rate: number; p: Promise<void> } | null = null;
+  /** Decodes the whole recording at `rate` once; callers asking at the same time share it. */
   async prepare(rate: number, onProgress: (f: number) => void, isCancelled: () => boolean): Promise<void> {
     if (this.decoded && this.decodedRate === rate) return;
-    this.decoded?.dispose();
-    this.decoded = null;
-    this.decoded = await decodeToPcmFile(originalUri(this.rec), rate, this.rec.durationSec, onProgress, isCancelled);
-    this.decodedRate = rate;
+    if (this.pending?.rate === rate) return this.pending.p;
+    const p = (async () => {
+      this.decoded?.dispose();
+      this.decoded = null;
+      this.decoded = await decodeToPcmFile(originalUri(this.rec), rate, this.rec.durationSec, onProgress, isCancelled);
+      this.decodedRate = rate;
+    })();
+    this.pending = { rate, p };
+    try { await p; } finally { if (this.pending?.p === p) this.pending = null; }
   }
 
-  /** The audio of the part to preview: decoded by seeking for long recordings, else from the whole decode. */
-  private async partSource(startSec: number, rate: number, onProgress: (f: number) => void, isCancelled: () => boolean): Promise<{ src: SampleSource; startSec: number }> {
-    if (this.long) {
-      const start = Math.max(0, Math.min(startSec, this.rec.durationSec - 1));
-      const key = `${rate}|${start}`;
-      if (this.part?.key === key) return { src: this.part.decoded.source, startSec: start };
-      const length = Math.min(PREVIEW_SEC, this.rec.durationSec - start);
-      const d = await decodeRangesToPcmFile(originalUri(this.rec), rate, [{ start, length }], onProgress, isCancelled);
-      if (d) {
-        this.part?.decoded.dispose();
-        this.part = { key, decoded: d };
-        return { src: d.source, startSec: start };
+  /**
+   * The recording at `rate` for live listening: the whole decode for short recordings (shared
+   * with the Smart analysis and the full run), decoded by seeking in 20 s blocks for long ones.
+   */
+  async liveSource(rate: number, onProgress: (f: number) => void, isCancelled: () => boolean): Promise<SampleSource> {
+    if (this.long && VoiceEncoder?.decodeRangesToPcm) {
+      if (this.seeking?.sampleRate !== rate) {
+        this.seeking?.dispose();
+        this.seeking = new SeekingSource(originalUri(this.rec), rate, this.rec.durationSec);
       }
+      return this.seeking;
     }
     await this.prepare(rate, onProgress, isCancelled);
-    const src = this.decoded!.source;
-    const sr = src.sampleRate;
-    const start = Math.max(0, Math.min(src.length - 1, Math.round(startSec * sr)));
-    return { src: new RangeSource(src, start, Math.min(Math.round(PREVIEW_SEC * sr), src.length - start)), startSec: start / sr };
-  }
-
-  /** Writes the original part and the processed part; returns their URIs, report and spectra. */
-  async render(startSec: number, rate: number, settings: EnhanceSettings, isCancelled: () => boolean, onPrepare: (f: number) => void = () => {}): Promise<PreviewRender> {
-    const { src: part, startSec: actualStart } = await this.partSource(startSec, rate, onPrepare, isCancelled);
-    const sr = part.sampleRate;
-    const stamp = Date.now();
-    const orig = new File(tempDir(), `${this.rec.id}-pv-orig-${stamp}.wav`);
-    const enh = new File(tempDir(), `${this.rec.id}-pv-enh-${stamp}.wav`);
-    const so = new WavFileSink(orig, sr);
-    const specOrig = new SpectrumMeter(sr);
-    for (let pos = 0; pos < part.length; pos += sr * 5) {
-      const x = await part.read(pos, Math.min(sr * 5, part.length - pos));
-      specOrig.push(x);
-      await so.write(x);
-    }
-    so.close();
-    const se = new WavFileSink(enh, sr);
-    const specEnh = new SpectrumMeter(sr);
-    const tee: SampleSink = { write: async (x) => { specEnh.push(x); await se.write(x); } };
-    try {
-      const { report, sections } = await enhanceStream(part, tee, settings, memoryTemp, { isCancelled, yieldFn: yieldToUi });
-      se.close();
-      this.cleanup();
-      this.files = [orig, enh];
-      return {
-        originalUri: orig.uri,
-        enhancedUri: enh.uri,
-        report,
-        startSec: actualStart,
-        lengthSec: part.length / sr,
-        spectrum: { original: specOrig.bands(), enhanced: specEnh.bands() },
-        sections,
-      };
-    } catch (e) {
-      try { se.close(); } catch { /* closed */ }
-      for (const f of [orig, enh]) { try { if (f.exists) f.delete(); } catch { /* gone */ } }
-      throw e;
-    }
-  }
-
-  private cleanup() {
-    for (const f of this.files) { try { if (f.exists) f.delete(); } catch { /* gone */ } }
-    this.files = [];
+    return this.decoded!.source;
   }
 
   dispose() {
-    this.cleanup();
-    this.part?.decoded.dispose();
-    this.part = null;
+    this.seeking?.dispose();
+    this.seeking = null;
     this.decoded?.dispose();
     this.decoded = null;
   }

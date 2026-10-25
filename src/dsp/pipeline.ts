@@ -9,7 +9,7 @@
  */
 import { applyChain, designBiquad, type BiquadCoeffs } from './biquad';
 import { mixToMono, removeSilence } from './buffers';
-import { CancelledError, denoise, detectHum, type Progress } from './denoise';
+import { CancelledError, DD_SMOOTHING, denoise, detectHum, type Progress } from './denoise';
 import { applyGain, attenuateGaps, detectClipping, levelSpeech, limit } from './dynamics';
 import { kWeight, loudnessPair, samplePeakDb, speechLoudness, truePeakDb } from './loudness';
 import { chooseSettings, measureForAuto, type AutoMeasures, type AutoReason, type SectionKind } from './autoTune';
@@ -222,7 +222,7 @@ export async function enhance(
       x,
       sampleRate,
       segments,
-      { overSubtraction: clamp(settings.noiseAmount, 0.5, 3), floorDb: clamp(settings.noiseFloorDb, -40, -3), smoothing: 0.6 },
+      { overSubtraction: clamp(settings.noiseAmount, 0.5, 3), floorDb: clamp(settings.noiseFloorDb, -40, -3), smoothing: DD_SMOOTHING, rule: 'wiener-dd' },
       {
         isCancelled: progress.isCancelled,
         yieldFn: progress.yieldFn,

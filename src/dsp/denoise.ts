@@ -20,7 +20,23 @@ export interface DenoiseOptions {
   floorDb: number;
   /** Time smoothing of gains, 0–0.95. Higher = fewer artefacts, slower response. */
   smoothing: number;
+  /**
+   * 'subtract': power spectral subtraction. 'wiener-dd': Wiener gain with the decision-directed
+   * a priori SNR estimate (Ephraim & Malah), which smooths the estimate over time.
+   */
+  rule?: 'subtract' | 'wiener-dd';
 }
+
+/**
+ * Decision-directed weight on the previous frame's clean estimate. 0.98 is the classic value;
+ * 0.8 (with gain smoothing 0.3) was measured on synthetic speech in pink noise at 15 and 5 dB SNR
+ * against spectral subtraction (smoothing 0.6) for every strength preset: pauses 3-5 dB cleaner,
+ * less frame-to-frame fluctuation of the residual ("musical noise"), and equal or better
+ * segmental SNR of the speech (tests/denoise-quality.test.ts repeats the comparison).
+ */
+export const DD_ALPHA = 0.8;
+/** Gain smoothing used with the decision-directed rule. */
+export const DD_SMOOTHING = 0.3;
 
 export interface Progress {
   onProgress?: (fraction: number) => void;
@@ -121,6 +137,9 @@ export async function denoise(
   const im = new Float32Array(bins);
   const prevGain = new Float32Array(bins).fill(1);
   const gain = new Float32Array(bins);
+  const prevClean = new Float32Array(bins); // |S|² estimate of the previous frame (wiener-dd)
+  const dd = opts.rule === 'wiener-dd';
+  const power = new Float32Array(bins);
   const totalFrames = Math.floor((padded.length - n) / hop) + 1;
   const chunk = 400;
 
@@ -132,9 +151,18 @@ export async function denoise(
     const isNoise = !speechFrame[f];
     for (let k = 0; k < bins; k++) {
       const p = re[k] * re[k] + im[k] * im[k];
+      power[k] = p;
       if (isNoise) noise[k] = 0.97 * noise[k] + 0.03 * p;
-      const g = p > 0 ? Math.max(floor * floor, 1 - (opts.overSubtraction * noise[k]) / p) : floor * floor;
-      gain[k] = Math.sqrt(g); // power gain → amplitude gain
+      if (dd) {
+        const nk = noise[k] > 1e-20 ? noise[k] : 1e-20;
+        const post = p / nk - 1;
+        const xi = DD_ALPHA * (prevClean[k] / nk) + (1 - DD_ALPHA) * (post > 0 ? post : 0);
+        const w = xi / (xi + opts.overSubtraction);
+        gain[k] = w > floor ? w : floor;
+      } else {
+        const g = p > 0 ? Math.max(floor * floor, 1 - (opts.overSubtraction * noise[k]) / p) : floor * floor;
+        gain[k] = Math.sqrt(g); // power gain → amplitude gain
+      }
     }
     // smooth across neighbouring bins, then across time
     for (let k = 0; k < bins; k++) {
@@ -146,6 +174,7 @@ export async function denoise(
     for (let k = 0; k < bins; k++) {
       const g = prevGain[k];
       re[k] *= g; im[k] *= g;
+      if (dd) prevClean[k] = g * g * power[k];
     }
     fft.inverse(re, im, buf);
     for (let i = 0; i < n; i++) out[pos + i] += buf[i] * win[i];

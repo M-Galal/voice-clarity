@@ -144,30 +144,22 @@ appId: com.example.voiceclarity
     element:
       id: "per-section"
 - takeScreenshot: 10_enhance_setup
-# preview 15 s with the current (Smart) settings, compare, then change a setting: it re-renders
-- scrollUntilVisible:
-    element:
-      id: "pv-render"
-- tapOn:
-    id: "pv-render"
-# the result line appears below the buttons: scroll while waiting for it
+# live listening: play with the Smart settings, switch original/enhanced, change a setting while playing
 - scrollUntilVisible:
     element:
       id: "pv-summary"
     timeout: 120000
 - tapOn:
     id: "pv-play"
+- scrollUntilVisible:
+    element:
+      id: "pv-spectrum"
+    timeout: 20000
 - tapOn:
     id: "pv-ab-original"
 - tapOn:
     id: "pv-ab-enhanced"
-- scrollUntilVisible:
-    element:
-      id: "pv-spectrum"
-- scrollUntilVisible:
-    element:
-      id: "pv-section-list"
-- takeScreenshot: 10b_preview
+- takeScreenshot: 10b_live
 - repeat:
     while:
       notVisible:
@@ -178,7 +170,7 @@ appId: com.example.voiceclarity
           start: 4%, 30%
           end: 4%, 70%
           duration: 400
-- takeScreenshot: 10d_preview_sections
+- takeScreenshot: 10d_live_sections
 # Swipe near the left edge: a swipe through the middle lands on a slider and moves it
 # instead of scrolling the page.
 - repeat:
@@ -196,11 +188,10 @@ appId: com.example.voiceclarity
 - scrollUntilVisible:
     element:
       id: "pv-summary"
-    timeout: 60000
+    timeout: 20000
+- takeScreenshot: 10c_live_strong
 - tapOn:
     id: "pv-play"
-    optional: true
-- takeScreenshot: 10c_preview_strong
 - repeat:
     while:
       notVisible:

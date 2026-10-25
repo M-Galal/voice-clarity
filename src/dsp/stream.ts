@@ -21,7 +21,7 @@
  */
 import { BiquadChainState, designBiquad, type BiquadCoeffs } from './biquad';
 import { chooseSettings, countSections, planSections, type AutoMeasures, type AutoReason, type SectionSetting, type SectionWindow } from './autoTune';
-import { CancelledError, detectHum, frameSizeFor, type Progress } from './denoise';
+import { CancelledError, DD_ALPHA, DD_SMOOTHING, detectHum, frameSizeFor, type Progress } from './denoise';
 import { RealFFT } from './fft';
 import { KLoudnessMeter, kWeightingCoeffs, loudnessFromBlocks, TruePeakMeter, type BlockPower } from './loudness';
 import type { EnhanceReport, EnhanceSettings, LevelReport, WarningCode } from './pipeline';
@@ -105,7 +105,7 @@ export const memoryTemp: TempFactory = (sampleRate) => {
 
 export const CHUNK_SEC = 8;
 /** Clarity boost of the filter that per-section clarity is mixed from, dB. */
-const CLARITY_MAX_DB = 6;
+export const CLARITY_MAX_DB = 6;
 let chunkOverride = 0;
 /** Tests only: read in chunks of exactly `n` samples (0 = normal 8 s chunks). */
 export function setChunkSamplesForTests(n: number) { chunkOverride = n; }
@@ -158,7 +158,7 @@ class ClipCounter {
   }
 }
 
-const peakOf = (x: Float32Array, cur: number) => {
+export const peakOf = (x: Float32Array, cur: number) => {
   let p = cur;
   for (let i = 0; i < x.length; i++) { const a = Math.abs(x[i]); if (a > p) p = a; }
   return p;
@@ -196,7 +196,7 @@ class RangeEnergy {
 }
 
 /** Value of speechMask(length, sr, segments, rampMs) for samples [start, start+count). */
-function maskRange(segments: Segment[], sampleRate: number, length: number, rampMs: number, start: number, count: number): Float32Array {
+export function maskRange(segments: Segment[], sampleRate: number, length: number, rampMs: number, start: number, count: number): Float32Array {
   const mask = new Float32Array(count);
   const ramp = Math.max(1, Math.round((rampMs / 1000) * sampleRate));
   const end = start + count;
@@ -269,7 +269,7 @@ function joinBuf(a: Float32Array, b: Float32Array): Float32Array {
 }
 
 /** Mean noise power spectrum, fed chunk by chunk (same frames as estimateNoiseProfile). */
-class NoiseProfileAccumulator {
+export class NoiseProfileAccumulator {
   private readonly n: number;
   private readonly hop: number;
   private readonly bins: number;
@@ -350,7 +350,7 @@ class NoiseProfileAccumulator {
 }
 
 /** Spectral subtraction fed chunk by chunk; output equals denoise() on the whole signal. */
-class StreamingDenoiser {
+export class StreamingDenoiser {
   private readonly n: number;
   private readonly hop: number;
   private readonly bins: number;
@@ -363,6 +363,9 @@ class StreamingDenoiser {
   private readonly im: Float32Array;
   private readonly prevGain: Float32Array;
   private readonly gain: Float32Array;
+  private readonly prevClean: Float32Array;
+  private readonly power: Float32Array;
+  private readonly dd: boolean;
   private readonly acc: Float32Array; // overlap-add for padded positions [framePos, framePos + n)
   private pend: Float32Array; // padded input from pendStart
   private pendStart = 0;
@@ -375,7 +378,7 @@ class StreamingDenoiser {
     private readonly sampleRate: number,
     private readonly segments: Segment[],
     private readonly noise: Float32Array,
-    private readonly opts: { overSubtraction: number; floorDb: number; smoothing: number },
+    private readonly opts: { overSubtraction: number; floorDb: number; smoothing: number; rule?: 'subtract' | 'wiener-dd' },
     private readonly length: number,
     /** Per-section over-subtraction and floor (dB); replaces opts.overSubtraction / floorDb. */
     private readonly control: { over: SectionCurve; floorDb: SectionCurve } | null = null,
@@ -392,6 +395,9 @@ class StreamingDenoiser {
     this.im = new Float32Array(this.bins);
     this.prevGain = new Float32Array(this.bins).fill(1);
     this.gain = new Float32Array(this.bins);
+    this.prevClean = new Float32Array(this.bins);
+    this.power = new Float32Array(this.bins);
+    this.dd = opts.rule === 'wiener-dd';
     this.acc = new Float32Array(this.n);
     this.pend = new Float32Array(this.n); // leading padding
   }
@@ -421,12 +427,23 @@ class StreamingDenoiser {
         floor = Math.pow(10, clamp(this.control.floorDb.at(t), -40, -3) / 20);
       }
       const f2 = floor * floor;
+      const dd = this.dd, prevClean = this.prevClean, power = this.power;
       for (let k = 0; k < bins; k++) {
         const p = re[k] * re[k] + im[k] * im[k];
+        power[k] = p;
         if (isNoise) noise[k] = 0.97 * noise[k] + 0.03 * p;
-        let g = f2;
-        if (p > 0) { const v = 1 - (over * noise[k]) / p; g = v > f2 ? v : f2; }
-        gain[k] = Math.sqrt(g);
+        if (dd) {
+          // Wiener gain from the decision-directed a priori SNR (same as denoise())
+          const nk = noise[k] > 1e-20 ? noise[k] : 1e-20;
+          const post = p / nk - 1;
+          const xi = DD_ALPHA * (prevClean[k] / nk) + (1 - DD_ALPHA) * (post > 0 ? post : 0);
+          const w = xi / (xi + over);
+          gain[k] = w > floor ? w : floor;
+        } else {
+          let g = f2;
+          if (p > 0) { const v = 1 - (over * noise[k]) / p; g = v > f2 ? v : f2; }
+          gain[k] = Math.sqrt(g);
+        }
       }
       const last = bins - 1;
       for (let k = 0; k < bins; k++) {
@@ -435,7 +452,11 @@ class StreamingDenoiser {
         const g = smooth * prevGain[k] + (1 - smooth) * fs;
         prevGain[k] = Math.max(floor, Math.min(1, g));
       }
-      for (let k = 0; k < bins; k++) { const g = prevGain[k]; re[k] *= g; im[k] *= g; }
+      for (let k = 0; k < bins; k++) {
+        const g = prevGain[k];
+        re[k] *= g; im[k] *= g;
+        if (dd) prevClean[k] = g * g * power[k];
+      }
       this.fft.inverse(re, im, frameBuf);
       for (let i = 0; i < n; i++) acc[i] += frameBuf[i] * win[i];
       // samples [framePos, framePos + hop) receive no more frames
@@ -494,7 +515,7 @@ function concat(parts: Float32Array[]): Float32Array {
 // ------------------------------------------------------------------ limiter
 
 /** The look-ahead limiter of dynamics.limit(), fed chunk by chunk (output delayed by the look-ahead). */
-class StreamingLimiter {
+export class StreamingLimiter {
   private readonly ceil: number;
   private readonly L: number;
   private readonly atk: number;
@@ -957,7 +978,7 @@ export async function enhanceStream(
     const dn = noiseProfile
       ? new StreamingDenoiser(
         sr, segments, noiseProfile,
-        { overSubtraction: clamp(settings.noiseAmount, 0.5, 3), floorDb: clamp(settings.noiseFloorDb, -40, -3), smoothing: 0.6 }, len,
+        { overSubtraction: clamp(settings.noiseAmount, 0.5, 3), floorDb: clamp(settings.noiseFloorDb, -40, -3), smoothing: DD_SMOOTHING, rule: 'wiener-dd' }, len,
         sections ? { over: new SectionCurve(sections, (x) => x.noiseAmount), floorDb: new SectionCurve(sections, (x) => x.noiseFloorDb) } : null,
       )
       : null;

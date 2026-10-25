@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useKeepAwake } from 'expo-keep-awake';
 import { isSituation, settingsForPreset, SITUATIONS, type EnhanceSummary as EnhanceResult, type EnhanceSettings, type Strength, type WarningCode } from '../dsp/pipeline';
 import { dbToPercent, formatDb, formatLevel, percentToDb } from '../dsp/units';
-import { audioUri, commitPreview, deleteEnhanced, discardPreview, EnhancePreviewer, enhanceToPreview, PREVIEW_SEC, type CancelToken, type PreviewRender } from '../services/processing';
-import { countSections, type SectionKind, type SectionSetting } from '../dsp/autoTune';
+import { audioUri, commitPreview, deleteEnhanced, discardPreview, EnhancePreviewer, enhanceToPreview, type CancelToken } from '../services/processing';
+import { LivePlayer } from '../services/livePlayer';
+import type { LiveContext } from '../dsp/live';
+import { chooseSettings, countSections, type SectionKind, type SectionSetting } from '../dsp/autoTune';
 import type { SmartAnalysis } from '../dsp/stream';
 import type { Spectrum } from '../dsp/spectrum';
 import { Waveform } from '../ui/Waveform';
@@ -61,11 +63,11 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
     }
   };
   const wantSmart = s.strength === 'auto';
+  // the analysis also feeds live listening (speech, hum, levels), so it runs for every preset
   useEffect(() => {
-    if (!wantSmart) return;
     const h = setTimeout(() => { void analyse(); }, 0);
     return () => clearTimeout(h);
-  }, [wantSmart, rate]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [rate]); // eslint-disable-line react-hooks/exhaustive-deps
   // The preview uses the whole-file Smart measurements (file settings and the level that marks
   // distant speech), not a choice made from the previewed minute alone.
   const previewSettings: EnhanceSettings = wantSmart && smart.kind === 'ready' ? { ...s, autoMeasures: smart.analysis.measures } : s;
@@ -191,7 +193,7 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
             ) : null}
           </Section>
 
-          <PreviewPanel rec={rec} pv={pv} settings={previewSettings} rate={rate} sections={fileSections} />
+          <LivePanel key={rate} rec={rec} pv={pv} settings={previewSettings} rate={rate} smart={smart.kind === 'ready' ? smart.analysis : null} sections={fileSections} />
 
           <Card style={{ borderColor: colors.primary, borderWidth: 2 }}>
             <Txt bold>{t('settings_summary')}</Txt>
@@ -212,11 +214,6 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
     </View>
   );
 }
-
-type PreviewState =
-  | { kind: 'idle' }
-  | { kind: 'working'; label: string; progress?: number }
-  | ({ kind: 'ready' } & PreviewRender);
 
 type SmartState =
   | { kind: 'idle' }
@@ -306,81 +303,87 @@ function SectionStrip({ sections, duration }: { sections: SectionSetting[]; dura
 }
 
 /**
- * Listen to a 1-minute part processed with the current settings before running the whole file.
- * The timeline shows where the part sits in the recording (tap inside it to seek, outside to
- * move it); after the first preview, any settings change renders a new one (debounced).
+ * Live listening: the recording plays with the current settings applied as it plays (changes
+ * are heard within about a second), from any point of the timeline. Original/Enhanced switches
+ * instantly. The saved file is made by the full run, which can differ slightly in loudness.
  */
-function PreviewPanel({ rec, pv, settings, rate, sections }: { rec: Recording; pv: EnhancePreviewer; settings: EnhanceSettings; rate: number; sections: SectionSetting[] | null }) {
+function LivePanel({ rec, pv, settings, rate, smart, sections }: { rec: Recording; pv: EnhancePreviewer; settings: EnhanceSettings; rate: number; smart: SmartAnalysis | null; sections: SectionSetting[] | null }) {
   const app = useApp();
-  const { t } = app;
-  const maxStart = Math.max(0, Math.floor(rec.durationSec - PREVIEW_SEC));
-  const [start, setStart] = useState(() => Math.min(maxStart, bestPreviewStart(rec.segments ?? [], rec.durationSec, PREVIEW_SEC)));
-  const [state, setState] = useState<PreviewState>({ kind: 'idle' });
+  const { t, colors } = app;
+  const [player, setPlayer] = useState<LivePlayer | null>(null);
+  const [prep, setPrep] = useState<number | null>(0);
+  const [status, setStatus] = useState({ playing: false, position: bestPreviewStart(rec.segments ?? [], rec.durationSec, 15) });
   const [which, setWhich] = useState<'original' | 'enhanced'>('enhanced');
-  const [auto, setAuto] = useState(false);
-  const player = useAudioPlayer(null, { updateInterval: 250 });
-  const status = useAudioPlayerStatus(player);
-  const gen = useRef(0);
-  useEffect(() => () => { try { player.pause(); } catch { /* released */ } }, [player]);
-  // loop the part so it can be heard while settings change
+  const [spec, setSpec] = useState<{ original: Spectrum; enhanced: Spectrum } | null>(null);
+  const [gainDb, setGainDb] = useState(0);
+
+  // the source at this rate (shared decode for short recordings), and a player for it
   useEffect(() => {
-    if (status.didJustFinish) { void player.seekTo(0); player.play(); }
-  }, [status.didJustFinish]); // eslint-disable-line react-hooks/exhaustive-deps
+    let alive = true;
+    let made: LivePlayer | null = null;
+    pv.liveSource(rate, (f) => { if (alive) setPrep(f); }, () => !alive)
+      .then((src) => {
+        if (!alive) return;
+        made = new LivePlayer(src);
+        made.onError = (e) => app.showError(e);
+        made.onEnded = () => setStatus((x) => ({ ...x, playing: false }));
+        setPlayer(made);
+        setPrep(null);
+      })
+      .catch((e) => { if (alive) { setPrep(null); app.showError(e); } });
+    return () => { alive = false; void made?.dispose(); };
+  }, [pv, rate]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const renderNow = async () => {
-    const my = ++gen.current;
-    const stale = () => my !== gen.current;
-    try {
-      setState({ kind: 'working', label: t('pv_preparing'), progress: 0 });
-      const vad = { ...settings, vad: { ...settings.vad, thresholdDb: app.settings.vadThresholdDb, whisper: app.settings.vadWhisper } };
-      let prepared = false;
-      const r = await pv.render(start, rate, vad, stale, (f) => {
-        if (stale()) return;
-        if (f >= 1 && !prepared) { prepared = true; setState({ kind: 'working', label: t('pv_rendering') }); }
-        else if (!prepared) setState({ kind: 'working', label: t('pv_preparing'), progress: f });
-      });
-      if (stale()) return;
-      const wasPlaying = player.playing;
-      const pos = player.currentTime;
-      player.replace({ uri: which === 'enhanced' ? r.enhancedUri : r.originalUri, name: rec.name });
-      setTimeout(() => {
-        if (pos > 0 && pos < r.lengthSec) void player.seekTo(pos);
-        if (wasPlaying) player.play();
-      }, 150);
-      setState({ kind: 'ready', ...r });
-      setAuto(true);
-    } catch (e) {
-      if (stale()) return;
-      setState({ kind: 'idle' });
-      app.showError(e);
-    }
-  };
-
-  // after the first preview, follow every settings change
+  // settings (and what the analysis found) go to the player as they change
+  const live = useMemo(() => {
+    if (!smart) return null;
+    const vad = { ...settings.vad, thresholdDb: app.settings.vadThresholdDb, whisper: app.settings.vadWhisper };
+    const resolved: EnhanceSettings = settings.strength === 'auto'
+      ? { ...chooseSettings({ ...settings, vad }, settings.autoMeasures ?? smart.measures).settings }
+      : { ...settings, vad };
+    const ctx: LiveContext = {
+      segments: smart.sampled ? rec.segments ?? [] : smart.segments,
+      humHz: smart.humHz,
+      sections: settings.strength === 'auto' ? sections : null,
+      speechRefDb: smart.measures.speechRefDb,
+      inputSpeechLufs: smart.input.speechLufs,
+    };
+    return { resolved, ctx };
+  }, [settings, smart, sections, rec.segments, app.settings.vadThresholdDb, app.settings.vadWhisper]);
   useEffect(() => {
-    if (!auto) return;
-    const h = setTimeout(() => { void renderNow(); }, 700);
-    return () => clearTimeout(h);
-  }, [settings, rate, start]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (player && live) player.configure(live.resolved, live.ctx);
+  }, [player, live]);
 
-  const switchTo = (w: 'original' | 'enhanced') => {
-    if (w === which || state.kind !== 'ready') { setWhich(w); return; }
-    const pos = player.currentTime;
-    const wasPlaying = player.playing;
-    setWhich(w);
-    player.replace({ uri: w === 'enhanced' ? state.enhancedUri : state.originalUri, name: rec.name });
-    setTimeout(() => { void player.seekTo(pos); if (wasPlaying) player.play(); }, 150);
+  // playhead, spectrum and gain while playing
+  useEffect(() => {
+    if (!player) return;
+    let n = 0;
+    const h = setInterval(() => {
+      setStatus({ playing: player.playing, position: player.position() });
+      if (player.playing && ++n % 4 === 0) {
+        const sp = player.spectrum();
+        if (sp) setSpec(sp);
+        setGainDb(player.gainDb);
+      }
+    }, 250);
+    return () => clearInterval(h);
+  }, [player]);
+  useEffect(() => () => { void player?.pause(); }, [player]);
+
+  const ready = !!player && !!live;
+  const toggle = () => {
+    if (!player) return;
+    if (player.playing) void player.pause();
+    else void player.play(player.ended ? 0 : status.position);
   };
-
-  // timeline: inside the part seeks the preview, outside moves the part there
   const onTimeline = (time: number) => {
-    const len = state.kind === 'ready' ? state.lengthSec : PREVIEW_SEC;
-    if (state.kind === 'ready' && time >= start && time <= start + len) { void player.seekTo(time - start); return; }
-    setStart(Math.max(0, Math.min(maxStart, Math.round(time - len / 2))));
+    setStatus((x) => ({ ...x, position: time }));
+    if (player?.playing) void player.play(time);
+    else if (player) void player.seek(time);
   };
+  const switchTo = (w: 'original' | 'enhanced') => { setWhich(w); player?.setMode(w); };
+  const now = sections?.find((x) => status.position >= x.start && status.position <= x.end) ?? null;
 
-  const ready = state.kind === 'ready' ? state : null;
-  const partEnd = Math.min(rec.durationSec, start + PREVIEW_SEC);
   return (
     <Section title={t('pv_title')}>
       <Txt size="sm" muted>{t('pv_hint')}</Txt>
@@ -388,58 +391,35 @@ function PreviewPanel({ rec, pv, settings, rate, sections }: { rec: Recording; p
         <Waveform
           peaks={rec.waveform ?? []}
           duration={rec.durationSec}
-          position={ready ? start + status.currentTime : start}
+          position={status.position}
           segments={rec.segments ?? []}
           bookmarks={[]}
           onSeek={onTimeline}
           height={48}
-          selection={{ start, end: partEnd }}
-          selectionMode="keep"
         />
       </View>
       {sections?.length ? <SectionStrip sections={sections} duration={rec.durationSec} /> : null}
       <Row style={{ justifyContent: 'space-between', direction: 'ltr' }}>
-        <Txt size="xs" muted testID="pv-range">{`${clock(start)} – ${clock(partEnd)}`}</Txt>
-        <Txt size="xs" muted>{ready ? `${clock(status.currentTime)} / ${clock(ready.lengthSec)}` : clock(rec.durationSec)}</Txt>
+        <Txt size="xs" muted testID="pv-range">{clock(status.position)}</Txt>
+        <Txt size="xs" muted>{clock(rec.durationSec)}</Txt>
       </Row>
-      {state.kind === 'working' ? (
-        <ProgressBar value={state.progress ?? 0.5} label={state.label} />
-      ) : (
-        <Button testID="pv-render" compact kind={ready ? 'secondary' : 'primary'} icon="🎧" label={ready ? t('pv_update') : t('pv_listen')} onPress={() => { void renderNow(); }} />
-      )}
-      {ready || (state.kind === 'working' && auto) ? (
-        <>
-          <Row>
-            <IconButton
-              testID="pv-play"
-              icon={status.playing ? '❚❚' : '▶'}
-              label={status.playing ? t('pause') : t('play')}
-              onPress={() => (status.playing ? player.pause() : player.play())}
-              disabled={!ready}
-            />
-            <View style={{ flex: 1 }}>
-              <Choice
-                testID="pv-ab"
-                value={which}
-                onChange={switchTo}
-                options={[{ value: 'original', label: t('original') }, { value: 'enhanced', label: t('enhanced') }]}
-              />
-            </View>
-          </Row>
-          {ready ? (
-            <>
-              <SpectrumChart original={ready.spectrum.original} enhanced={ready.spectrum.enhanced} />
-              <Txt size="sm" muted testID="pv-summary">
-                {t('pv_result', { gain: `${ready.report.appliedGainDb >= 0 ? '+' : ''}${ready.report.appliedGainDb.toFixed(1)}`, lufs: Number.isFinite(ready.report.output.speechLufs) ? ready.report.output.speechLufs.toFixed(1) : '—' })}
-              </Txt>
-              {ready.sections?.length ? (
-                <Txt size="sm" muted testID="pv-section-list">
-                  {t('pv_sections', { list: ready.sections.map((x) => `${t(`sec_${x.kind}`)} ${clock(ready.startSec + x.start)}–${clock(ready.startSec + x.end)}`).join(', ') })}
-                </Txt>
-              ) : null}
-            </>
-          ) : null}
-        </>
+      {prep !== null ? <ProgressBar value={prep} label={t('pv_preparing')} /> : !live ? <Txt size="sm" muted>{t('pv_waiting')}</Txt> : null}
+      <Row>
+        <IconButton testID="pv-play" icon={status.playing ? '❚❚' : '▶'} label={status.playing ? t('pause') : t('play')} onPress={toggle} disabled={!ready} />
+        <View style={{ flex: 1 }}>
+          <Choice testID="pv-ab" value={which} onChange={switchTo} options={[{ value: 'original', label: t('original') }, { value: 'enhanced', label: t('enhanced') }]} />
+        </View>
+      </Row>
+      {now ? (
+        <Txt size="sm" testID="pv-now-section" style={{ color: sectionColor(now.kind, colors) }}>
+          {t('pv_now_section', { kind: t(`sec_${now.kind}`), noise: now.noiseAmount.toFixed(1), clarity: now.clarityDb })}
+        </Txt>
+      ) : null}
+      {spec ? <SpectrumChart original={spec.original} enhanced={spec.enhanced} /> : null}
+      {ready ? (
+        <Txt size="sm" muted testID="pv-summary">
+          {settings.gainMode === 'target' ? t('pv_live_gain', { gain: `${gainDb >= 0 ? '+' : ''}${gainDb.toFixed(1)}` }) : t('pv_live_note')}
+        </Txt>
       ) : null}
     </Section>
   );

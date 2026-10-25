@@ -235,3 +235,61 @@ export async function decodeRangesToPcmFile(
 }
 
 export { samplePlan } from './samplePlan';
+
+/**
+ * A long recording read anywhere without decoding all of it: 20 s blocks are decoded by seeking
+ * when first needed (the next block is decoded ahead), and the last few are kept.
+ */
+export class SeekingSource implements SampleSource {
+  readonly length: number;
+  private readonly blocks = new Map<number, Promise<DecodedParts | null>>();
+  private readonly order: number[] = [];
+  private readonly blockLen: number;
+
+  constructor(private readonly uri: string, readonly sampleRate: number, durationSec: number, private readonly blockSec = 20) {
+    this.length = Math.round(durationSec * sampleRate);
+    this.blockLen = Math.round(blockSec * sampleRate);
+  }
+
+  private block(b: number): Promise<DecodedParts | null> {
+    let p = this.blocks.get(b);
+    if (!p) {
+      const start = b * this.blockSec;
+      p = decodeRangesToPcmFile(this.uri, this.sampleRate, [{ start, length: this.blockSec }]);
+      this.blocks.set(b, p);
+      this.order.push(b);
+      while (this.order.length > 4) {
+        const old = this.order.shift()!;
+        void this.blocks.get(old)?.then((d) => d?.dispose());
+        this.blocks.delete(old);
+      }
+    }
+    return p;
+  }
+
+  async read(start: number, count: number): Promise<Float32Array> {
+    const n = Math.max(0, Math.min(count, this.length - start));
+    const out = new Float32Array(n);
+    let o = 0;
+    while (o < n) {
+      const pos = start + o;
+      const b = Math.floor(pos / this.blockLen);
+      const d = await this.block(b);
+      if (!d) throw new Error('stream_decode_unavailable');
+      const off = pos - b * this.blockLen;
+      const take = Math.min(n - o, this.blockLen - off);
+      const x = off < d.source.length ? await d.source.read(off, Math.min(take, d.source.length - off)) : new Float32Array(0);
+      out.set(x, o);
+      o += take; // a block shorter than expected (end of file) leaves silence
+      // decode the next block ahead once this one is being read past its middle
+      if (off + take > this.blockLen / 2 && (b + 1) * this.blockLen < this.length) void this.block(b + 1);
+    }
+    return out;
+  }
+
+  dispose() {
+    for (const p of this.blocks.values()) void p.then((d) => d?.dispose());
+    this.blocks.clear();
+    this.order.length = 0;
+  }
+}
