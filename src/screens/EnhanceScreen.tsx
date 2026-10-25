@@ -143,14 +143,6 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
               onChange={(v) => setS((prev) => settingsForPreset(v, prev))}
               options={(['auto', 'light', 'balanced', 'strong', 'advanced'] as const).map((v) => ({ value: v as Strength, label: t(v) }))}
             />
-            <Txt size="sm" bold>{t('situation_title')}</Txt>
-            <Choice<Strength>
-              testID="situation"
-              value={s.strength}
-              onChange={(v) => setS((prev) => settingsForPreset(v, prev))}
-              options={SITUATIONS.map((v) => ({ value: v, label: t(`sit_${v}`) }))}
-            />
-            {isSituation(s.strength) ? <Txt size="sm" testID="situation-hint">{t(`sit_${s.strength}_hint`)}</Txt> : null}
             {s.strength === 'auto' ? (
               <>
                 <Txt size="sm" testID="auto-hint">{t('auto_hint')}</Txt>
@@ -164,6 +156,14 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
                 <Toggle testID="level-speech" label={t('level_speech')} value={s.levelSpeech} onChange={(v) => patch({ levelSpeech: v })} />
               </>
             )}
+            <Txt size="sm" bold>{t('situation_title')}</Txt>
+            <Choice<Strength>
+              testID="situation"
+              value={s.strength}
+              onChange={(v) => setS((prev) => settingsForPreset(v, prev))}
+              options={SITUATIONS.map((v) => ({ value: v, label: t(`sit_${v}`) }))}
+            />
+            {isSituation(s.strength) ? <Txt size="sm" testID="situation-hint">{t(`sit_${s.strength}_hint`)}</Txt> : null}
             {s.strength === 'advanced' || isSituation(s.strength) ? (
               <>
                 <LabeledSlider label={t('noise_amount')} value={s.noiseAmount} min={0.5} max={3} step={0.1} onChange={(v) => patch({ noiseAmount: v })} format={(v) => `${v.toFixed(1)}×`} disabled={!s.noiseSuppression} />
