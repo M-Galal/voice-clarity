@@ -24,6 +24,7 @@ export function TranscriptScreen({ id }: { id: string }) {
 function TranscriptView({ rec }: { rec: Recording }) {
   const { t, goBack, settings, updateSettings, updateRecording, showError, colors, fs } = useApp();
   const [running, setRunning] = useState<number | null>(null);
+  const [live, setLive] = useState<TranscriptSegment[]>([]);
   const [redo, setRedo] = useState(false);
   const job = useRef<TranscribeJob | null>(null);
   const tr = settings.transcription;
@@ -35,9 +36,10 @@ function TranscriptView({ rec }: { rec: Recording }) {
 
   const start = async () => {
     setRunning(0);
+    setLive([]);
     updateRecording(rec.id, { status: 'transcribing' });
     try {
-      job.current = await startTranscription(rec, { modelId: tr.modelId, language: tr.language, useEnhanced: tr.useEnhancedAudio, prompt: tr.prompt }, (p) => setRunning(p));
+      job.current = await startTranscription(rec, { modelId: tr.modelId, language: tr.language, useEnhanced: tr.useEnhancedAudio, prompt: tr.prompt }, (p) => setRunning(p), setLive);
       const transcript = await job.current.promise;
       updateRecording(rec.id, { transcript, status: 'ready' });
       setRedo(false);
@@ -69,7 +71,7 @@ function TranscriptView({ rec }: { rec: Recording }) {
     <View style={{ flex: 1 }}>
       <Header title={`${t('transcript')} · ${rec.name}`} onBack={() => { void job.current?.stop(); goBack(); }} />
       {running !== null ? (
-        <RunningView progress={running} onCancel={() => job.current?.stop()} />
+        <RunningView progress={running} live={live} onCancel={() => job.current?.stop()} />
       ) : showSetup ? (
         <KeyboardAwareScrollView contentContainerStyle={{ padding: space.lg, gap: space.lg }}>
             <View style={{ gap: space.lg }}>
@@ -112,13 +114,34 @@ function TranscriptView({ rec }: { rec: Recording }) {
   );
 }
 
-function RunningView({ progress, onCancel }: { progress: number; onCancel: () => void }) {
-  const { t } = useApp();
+/** Progress, and the text found so far (newest at the bottom, followed while it grows). */
+function RunningView({ progress, live, onCancel }: { progress: number; live: TranscriptSegment[]; onCancel: () => void }) {
+  const { t, colors, fs } = useApp();
   useKeepAwake();
+  const list = useRef<FlatList<TranscriptSegment>>(null);
   return (
-    <View style={{ padding: space.lg, gap: space.lg }}>
+    <View style={{ flex: 1, padding: space.lg, gap: space.md }}>
       <ProgressBar value={progress} label={t('stage_transcribe')} />
-      <Txt size="sm" muted>{t('processing_local')}</Txt>
+      <Txt size="sm" muted testID="live-status">{live.length ? t('live_found', { n: live.length, time: clock(live[live.length - 1].end) }) : t('live_waiting')}</Txt>
+      <FlatList
+        ref={list}
+        testID="live-segments"
+        data={live}
+        keyExtractor={(s) => s.id}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ gap: space.sm, paddingBottom: space.md }}
+        onContentSizeChange={() => list.current?.scrollToEnd({ animated: true })}
+        renderItem={({ item }) => {
+          const rtl = isMostlyArabic(item.text);
+          return (
+            <View testID={`live-${item.id}`} style={{ padding: space.md, borderRadius: radius, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, gap: space.xs }}>
+              <Txt size="xs" muted style={{ direction: 'ltr' }}>{`${clock(item.start)} – ${clock(item.end)}`}</Txt>
+              <Txt size="lg" style={{ writingDirection: rtl ? 'rtl' : 'ltr', textAlign: rtl ? 'right' : 'left', lineHeight: fs.lg * 1.6 }}>{item.text}</Txt>
+            </View>
+          );
+        }}
+      />
+      <Txt size="xs" muted>{t('processing_local')}</Txt>
       <Button kind="danger" label={t('cancel')} onPress={onCancel} />
     </View>
   );

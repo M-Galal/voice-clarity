@@ -87,6 +87,12 @@ export async function startTranscription(
   rec: Recording,
   opts: { modelId: string; language: string; useEnhanced: boolean; prompt: string },
   onProgress: (p: number) => void,
+  /**
+   * The text found so far, in order, while the file is still being worked through (whisper.cpp
+   * goes through the audio in 30 s windows from the start; whisper.rn reports each window's new
+   * segments). The final transcript replaces it when the run ends.
+   */
+  onSegments?: (soFar: TranscriptSegment[]) => void,
 ): Promise<TranscribeJob> {
   const model = MODELS.find((m) => m.id === opts.modelId) ?? MODELS[1];
   if (!isModelReady(model)) throw new Error('model_missing');
@@ -128,11 +134,23 @@ export async function startTranscription(
   const { wav, weak, duration } = await prepare();
 
   const context = await getContext(model);
+  const live: TranscriptSegment[] = [];
   const { stop, promise } = context.transcribe(wav.uri, {
     language: opts.language || 'auto',
     maxLen: 0,
     prompt: opts.prompt || undefined,
     onProgress: (p) => onProgress(p / 100),
+    onNewSegments: onSegments
+      ? (r) => {
+        for (const s of r.segments) {
+          const text = arabicPunctuation(cleanText(s.text));
+          // whisper.cpp times are in 10 ms units (the final result re-checks this against the duration)
+          if (text) live.push({ id: `l${live.length}`, start: s.t0 * 0.01, end: s.t1 * 0.01, text });
+        }
+        console.log(`[VC] live transcript: ${live.length} segments, up to ${live.length ? live[live.length - 1].end.toFixed(1) : 0}s`);
+        onSegments(flagSegments([...live], weak));
+      }
+      : undefined,
   });
 
   const tStart = Date.now();

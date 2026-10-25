@@ -304,6 +304,13 @@ appId: com.example.voiceclarity
 - tapOn:
     id: "start-transcribe"
 - takeScreenshot: 17_transcribing
+# the text found so far is shown while the rest is still being transcribed
+- extendedWaitUntil:
+    visible:
+      id: "live-l0"
+    timeout: 1200000
+    optional: true
+- takeScreenshot: 17b_live_text
 - extendedWaitUntil:
     visible:
       id: "seg-s0"
