@@ -48,12 +48,12 @@ appId: com.example.voiceclarity
 - tapOn:
     id: "start-transcribe"
 - takeScreenshot: 17_transcribing
-# the text found so far is shown while the rest is still being transcribed
+# the text found so far is shown while the rest is still being transcribed (a short file may
+# finish first, so the finished transcript also ends this wait)
 - extendedWaitUntil:
     visible:
-      id: "live-l0"
+      id: "(live-s0|seg-s0)"
     timeout: 1200000
-    optional: true
 - takeScreenshot: 17b_live_text
 - extendedWaitUntil:
     visible:

@@ -18,9 +18,10 @@ import {
 } from '../transcript/format';
 import type { Recording } from '../types';
 import { yieldToUi } from './audio';
-import { decodeToPcmFile, WavFileSink } from './pcm';
+import { decodeToPcmFile, toInt16 } from './pcm';
 import { audioUri } from './processing';
-import { modelsDir, tempDir } from './storage';
+import { modelsDir } from './storage';
+import { chunkTimeToRecording, GAP_SEC, planAsrChunks } from '../transcript/chunks';
 
 export interface ModelInfo {
   id: string;
@@ -87,101 +88,104 @@ export async function startTranscription(
   rec: Recording,
   opts: { modelId: string; language: string; useEnhanced: boolean; prompt: string },
   onProgress: (p: number) => void,
-  /**
-   * The text found so far, in order, while the file is still being worked through (whisper.cpp
-   * goes through the audio in 30 s windows from the start; whisper.rn reports each window's new
-   * segments). The final transcript replaces it when the run ends.
-   */
+  /** The text found so far, in order, after each chunk (the final transcript replaces it). */
   onSegments?: (soFar: TranscriptSegment[]) => void,
 ): Promise<TranscribeJob> {
   const model = MODELS.find((m) => m.id === opts.modelId) ?? MODELS[1];
   if (!isModelReady(model)) throw new Error('model_missing');
   const useEnhanced = opts.useEnhanced && !!rec.enhanced;
   const srcUri = audioUri(rec, useEnhanced ? 'enhanced' : 'original');
+  const segs = useEnhanced ? rec.enhanced!.segments : rec.segments ?? [];
 
-  // whisper.cpp works on 16 kHz mono; write it as a 16-bit WAV it can read directly. The file is
-  // decoded to a temporary PCM file and copied in chunks, so long recordings fit in memory.
-  const prepare = async () => {
-    const decoded = await decodeToPcmFile(srcUri, 16000, useEnhanced ? rec.enhanced!.report.outputDurationSec : rec.durationSec);
+  // whisper.cpp works on 16 kHz mono; the file is decoded once to a temporary PCM file
+  const decoded = await decodeToPcmFile(srcUri, 16000, useEnhanced ? rec.enhanced!.report.outputDurationSec : rec.durationSec);
+  let cancelled = false;
+  let current: { stop: () => Promise<void> } | null = null;
+  const stop = async () => { cancelled = true; await current?.stop(); };
+
+  const run = async (): Promise<Transcript> => {
     try {
       const src = decoded.source;
-      const file = new File(tempDir(), `${rec.id}-asr.wav`);
-      const sink = new WavFileSink(file, 16000);
-      const segs = useEnhanced ? rec.enhanced!.segments : rec.segments ?? [];
-      const ranges = segs.map((g) => ({ a: Math.round(g.start * 16000), b: Math.min(src.length, Math.round(g.end * 16000)) }));
-      const sums = new Float64Array(segs.length);
-      const step = 16000 * 8;
-      for (let pos = 0; pos < src.length; pos += step) {
-        const x = await src.read(pos, Math.min(step, src.length - pos));
-        ranges.forEach((r, i) => {
-          for (let k = Math.max(r.a, pos); k < Math.min(r.b, pos + x.length); k++) sums[i] += x[k - pos] * x[k - pos];
+      const duration = src.length / 16000;
+      // weak speech (little above the noise floor): its text gets a "check this" flag
+      const noiseFloor = rec.noiseFloorDb ?? -60;
+      const margins: { start: number; end: number; marginDb: number }[] = [];
+      for (const g of segs) {
+        const a = Math.round(g.start * 16000), b = Math.min(src.length, Math.round(g.end * 16000));
+        if (b <= a) continue;
+        const x = await src.read(a, b - a);
+        let e = 0;
+        for (let k = 0; k < x.length; k++) e += x[k] * x[k];
+        margins.push({ start: g.start, end: g.end, marginDb: 10 * Math.log10(e / x.length + 1e-12) - noiseFloor });
+      }
+      const weak = lowQualityRanges(margins);
+
+      const context = await getContext(model);
+      const chunks = planAsrChunks(segs, duration);
+      const gap = new Int16Array(Math.round(GAP_SEC * 16000));
+      let language = opts.language || 'auto';
+      let detected = '';
+      const raw: TranscriptSegment[] = [];
+      const tStart = Date.now();
+      for (let c = 0; c < chunks.length; c++) {
+        if (cancelled) throw new Error('aborted');
+        const ch = chunks[c];
+        // the chunk's pieces joined with short silences, as raw 16-bit PCM
+        const parts: Int16Array[] = [];
+        for (let i = 0; i < ch.pieces.length; i++) {
+          const p = ch.pieces[i];
+          const a = Math.round(p.start * 16000), b = Math.min(src.length, Math.round(p.end * 16000));
+          if (i > 0) parts.push(gap);
+          parts.push(toInt16(await src.read(a, Math.max(0, b - a))));
+        }
+        const n = parts.reduce((t, x) => t + x.length, 0);
+        const pcm = new Int16Array(n);
+        let o = 0;
+        for (const x of parts) { pcm.set(x, o); o += x.length; }
+        const job = context.transcribeData(pcm.buffer, {
+          language,
+          maxLen: 0,
+          prompt: opts.prompt || undefined,
+          onProgress: (q) => onProgress((c + q / 100) / chunks.length),
         });
-        await sink.write(x);
+        current = job;
+        const res = await job.promise;
+        current = null;
+        if (res.isAborted || cancelled) throw new Error('aborted');
+        // after auto-detection, keep the detected language for the rest (consistent and faster)
+        if (!detected && res.language) {
+          detected = res.language;
+          if (language === 'auto') language = detected;
+        }
+        const scale = detectTimeScale(res.segments.map((s) => s.t1), ch.duration);
+        for (const s of res.segments) {
+          const text = cleanText(s.text);
+          if (!text) continue;
+          raw.push({
+            id: `s${raw.length}`,
+            start: chunkTimeToRecording(ch, s.t0 * scale),
+            end: chunkTimeToRecording(ch, s.t1 * scale),
+            text: arabicPunctuation(text), // only changes mostly-Arabic text
+          });
+        }
+        onSegments?.(flagSegments(raw.map((x) => ({ ...x })), weak));
         await yieldToUi();
       }
-      sink.close();
-      const noiseFloor = rec.noiseFloorDb ?? -60;
-      const margins = segs.map((g, i) => {
-        const n = ranges[i].b - ranges[i].a;
-        const db = n > 0 ? 10 * Math.log10(sums[i] / n + 1e-12) : -120;
-        return { start: g.start, end: g.end, marginDb: db - noiseFloor };
-      });
-      return { wav: file, weak: lowQualityRanges(margins), duration: src.length / 16000 };
+      console.log(`[VC] transcribe ${duration.toFixed(1)}s model=${model.id} lang=${opts.language}: ${chunks.length} chunks, ${chunks.reduce((t, x) => t + x.duration, 0).toFixed(0)}s of speech, ${Date.now() - tStart} ms, detected=${detected}, segments=${raw.length}`);
+      onProgress(1);
+      return {
+        language: detected || opts.language,
+        requestedLanguage: opts.language,
+        model: model.file,
+        createdAt: new Date().toISOString(),
+        fromEnhanced: useEnhanced,
+        segments: flagSegments(raw, weak),
+      };
     } finally {
       decoded.dispose();
     }
   };
-  const { wav, weak, duration } = await prepare();
-
-  const context = await getContext(model);
-  const live: TranscriptSegment[] = [];
-  const { stop, promise } = context.transcribe(wav.uri, {
-    language: opts.language || 'auto',
-    maxLen: 0,
-    prompt: opts.prompt || undefined,
-    onProgress: (p) => onProgress(p / 100),
-    onNewSegments: onSegments
-      ? (r) => {
-        for (const s of r.segments) {
-          const text = arabicPunctuation(cleanText(s.text));
-          // whisper.cpp times are in 10 ms units (the final result re-checks this against the duration)
-          if (text) live.push({ id: `l${live.length}`, start: s.t0 * 0.01, end: s.t1 * 0.01, text });
-        }
-        console.log(`[VC] live transcript: ${live.length} segments, up to ${live.length ? live[live.length - 1].end.toFixed(1) : 0}s`);
-        onSegments(flagSegments([...live], weak));
-      }
-      : undefined,
-  });
-
-  const tStart = Date.now();
-  const done = promise.then((res) => {
-    console.log(`[VC] transcribe ${duration.toFixed(1)}s model=${model.id} lang=${opts.language}: ${Date.now() - tStart} ms, detected=${res.language}, segments=${res.segments.length}`);
-    if (wav.exists) wav.delete();
-    if (res.isAborted) throw new Error('aborted');
-    const scale = detectTimeScale(res.segments.map((s) => s.t1), duration);
-    const language = res.language || opts.language;
-    const raw: TranscriptSegment[] = res.segments
-      .map((s, i) => {
-        const text = cleanText(s.text);
-        return {
-          id: `s${i}`,
-          start: s.t0 * scale,
-          end: s.t1 * scale,
-          text: language === 'ar' ? arabicPunctuation(text) : text,
-        };
-      })
-      .filter((s) => s.text.length > 0);
-    const t: Transcript = {
-      language,
-      requestedLanguage: opts.language,
-      model: model.file,
-      createdAt: new Date().toISOString(),
-      fromEnhanced: useEnhanced,
-      segments: flagSegments(raw, weak),
-    };
-    return t;
-  });
-  return { stop, promise: done };
+  return { stop, promise: run() };
 }
 
 export async function releaseWhisper() {
