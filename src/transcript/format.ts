@@ -19,6 +19,8 @@ export interface Transcript {
   segments: TranscriptSegment[];
   /** True when the source audio was the enhanced copy. */
   fromEnhanced: boolean;
+  /** Lines removed because they were a known Whisper "silence" phrase, not speech. */
+  removedSilencePhrases?: number;
 }
 
 const ARABIC_RE = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/g;

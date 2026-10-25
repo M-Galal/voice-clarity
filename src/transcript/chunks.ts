@@ -61,3 +61,43 @@ export function chunkTimeToRecording(chunk: AsrChunk, t: number): number {
   }
   return chunk.pieces[chunk.pieces.length - 1].end;
 }
+
+/**
+ * Whisper's input features are log-mel levels with a fixed offset (whisper.cpp:
+ * log_mel_spectrogram, `(x + 4) / 4` after flooring at 80 dB below the loudest point), so very
+ * quiet speech reaches the model looking much like silence, which it answers with phrases from
+ * its training subtitles. Each chunk is therefore brought to a normal speech level first.
+ */
+export const ASR_TARGET_DBFS = -20;
+export const ASR_MAX_GAIN_DB = 30;
+
+/** Gain (dB) that brings the chunk's RMS to ASR_TARGET_DBFS, at most +30 dB, never a cut. */
+export function asrGainDb(pcm: Float32Array): { gainDb: number; rmsDb: number } {
+  let e = 0;
+  for (let i = 0; i < pcm.length; i++) e += pcm[i] * pcm[i];
+  const rmsDb = 10 * Math.log10(e / Math.max(1, pcm.length) + 1e-12);
+  // keep the loudest 0.1 % of samples from clipping hard (a click may still clip, which is harmless here)
+  const abs = new Float32Array(pcm.length);
+  for (let i = 0; i < pcm.length; i++) abs[i] = Math.abs(pcm[i]);
+  abs.sort();
+  const p999 = abs.length ? abs[Math.min(abs.length - 1, Math.floor(abs.length * 0.999))] : 0;
+  const headroom = p999 > 0 ? -20 * Math.log10(p999) - 0.5 : ASR_MAX_GAIN_DB;
+  const gainDb = Math.max(0, Math.min(ASR_TARGET_DBFS - rmsDb, ASR_MAX_GAIN_DB, headroom));
+  return { gainDb, rmsDb };
+}
+
+/**
+ * Whisper answers silence or noise in Arabic with "ترجمة نانسي قنقر" ("translation by Nancy
+ * Qunqar"), a subtitle credit from its training data (reported on the openai/whisper GitHub; see
+ * also "Investigation of Whisper ASR Hallucinations Induced by Non-Speech Audio", 2025, on such
+ * recurring outputs). A line that is only this credit is not speech and is removed.
+ */
+export function isSilencePhrase(text: string): boolean {
+  const t = text
+    .replace(/[\u064B-\u0652\u0640]/g, '') // diacritics, tatweel
+    .replace(/[^\u0621-\u064A\s]/g, ' ') // keep Arabic letters only
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return /^(ترجمه|ترجمة)\s+نانسي\s+قنقر$/.test(t) || /^نانسي\s+قنقر$/.test(t);
+}

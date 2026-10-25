@@ -25,3 +25,19 @@ test('times in a chunk map back to the recording', () => {
   assert.equal(chunkTimeToRecording(ch, 5 + GAP_SEC + 1), 41);
   assert.equal(chunkTimeToRecording(ch, 5 + GAP_SEC / 2), 40);
 });
+
+test('the Whisper silence credit is recognised in its usual spellings, real speech is not', async () => {
+  const { isSilencePhrase } = await import('../src/transcript/chunks');
+  for (const s of ['ترجمة نانسي قنقر', ' ترجمة نانسي قنقر.', 'تَرْجَمَة نانسي قنقر', '«ترجمه نانسي قنقر»', 'نانسي قنقر']) assert.ok(isSilencePhrase(s), s);
+  for (const s of ['السلام عليكم ورحمة الله', 'ترجمة نانسي قنقر وهذا كلام', 'Nancy']) assert.ok(!isSilencePhrase(s), s);
+});
+
+test('quiet chunks are raised to about -20 dBFS, loud ones are left alone', async () => {
+  const { asrGainDb } = await import('../src/transcript/chunks');
+  const tone = (amp: number) => Float32Array.from({ length: 16000 }, (_, i) => amp * Math.sin(i / 5));
+  const quiet = asrGainDb(tone(0.003)); // about -53 dBFS RMS
+  assert.ok(Math.abs(quiet.gainDb - 30) < 1e-9, `capped at +30 dB (${quiet.gainDb})`);
+  const mid = asrGainDb(tone(0.03)); // about -33 dBFS
+  assert.ok(Math.abs(mid.rmsDb + mid.gainDb + 20) < 0.1, `${mid.rmsDb} + ${mid.gainDb}`);
+  assert.equal(asrGainDb(tone(0.5)).gainDb, 0);
+});

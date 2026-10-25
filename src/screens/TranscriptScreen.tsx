@@ -91,7 +91,7 @@ function TranscriptView({ rec }: { rec: Recording }) {
                 )}
               </Section>
               <Section title={t('transcription')}>
-                <Toggle label={t('use_enhanced_audio')} value={tr.useEnhancedAudio} onChange={(v) => updateSettings({ transcription: { ...tr, useEnhancedAudio: v } })} disabled={!rec.enhanced} />
+                <Toggle testID="use-enhanced" label={t('use_enhanced_audio')} value={tr.useEnhancedAudio} onChange={(v) => updateSettings({ transcription: { ...tr, useEnhancedAudio: v } })} disabled={!rec.enhanced} />
                 <Txt>{t('prompt')}</Txt>
                 <TextInput
                   value={tr.prompt}
@@ -183,6 +183,9 @@ function TranscriptBody({ rec, onRedo }: { rec: Recording; onRedo: () => void })
       <View style={{ padding: space.lg, gap: space.sm }}>
         <Txt size="sm" muted>{t('detected_language', { lang: langName(transcript.language) })} · {t('transcript_from', { src: t(src), model: transcript.model })}</Txt>
         {flagged ? <Warning text={`${t('uncertain')}: ${flagged}`} /> : null}
+        {transcript.removedSilencePhrases ? (
+          <Txt size="sm" muted testID="removed-silence">{t(transcript.segments.length ? 'silence_phrases_removed' : 'silence_phrases_only', { n: transcript.removedSilencePhrases })}</Txt>
+        ) : null}
         <TextInput
           testID="search"
           value={query}

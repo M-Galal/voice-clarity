@@ -21,7 +21,7 @@ import { yieldToUi } from './audio';
 import { decodeToPcmFile, toInt16 } from './pcm';
 import { audioUri } from './processing';
 import { modelsDir } from './storage';
-import { chunkTimeToRecording, GAP_SEC, planAsrChunks } from '../transcript/chunks';
+import { asrGainDb, chunkTimeToRecording, GAP_SEC, isSilencePhrase, planAsrChunks } from '../transcript/chunks';
 
 export interface ModelInfo {
   id: string;
@@ -122,26 +122,31 @@ export async function startTranscription(
 
       const context = await getContext(model);
       const chunks = planAsrChunks(segs, duration);
-      const gap = new Int16Array(Math.round(GAP_SEC * 16000));
+      const gap = new Float32Array(Math.round(GAP_SEC * 16000));
       let language = opts.language || 'auto';
       let detected = '';
       const raw: TranscriptSegment[] = [];
+      let removed = 0;
       const tStart = Date.now();
       for (let c = 0; c < chunks.length; c++) {
         if (cancelled) throw new Error('aborted');
         const ch = chunks[c];
         // the chunk's pieces joined with short silences, as raw 16-bit PCM
-        const parts: Int16Array[] = [];
+        const parts: Float32Array[] = [];
         for (let i = 0; i < ch.pieces.length; i++) {
           const p = ch.pieces[i];
           const a = Math.round(p.start * 16000), b = Math.min(src.length, Math.round(p.end * 16000));
           if (i > 0) parts.push(gap);
-          parts.push(toInt16(await src.read(a, Math.max(0, b - a))));
+          parts.push(await src.read(a, Math.max(0, b - a)));
         }
         const n = parts.reduce((t, x) => t + x.length, 0);
-        const pcm = new Int16Array(n);
+        const flt = new Float32Array(n);
         let o = 0;
-        for (const x of parts) { pcm.set(x, o); o += x.length; }
+        for (const x of parts) { flt.set(x, o); o += x.length; }
+        // quiet speech is raised to a normal level (Whisper treats very quiet input like silence)
+        const { gainDb, rmsDb } = asrGainDb(flt);
+        if (gainDb > 0) { const g = Math.pow(10, gainDb / 20); for (let i = 0; i < n; i++) flt[i] *= g; }
+        const pcm = toInt16(flt);
         // Whisper can stop before the end of the audio it is given; then the rest is sent again
         // (from where the text ended), at most three more times.
         let from = 0; // seconds into the chunk
@@ -165,12 +170,14 @@ export async function startTranscription(
             if (language === 'auto') language = detected;
           }
           const partSec = part.length / 16000;
+          if (pass === 0) console.log(`[VC] asr chunk ${c + 1}/${chunks.length}: ${ch.duration.toFixed(1)} s, level ${rmsDb.toFixed(1)} dBFS, gain +${gainDb.toFixed(1)} dB: ${res.segments.map((x) => cleanText(x.text)).join(' | ').slice(0, 200)}`);
           const scale = detectTimeScale(res.segments.map((s) => s.t1), partSec);
           let lastEnd = 0;
           for (const s of res.segments) {
             const text = cleanText(s.text);
             if (!text) continue;
             lastEnd = Math.max(lastEnd, s.t1 * scale);
+            if (isSilencePhrase(text)) { removed++; continue; }
             raw.push({
               id: `s${raw.length}`,
               start: chunkTimeToRecording(ch, from + s.t0 * scale),
@@ -185,7 +192,7 @@ export async function startTranscription(
         onSegments?.(flagSegments(raw.map((x) => ({ ...x })), weak));
         await yieldToUi();
       }
-      console.log(`[VC] transcribe ${duration.toFixed(1)}s model=${model.id} lang=${opts.language}: ${chunks.length} chunks, ${chunks.reduce((t, x) => t + x.duration, 0).toFixed(0)}s of speech, ${Date.now() - tStart} ms, detected=${detected}, segments=${raw.length}`);
+      console.log(`[VC] transcribe ${duration.toFixed(1)}s model=${model.id} lang=${opts.language}: ${chunks.length} chunks, ${chunks.reduce((t, x) => t + x.duration, 0).toFixed(0)}s of speech, ${Date.now() - tStart} ms, detected=${detected}, segments=${raw.length}, silence phrases removed=${removed}`);
       onProgress(1);
       return {
         language: detected || opts.language,
@@ -194,6 +201,7 @@ export async function startTranscription(
         createdAt: new Date().toISOString(),
         fromEnhanced: useEnhanced,
         segments: flagSegments(raw, weak),
+        removedSilencePhrases: removed || undefined,
       };
     } finally {
       decoded.dispose();

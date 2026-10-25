@@ -65,6 +65,36 @@ appId: com.example.voiceclarity
     visible:
       id: "source-enhanced"
     timeout: 20000
+# transcribe the ORIGINAL whisper recording: its whispers are about 40 dB below full scale, so
+# the chunks are raised to a normal level before Whisper (see the "asr chunk" log line)
+- scrollUntilVisible:
+    element:
+      id: "transcript"
+- tapOn:
+    id: "transcript"
+- extendedWaitUntil:
+    visible:
+      id: "use-enhanced"
+    timeout: 15000
+- runFlow:
+    when:
+      visible:
+        id: "use-enhanced"
+        checked: true
+    commands:
+      - tapOn:
+          id: "use-enhanced"
+- scrollUntilVisible:
+    element:
+      id: "start-transcribe"
+- tapOn:
+    id: "start-transcribe"
+- extendedWaitUntil:
+    visible:
+      id: "(seg-s0|removed-silence)"
+    timeout: 600000
+- takeScreenshot: 44_whisper_transcript
+- back
 - back
 
 # ---- Back in the library: stereo MP3 and a broken file ----
