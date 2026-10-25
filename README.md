@@ -8,7 +8,7 @@ You need Node 20 or newer, plus Android Studio for Android or Xcode on a Mac for
 
 ```bash
 npm install                 # also downloads whisper.rn native binaries from GitHub releases
-npm test                    # 29 unit tests (DSP, loudness, transcript formats, colour contrast)
+npm test                    # unit tests (DSP, live chain, noise-reduction quality, loudness, transcript chunks and formats, contrast)
 npm run typecheck
 npx expo run:android        # or: npx expo run:ios
 ```
@@ -44,7 +44,7 @@ Edit: choose the original or enhanced version, a trim mode (no trimming, keep th
 
 Play list: the chosen folder shown as a path (for example "Internal storage/Music/Calls"), Choose/Change folder, include subfolders, a file-name filter (text found anywhere in the name, or patterns with `*` and `?` such as `call_*.m4a`; several separated by `;`), an extension filter (for example `m4a, mp3`; empty means every supported type), order (name with natural number order, newest first, oldest first), "play the next file", Skip silence, the match count, Play all, Refresh, and the file list with size, date, subfolder, a tick for files the app has data for, and a delete button (also on long-press) that deletes the file from the folder after a confirmation.
 
-Enhance: in Smart mode the whole recording is analysed as soon as the screen opens (speech, noise, whispers, level spread, rumble, hum), and the chosen settings are listed with their reasons before anything is processed. A Preview section shows the recording's timeline with the previewed minute highlighted and a playhead (tap inside the minute to seek, elsewhere to move it); "Preview these settings" processes that minute with the current settings (in Smart mode, the whole-file choice) and plays it in a loop with an Original/Enhanced switch, an average-spectrum chart of both versions, and the gain and speech loudness reached. After the first preview it re-renders 0.7 s after any setting changes. strength preset (Light, Balanced, Strong, Advanced), noise suppression and hum removal switches, advanced sliders, the loudness section with an explanation of LUFS, peak and gain, processing quality, the option to shorten pauses in the exported file, a summary card of the settings that will be used, and "Delete enhanced copy" when one exists. While running, the screen shows a progress bar and a cancel button and keeps the screen awake. The review screen is described in flow 3.
+Enhance: in Smart mode the whole recording is analysed as soon as the screen opens (speech, noise, whispers, level spread, rumble, hum), and the chosen settings are listed with their reasons before anything is processed. The analysis runs for every preset, because live listening uses it too. "Listen live" plays the recording with the current settings applied as it plays: change any setting and it is heard within about a second, tap the timeline to jump anywhere, and switch Original/Enhanced instantly. While it plays, the screen shows the spectrum of both versions, the section under the playhead (with per-section settings) and the loudness gain in use. strength preset (Light, Balanced, Strong, Advanced), noise suppression and hum removal switches, advanced sliders, the loudness section with an explanation of LUFS, peak and gain, processing quality, the option to shorten pauses in the exported file, a summary card of the settings that will be used, and "Delete enhanced copy" when one exists. While running, the screen shows a progress bar and a cancel button and keeps the screen awake. The review screen is described in flow 3.
 
 Transcript: language, model (with in-place download), source audio, optional context words, notes on dialects and speakers. After transcription: detected language, a count of passages to check, Arabic-aware search, the segment list with right-to-left rendering for Arabic lines, a mini player, copy, export format, export, re-transcribe and delete.
 
@@ -64,7 +64,7 @@ Speech detection (`vad.ts`) measures 20 ms frames in two bands: a voice band (10
 
 On the committed test recording (`tests/fixtures/whisper_mix_16k.wav`: two normal Arabic sentences and two whispered ones 20 dB quieter, over room rumble and hiss), the voice band alone finds only the normal sentences; with the whisper band, more than 85 % of each whispered sentence is detected and labelled, and noise alone produces no sections. Both are unit tests.
 
-Noise suppression (`denoise.ts`) is spectral subtraction on a short-time Fourier transform with ~32 ms frames and 50 % overlap. The noise profile comes from the pauses and keeps adapting during them, which follows steady or slowly changing noise (hiss, hum, fans, traffic, room tone). Short sounds that land in the middle of speech are not learned, so intermittent noise is only partly reduced. The "deepest cut per band" floor limits how far any frequency band can be lowered, which is the main protection against removing parts of words.
+Noise suppression (`denoise.ts`) works on a short-time Fourier transform with ~32 ms frames and 50 % overlap. Each band gets a Wiener gain computed from a decision-directed estimate of its speech-to-noise ratio (Ephraim and Malah's method, weight 0.8, gain smoothing 0.3). Plain spectral subtraction was used before. On synthetic speech in pink noise at 15 and 5 dB SNR, the new rule left the pauses 3–5 dB cleaner at every strength, with less frame-to-frame fluctuation of the leftover noise (the "musical noise" of subtraction), and kept the speech as well or better (segmental SNR). `tests/denoise-quality.test.ts` repeats this comparison. The noise profile comes from the pauses and keeps adapting during them, which follows steady or slowly changing noise (hiss, hum, fans, traffic, room tone). Short sounds that land in the middle of speech are not learned, so intermittent noise is only partly reduced. The "deepest cut per band" floor limits how far any frequency band can be lowered, which is the main protection against removing parts of words.
 
 Hum removal uses Goertzel analysis on non-speech audio to look for 50 or 60 Hz and its harmonics, and only adds notch filters when it finds them.
 
@@ -119,6 +119,16 @@ The review shows warnings when the source clips, when speech is close to or buri
 
 The original is never normalized or overwritten. Previews are written to the cache and only moved into the recording folder when the user taps "Keep enhanced copy".
 
+## Live listening
+
+`dsp/live.ts` runs the same stages as the file pipeline in one pass: low cut, hum notches, noise reduction (with per-section settings), clarity, pause lowering, leveller, gain and limiter. `services/livePlayer.ts` feeds it 0.2 s blocks read just ahead of the playhead and keeps 0.6 s queued on two react-native-audio-api buffer-queue sources, one original and one enhanced, so the Original/Enhanced switch is a 15 ms gain crossfade. New settings start a new chain where the queued audio ends; it first processes 0.5 s of earlier audio so its filters and noise estimate have settled. Short recordings use the decode shared with the analysis. Long ones are decoded by seeking, in 20 s blocks, with the next block decoded ahead.
+
+The file pipeline knows the whole recording before it processes anything, so live listening estimates a few things instead. The loudness gain starts from the analysed speech loudness and is corrected slowly while playing, within ±6 dB. The leveller looks 0.3 s ahead instead of using whole 1 s windows. The noise profile comes from the 8 s before the playhead. The saved file can therefore differ from what was heard by a dB or two in loudness. Measured with the Hermes CLI (the engine the app runs on), the live chain processes 60 s of 24 kHz audio in 3.5 s, about 17x real time.
+
+## Performance
+
+Measured with the Hermes CLI on 60 s of speech-like audio at 24 kHz: full enhancement 16.5 s before the October 2026 optimisations, 7.3 s after; Smart analysis 3.9 s, then 1.8 s. The hot loops keep their state and coefficients in local variables (Hermes interprets, so each property read costs). The true-peak meter computes its three interpolation phases in one pass, and the FFT reuses each twiddle factor across butterflies. The noise profile skips speech frames and finds pause frames with a moving index instead of searching all segments. The output is measured during the limiter pass instead of being read again. Results are unchanged: the equivalence tests compare every stage with the whole-buffer version.
+
 ## Arabic transcription and privacy
 
 Transcription uses whisper.rn, a React Native binding of whisper.cpp, and runs on the device. Models come from the whisper.cpp repository on Hugging Face and are downloaded only when the user asks:
@@ -138,6 +148,8 @@ Arabic handling:
 - Latin commas, semicolons and question marks in Arabic lines become ، ؛ ؟ (decimals like 3,5 are left alone).
 - Arabic lines render right to left. SRT and VTT exports wrap Arabic lines in Unicode embedding marks, and text exports start with a UTF-8 byte order mark.
 - Search ignores diacritics and tatweel and treats أ إ آ ا, ى ي and ة ه as equal.
+
+The recording is not sent to Whisper in one piece. Detected speech is packed into chunks of up to 28 s, with pauses shortened to 0.3 s, and each chunk is transcribed on its own (whisper.rn `transcribeData`, raw 16-bit PCM). Fed one long file, Whisper passes each 30 s window's text on to the next, and OpenAI's own `transcribe.py` notes that this makes the model "prone to getting stuck in a failure loop, such as repetition looping". Independent chunks carry nothing over, while the optional prompt still applies to each one. Silence and noise between sentences are never sent, so they cannot turn into invented text. Long recordings also never need to fit in memory as one file. The text found so far is shown after each chunk.
 
 whisper.rn does not return word confidence, so the app cannot mark individual uncertain words. It flags whole passages instead: lines where speech sits less than 8 dB above the noise floor, and lines that repeat the previous line (Whisper sometimes loops on noise). Flagged lines get a dashed amber border and a reason.
 
