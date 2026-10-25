@@ -142,31 +142,45 @@ export async function startTranscription(
         const pcm = new Int16Array(n);
         let o = 0;
         for (const x of parts) { pcm.set(x, o); o += x.length; }
-        const job = context.transcribeData(pcm.buffer, {
-          language,
-          maxLen: 0,
-          prompt: opts.prompt || undefined,
-          onProgress: (q) => onProgress((c + q / 100) / chunks.length),
-        });
-        current = job;
-        const res = await job.promise;
-        current = null;
-        if (res.isAborted || cancelled) throw new Error('aborted');
-        // after auto-detection, keep the detected language for the rest (consistent and faster)
-        if (!detected && res.language) {
-          detected = res.language;
-          if (language === 'auto') language = detected;
-        }
-        const scale = detectTimeScale(res.segments.map((s) => s.t1), ch.duration);
-        for (const s of res.segments) {
-          const text = cleanText(s.text);
-          if (!text) continue;
-          raw.push({
-            id: `s${raw.length}`,
-            start: chunkTimeToRecording(ch, s.t0 * scale),
-            end: chunkTimeToRecording(ch, s.t1 * scale),
-            text: arabicPunctuation(text), // only changes mostly-Arabic text
+        // Whisper can stop before the end of the audio it is given; then the rest is sent again
+        // (from where the text ended), at most three more times.
+        let from = 0; // seconds into the chunk
+        for (let pass = 0; pass < 4; pass++) {
+          const startSample = Math.round(from * 16000);
+          const part = pcm.subarray(startSample);
+          if (part.length < 16000) break;
+          const job = context.transcribeData(part.slice().buffer, {
+            language,
+            maxLen: 0,
+            prompt: opts.prompt || undefined,
+            onProgress: (q) => onProgress((c + Math.min(1, from / ch.duration + (q / 100) * (1 - from / ch.duration))) / chunks.length),
           });
+          current = job;
+          const res = await job.promise;
+          current = null;
+          if (res.isAborted || cancelled) throw new Error('aborted');
+          // after auto-detection, keep the detected language for the rest (consistent and faster)
+          if (!detected && res.language) {
+            detected = res.language;
+            if (language === 'auto') language = detected;
+          }
+          const partSec = part.length / 16000;
+          const scale = detectTimeScale(res.segments.map((s) => s.t1), partSec);
+          let lastEnd = 0;
+          for (const s of res.segments) {
+            const text = cleanText(s.text);
+            if (!text) continue;
+            lastEnd = Math.max(lastEnd, s.t1 * scale);
+            raw.push({
+              id: `s${raw.length}`,
+              start: chunkTimeToRecording(ch, from + s.t0 * scale),
+              end: chunkTimeToRecording(ch, from + s.t1 * scale),
+              text: arabicPunctuation(text), // only changes mostly-Arabic text
+            });
+          }
+          if (lastEnd <= 0 || lastEnd >= partSec - 1.5) break;
+          console.log(`[VC] transcribe: text ended at ${(from + lastEnd).toFixed(1)} s of a ${ch.duration.toFixed(1)} s chunk; sending the rest again`);
+          from += lastEnd;
         }
         onSegments?.(flagSegments(raw.map((x) => ({ ...x })), weak));
         await yieldToUi();
