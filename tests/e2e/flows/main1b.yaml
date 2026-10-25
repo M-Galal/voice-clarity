@@ -1,0 +1,165 @@
+# Middle part of the end-to-end test (transcription, export, edit), in its own Maestro session:
+# one session longer than about 10 minutes loses Maestro's device server. The app keeps its data.
+appId: com.example.voiceclarity
+---
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: "import"
+    timeout: 30000
+- tapOn:
+    id: "rec-arabic_noisy"
+- extendedWaitUntil:
+    visible:
+      id: "source-enhanced"
+    timeout: 30000
+
+# ---- Transcription (Arabic, base model) ----
+- scrollUntilVisible:
+    element:
+      id: "transcript"
+- tapOn:
+    id: "transcript"
+- extendedWaitUntil:
+    visible:
+      id: "lang-ar"
+    timeout: 15000
+- tapOn:
+    id: "lang-ar"
+- tapOn:
+    id: "model-base"
+- takeScreenshot: 16_transcript_setup
+- scrollUntilVisible:
+    element: ".*(Download \\(148 MB\\)|On device).*"
+    timeout: 20000
+- runFlow:
+    when:
+      visible:
+        id: "download-model"
+    commands:
+      - tapOn:
+          id: "download-model"
+- extendedWaitUntil:
+    visible: ".*On device.*"
+    timeout: 900000
+- scrollUntilVisible:
+    element:
+      id: "start-transcribe"
+- tapOn:
+    id: "start-transcribe"
+- takeScreenshot: 17_transcribing
+# the text found so far is shown while the rest is still being transcribed
+- extendedWaitUntil:
+    visible:
+      id: "live-l0"
+    timeout: 1200000
+    optional: true
+- takeScreenshot: 17b_live_text
+- extendedWaitUntil:
+    visible:
+      id: "seg-s0"
+    timeout: 1200000
+- takeScreenshot: 18_transcript
+- tapOn:
+    id: "seg-s0"
+- tapOn:
+    id: "search"
+- inputText: "x"
+- takeScreenshot: 19_search
+- eraseText: 5
+- back
+- back
+
+# ---- Export sheet ----
+- scrollUntilVisible:
+    element:
+      id: "export"
+- tapOn:
+    id: "export"
+- takeScreenshot: 20_export_sheet
+- tapOn: "Close"
+
+# ---- Edit: trim 0.5-10 s, speed 1.5x, preview, Save as a new recording ----
+- scrollUntilVisible:
+    element:
+      id: "edit-audio"
+- tapOn:
+    id: "edit-audio"
+- extendedWaitUntil:
+    visible:
+      id: "trim-mode-keep"
+    timeout: 15000
+- tapOn:
+    id: "edit-fwd-10"
+- extendedWaitUntil:
+    visible: "0:10.0 / .*"
+    timeout: 10000
+- scrollUntilVisible:
+    element:
+      id: "play-selection"
+- tapOn:
+    id: "set-end"
+- assertVisible:
+    id: "sel-end-value"
+    text: "0:10.0"
+- tapOn:
+    id: "start-plus"
+- tapOn:
+    id: "start-plus"
+- tapOn:
+    id: "start-plus"
+- tapOn:
+    id: "start-plus"
+- tapOn:
+    id: "start-plus"
+- assertVisible:
+    id: "sel-start-value"
+    text: "0:00.5"
+- scrollUntilVisible:
+    element:
+      id: "edit-speed-1.5"
+- tapOn:
+    id: "edit-speed-1.5"
+- scrollUntilVisible:
+    element:
+      id: "edit-save-as"
+- assertVisible: "New length: 0:06.*"
+- assertVisible: "Saved as M4A, the same type as the original."
+- takeScreenshot: 30_edit_setup
+- scrollUntilVisible:
+    element:
+      id: "edit-preview"
+- tapOn:
+    id: "edit-preview"
+# the buttons come back below the fold when rendering ends; scroll while waiting
+- scrollUntilVisible:
+    element:
+      id: "edit-save-as"
+    timeout: 180000
+- scrollUntilVisible:
+    element:
+      id: "edit-listen-preview"
+    direction: UP
+- takeScreenshot: 31_edit_preview
+- scrollUntilVisible:
+    element:
+      id: "edit-save-as"
+- scrollUntilVisible:
+    element:
+      id: "edit-save-as"
+- tapOn:
+    id: "edit-save-as"
+- assertVisible: "arabic_noisy-v1"
+- takeScreenshot: 31b_save_as_default_name
+- tapOn:
+    id: "save-as-confirm"
+- extendedWaitUntil:
+    visible: "arabic_noisy-v1"
+    timeout: 120000
+- extendedWaitUntil:
+    visible: ".*[1-9] speech sections.*"
+    timeout: 120000
+- assertVisible: ".*0:06.*"
+- assertVisible: "M4A"
+- takeScreenshot: 32_saved_as_player
+- back

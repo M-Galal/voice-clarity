@@ -37,6 +37,12 @@ STAMP=$(mktemp)
 timeout 40m "$HOME/.maestro/bin/maestro" test tests/e2e/flows/main.yaml --format junit --output "$RES/junit.xml" \
   --test-output-dir "$RES/maestro-out" > "$RES/maestro.txt" 2>&1
 CODE=$?
+# middle part (transcription, export, edit) in its own session
+timeout 40m "$HOME/.maestro/bin/maestro" test tests/e2e/flows/main1b.yaml --format junit --output "$RES/junit-1b.xml" \
+  --test-output-dir "$RES/maestro-out-1b" > "$RES/maestro-1b.txt" 2>&1
+CODE1B=$?
+echo "main1b_exit=$CODE1B" > "$RES/MAIN1B_STATUS"
+[ "$CODE" -eq 0 ] && CODE=$CODE1B
 # second half in a new Maestro session (keeps the app's data)
 timeout 40m "$HOME/.maestro/bin/maestro" test tests/e2e/flows/main2.yaml --format junit --output "$RES/junit-2.xml" \
   --test-output-dir "$RES/maestro-out-2" > "$RES/maestro-2.txt" 2>&1
