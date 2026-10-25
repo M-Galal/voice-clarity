@@ -227,8 +227,10 @@ export class LivePlayer {
       if (my === this.gen && this.nodes && !this.started && this.queuedEnd > this.refSample && this.playing) {
         const ctx = this.ctx!;
         const t = ctx.currentTime + 0.02;
-        this.nodes.enh.start(t);
-        this.nodes.org.start(t);
+        // explicit offset: in react-native-audio-api 0.13.6 the queue source's default offset (-1)
+        // fails its own non-negative check
+        this.nodes.enh.start(t, 0);
+        this.nodes.org.start(t, 0);
         this.refTime = t;
         this.started = true;
       }
