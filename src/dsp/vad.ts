@@ -101,15 +101,18 @@ export class FrameAnalyzer {
   push(chunk: Float32Array): void {
     const b = this.band.process(chunk);
     const h = this.high.process(chunk);
-    for (let i = 0; i < chunk.length; i++) {
-      this.bandSum += b[i] * b[i];
-      this.highSum += h[i] * h[i];
-      if (++this.filled === this.frame) {
-        this.bandLevels.push(toDb(this.bandSum / this.frame));
-        this.highLevels.push(toDb(this.highSum / this.frame));
-        this.bandSum = 0; this.highSum = 0; this.filled = 0;
+    let bandSum = this.bandSum, highSum = this.highSum, filled = this.filled;
+    const frame = this.frame, n = chunk.length;
+    for (let i = 0; i < n; i++) {
+      bandSum += b[i] * b[i];
+      highSum += h[i] * h[i];
+      if (++filled === frame) {
+        this.bandLevels.push(toDb(bandSum / frame));
+        this.highLevels.push(toDb(highSum / frame));
+        bandSum = 0; highSum = 0; filled = 0;
       }
     }
+    this.bandSum = bandSum; this.highSum = highSum; this.filled = filled;
   }
 
   finish(): FrameAnalysis {

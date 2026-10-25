@@ -286,8 +286,12 @@ class NoiseProfileAccumulator {
   readonly sum: Float64Array;
   count = 0;
 
-  /** select: null = frames outside speech; otherwise a set of frame indexes to average. */
-  constructor(private readonly sampleRate: number, private readonly segments: Segment[], private readonly select: Set<number> | null = null) {
+  /**
+   * select: null = frames outside speech; otherwise a set of frame indexes to average.
+   * withEnergies: also transform speech frames to record every frame's energy (only needed for
+   * the no-pauses fallback; otherwise speech frames are skipped, which saves most of the work).
+   */
+  constructor(private readonly sampleRate: number, private readonly segments: Segment[], private readonly select: Set<number> | null = null, private readonly withEnergies = false) {
     this.n = frameSizeFor(sampleRate);
     this.hop = this.n / 2;
     this.bins = this.n / 2 + 1;
@@ -299,27 +303,37 @@ class NoiseProfileAccumulator {
     this.sum = new Float64Array(this.bins);
   }
 
+  private si = 0;
+  /** Frame centres only move forward, so a moving index replaces a search of all segments. */
   private isNoise(pos: number) {
     const t = (pos + this.n / 2) / this.sampleRate;
-    return !this.segments.some((s) => t >= s.start && t <= s.end);
+    const segs = this.segments;
+    while (this.si < segs.length && segs[this.si].end < t) this.si++;
+    return !(this.si < segs.length && t >= segs[this.si].start && t <= segs[this.si].end);
   }
 
   push(x: Float32Array) {
     const buf = joinBuf(this.tail, x);
     const end = this.tailStart + buf.length;
-    while (this.nextPos + this.n <= end) {
+    const n = this.n, bins = this.bins, frameBuf = this.frameBuf, win = this.win, re = this.re, im = this.im, sum = this.sum;
+    while (this.nextPos + n <= end) {
       const off = this.nextPos - this.tailStart;
-      for (let i = 0; i < this.n; i++) this.frameBuf[i] = buf[off + i] * this.win[i];
-      this.fft.forward(this.frameBuf, this.re, this.im);
-      let e = 0;
       const take = this.select ? this.select.has(this.frame) : this.isNoise(this.nextPos);
-      for (let k = 0; k < this.bins; k++) {
-        const p = this.re[k] * this.re[k] + this.im[k] * this.im[k];
+      if (!take && !this.withEnergies) {
+        this.frame++;
+        this.nextPos += this.hop;
+        continue;
+      }
+      for (let i = 0; i < n; i++) frameBuf[i] = buf[off + i] * win[i];
+      this.fft.forward(frameBuf, re, im);
+      let e = 0;
+      for (let k = 0; k < bins; k++) {
+        const p = re[k] * re[k] + im[k] * im[k];
         e += p;
-        if (take) this.sum[k] += p;
+        if (take) sum[k] += p;
       }
       if (take) this.count++;
-      this.energies.push(e);
+      if (this.withEnergies) this.energies.push(e);
       this.frame++;
       this.nextPos += this.hop;
     }
@@ -390,10 +404,14 @@ class StreamingDenoiser {
 
   private runFrames(limit: number, out: number[] | Float32Array[]): void {
     const parts = out as Float32Array[];
-    while (this.framePos + this.n <= limit) {
+    const n = this.n, bins = this.bins, hop = this.hop, frameBuf = this.frameBuf, win = this.win;
+    const re = this.re, im = this.im, noise = this.noise, gain = this.gain, prevGain = this.prevGain, acc = this.acc;
+    const smooth = this.smooth;
+    while (this.framePos + n <= limit) {
       const off = this.framePos - this.pendStart;
-      for (let i = 0; i < this.n; i++) this.frameBuf[i] = this.pend[off + i] * this.win[i];
-      this.fft.forward(this.frameBuf, this.re, this.im);
+      const pend = this.pend;
+      for (let i = 0; i < n; i++) frameBuf[i] = pend[off + i] * win[i];
+      this.fft.forward(frameBuf, re, im);
       const isNoise = !this.speech(this.frame);
       let floor = this.floor;
       let over = this.opts.overSubtraction;
@@ -402,26 +420,29 @@ class StreamingDenoiser {
         over = clamp(this.control.over.at(t), 0.5, 3);
         floor = Math.pow(10, clamp(this.control.floorDb.at(t), -40, -3) / 20);
       }
-      for (let k = 0; k < this.bins; k++) {
-        const p = this.re[k] * this.re[k] + this.im[k] * this.im[k];
-        if (isNoise) this.noise[k] = 0.97 * this.noise[k] + 0.03 * p;
-        const g = p > 0 ? Math.max(floor * floor, 1 - (over * this.noise[k]) / p) : floor * floor;
-        this.gain[k] = Math.sqrt(g);
+      const f2 = floor * floor;
+      for (let k = 0; k < bins; k++) {
+        const p = re[k] * re[k] + im[k] * im[k];
+        if (isNoise) noise[k] = 0.97 * noise[k] + 0.03 * p;
+        let g = f2;
+        if (p > 0) { const v = 1 - (over * noise[k]) / p; g = v > f2 ? v : f2; }
+        gain[k] = Math.sqrt(g);
       }
-      for (let k = 0; k < this.bins; k++) {
-        const a = this.gain[Math.max(0, k - 1)], b = this.gain[k], c = this.gain[Math.min(this.bins - 1, k + 1)];
+      const last = bins - 1;
+      for (let k = 0; k < bins; k++) {
+        const a = gain[k > 0 ? k - 1 : 0], b = gain[k], c = gain[k < last ? k + 1 : last];
         const fs = 0.25 * a + 0.5 * b + 0.25 * c;
-        const g = this.smooth * this.prevGain[k] + (1 - this.smooth) * fs;
-        this.prevGain[k] = Math.max(floor, Math.min(1, g));
+        const g = smooth * prevGain[k] + (1 - smooth) * fs;
+        prevGain[k] = Math.max(floor, Math.min(1, g));
       }
-      for (let k = 0; k < this.bins; k++) { const g = this.prevGain[k]; this.re[k] *= g; this.im[k] *= g; }
-      this.fft.inverse(this.re, this.im, this.frameBuf);
-      for (let i = 0; i < this.n; i++) this.acc[i] += this.frameBuf[i] * this.win[i];
+      for (let k = 0; k < bins; k++) { const g = prevGain[k]; re[k] *= g; im[k] *= g; }
+      this.fft.inverse(re, im, frameBuf);
+      for (let i = 0; i < n; i++) acc[i] += frameBuf[i] * win[i];
       // samples [framePos, framePos + hop) receive no more frames
-      parts.push(this.emit(this.framePos, this.hop));
-      this.acc.copyWithin(0, this.hop);
-      this.acc.fill(0, this.n - this.hop);
-      this.framePos += this.hop;
+      parts.push(this.emit(this.framePos, hop));
+      acc.copyWithin(0, hop);
+      acc.fill(0, n - hop);
+      this.framePos += hop;
       this.frame++;
     }
   }
@@ -517,23 +538,38 @@ class StreamingLimiter {
   }
 
   push(x: Float32Array): Float32Array {
+    // same steps as outOne, with the state in locals (much faster on an interpreter)
     const out = new Float32Array(x.length);
     let o = 0;
-    for (let k = 0; k < x.length; k++) {
+    const ceil = this.ceil, L = this.L, atk = this.atk, rel = this.rel, heavyGain = this.heavyGain;
+    const ringIn = this.ringIn, ringReq = this.ringReq, dq = this.dq;
+    const cap = ringIn.length, dl = dq.length;
+    let head = this.head, tail = this.tail, j = this.j, i = this.i, g = this.g, maxRed = this.maxRed, heavy = this.heavy;
+    const n = x.length;
+    for (let k = 0; k < n; k++) {
       const v = x[k];
-      const a = Math.abs(v);
-      const r = a > this.ceil ? this.ceil / a : 1;
-      const j = this.j;
-      this.ringIn[j % this.cap()] = v;
-      this.ringReq[j % this.cap()] = r;
-      const dl = this.dq.length;
-      while (this.tail > this.head && this.ringReq[this.dq[(this.tail - 1) % dl] % this.cap()] >= r) this.tail--;
-      this.dq[this.tail % dl] = j;
-      this.tail++;
-      this.j++;
+      const a = v < 0 ? -v : v;
+      const r = a > ceil ? ceil / a : 1;
+      ringIn[j % cap] = v;
+      ringReq[j % cap] = r;
+      while (tail > head && ringReq[dq[(tail - 1) % dl] % cap] >= r) tail--;
+      dq[tail % dl] = j;
+      tail++;
+      j++;
       // output i once inputs up to i + L are in (or the signal ends there)
-      if (this.j - 1 >= this.i + this.L) this.outOne(out, o++);
+      if (j - 1 >= i + L) {
+        while (dq[head % dl] < i) head++;
+        const t = ringReq[dq[head % dl] % cap];
+        g += (t - g) * (t < g ? atk : rel);
+        let y = ringIn[i % cap] * g;
+        if (y > ceil) y = ceil; else if (y < -ceil) y = -ceil;
+        out[o++] = y;
+        if (g < maxRed) maxRed = g;
+        if (g < heavyGain) heavy++;
+        i++;
+      }
     }
+    this.head = head; this.tail = tail; this.j = j; this.i = i; this.g = g; this.maxRed = maxRed; this.heavy = heavy;
     return out.subarray(0, o);
   }
 
@@ -901,12 +937,15 @@ export async function enhanceStream(
       if (acc.count >= 5) noiseProfile = acc.profile();
       else {
         // no pauses: the quietest 10 % of frames (same choice as estimateNoiseProfile)
-        const k = Math.max(1, Math.floor(acc.energies.length * 0.1));
-        const order = acc.energies.map((e, i) => [e, i] as const).sort((p, q) => p[0] - q[0] || p[1] - q[1]);
+        const preE = new BiquadChainState(chain);
+        const accE = new NoiseProfileAccumulator(sr, segments, null, true);
+        await eachChunk(src, (x) => accE.push(preE.process(x)), ticker(0.3, 0.31));
+        const k = Math.max(1, Math.floor(accE.energies.length * 0.1));
+        const order = accE.energies.map((e, i) => [e, i] as const).sort((p, q) => p[0] - q[0] || p[1] - q[1]);
         const pick = new Set(order.slice(0, k).map(([, i]) => i));
         const pre2 = new BiquadChainState(chain);
         const acc2 = new NoiseProfileAccumulator(sr, segments, pick);
-        await eachChunk(src, (x) => acc2.push(pre2.process(x)), ticker(0.3, 0.33));
+        await eachChunk(src, (x) => acc2.push(pre2.process(x)), ticker(0.31, 0.33));
         noiseProfile = acc2.profile();
       }
     }
@@ -1006,9 +1045,13 @@ export async function enhanceStream(
       const track = temp(sr, 'int16');
       const lim = new StreamingLimiter(sr, ceilingDb, len);
       const tp = new TruePeakMeter();
+      // without silence removal this is the output: measure it here instead of in pass 7
+      const meter = settings.removeSilence ? null : new KLoudnessMeter(sr);
+      let peak = 0;
       let written = 0;
       const out = async (y: Float32Array, final: boolean) => {
         tp.push(y, final);
+        if (meter) { meter.push(y); peak = peakOf(y, peak); }
         written += y.length;
         await track.write(y);
       };
@@ -1023,7 +1066,7 @@ export async function enhanceStream(
       }, ticker(from, to));
       await out(lim.finish(), true);
       void written;
-      return { track, lim, tpDb: tp.db };
+      return { track, lim, tpDb: tp.db, meter, peak };
     };
     let lim = await runLimiter(settings.limiterCeilingDb, 0.85, 0.92);
     let internalCeiling = settings.limiterCeilingDb;
@@ -1053,16 +1096,19 @@ export async function enhanceStream(
       }
       stages.push('silence-removal');
     }
-    const outMeter = new KLoudnessMeter(sr);
+    const measured = !pieces && lim.meter ? { meter: lim.meter, tpDb: lim.tpDb, peak: lim.peak } : null;
+    const outMeter = measured ? measured.meter : new KLoudnessMeter(sr);
     const outTp = new TruePeakMeter();
     const outFa = pieces ? new FrameAnalyzer(sr, settings.vad.frameMs ?? 20) : null;
-    let outPeak = 0;
+    let outPeak = measured ? measured.peak : 0;
     let outLen = 0;
     const emit = async (y: Float32Array, final: boolean) => {
-      outMeter.push(y);
-      outTp.push(y, final);
+      if (!measured) {
+        outMeter.push(y);
+        outTp.push(y, final);
+        outPeak = peakOf(y, outPeak);
+      }
       outFa?.push(y);
-      outPeak = peakOf(y, outPeak);
       outLen += y.length;
       await sink.write(y);
     };
@@ -1096,7 +1142,7 @@ export async function enhanceStream(
       integratedLufs: outLoud.integrated,
       speechLufs: outLoud.speech,
       samplePeakDb: outPeak > 0 ? 20 * Math.log10(outPeak) : -Infinity,
-      truePeakDb: outTp.db,
+      truePeakDb: measured ? measured.tpDb : outTp.db,
     };
 
     const limMaxReductionDb = -20 * Math.log10(lim.lim.maxRed);
@@ -1149,3 +1195,6 @@ function speechLoudnessFromBlocks(blocks: BlockPower[], sampleRate: number, segm
   if (inSpeech.length === 0) return all;
   return loudnessFromBlocks(inSpeech, sampleRate, []).integrated;
 }
+
+/** Internal stages, exported for benchmarks and tests only. */
+export const __internals = { StreamingDenoiser, StreamingLimiter, NoiseProfileAccumulator, RangeEnergy, ClipCounter, planLeveller, applyLevel, speechWindows };

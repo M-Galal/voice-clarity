@@ -200,13 +200,16 @@ export class KLoudnessMeter {
   /** Feeds samples; returns the K-weighted chunk in case the caller needs it. */
   push(chunk: Float32Array): Float32Array {
     const w = this.k.process(chunk);
-    for (let i = 0; i < w.length; i++) {
+    let acc = this.acc, all = this.all, filled = this.filled;
+    const step = this.step, sub = this.sub, n = w.length;
+    for (let i = 0; i < n; i++) {
       const e = w[i] * w[i];
-      this.acc += e;
-      this.all += e;
-      if (++this.filled === this.step) { this.sub.push(this.acc); this.acc = 0; this.filled = 0; }
+      acc += e;
+      all += e;
+      if (++filled === step) { sub.push(acc); acc = 0; filled = 0; }
     }
-    this.total += w.length;
+    this.acc = acc; this.all = all; this.filled = filled;
+    this.total += n;
     return w;
   }
 
@@ -270,29 +273,43 @@ export class TruePeakMeter {
   private histStart = 0; // absolute index of hist[0]
 
   push(chunk: Float32Array, final = false): void {
-    for (let i = 0; i < chunk.length; i++) { const a = Math.abs(chunk[i]); if (a > this.peak) this.peak = a; }
-    const buf = new Float32Array(this.hist.length + chunk.length);
+    let peak = this.peak;
+    const cn = chunk.length;
+    for (let i = 0; i < cn; i++) { let a = chunk[i]; if (a < 0) a = -a; if (a > peak) peak = a; }
+    const hl = this.hist.length;
+    const buf = new Float32Array(hl + cn);
     buf.set(this.hist, 0);
-    buf.set(chunk, this.hist.length);
-    const end = this.histStart + buf.length; // absolute end (exclusive)
+    buf.set(chunk, hl);
+    const bl = buf.length;
+    const histStart = this.histStart;
+    const end = histStart + bl; // absolute end (exclusive)
+    const taps = this.taps, half = this.half;
     // a sample i needs i+1 and up to i+half samples after it, unless the signal ends
-    const limit = final ? end : end - (this.taps - this.half);
-    const gate = this.peak * 0.25;
+    const limit = final ? end : end - (taps - half);
+    const gate = peak * 0.25;
+    const k1 = this.phases[1], k2 = this.phases[2], k3 = this.phases[3];
     for (let i = this.done; i < limit; i++) {
-      const li = i - this.histStart;
-      const near = Math.max(Math.abs(buf[li]), i + 1 < end ? Math.abs(buf[li + 1]) : 0);
+      const li = i - histStart;
+      let a0 = buf[li]; if (a0 < 0) a0 = -a0;
+      let a1 = i + 1 < end ? buf[li + 1] : 0; if (a1 < 0) a1 = -a1;
+      const near = a0 > a1 ? a0 : a1;
       if (near < gate || gate === 0) continue;
-      for (let p = 1; p < 4; p++) {
-        const k = this.phases[p];
-        let acc = 0;
-        for (let t = 0; t < this.taps; t++) {
-          const idx = li + t - this.half + 1;
-          if (idx >= 0 && idx < buf.length) acc += buf[idx] * k[t];
+      const base = li - half + 1;
+      let s1 = 0, s2 = 0, s3 = 0;
+      if (base >= 0 && base + taps <= bl) {
+        // all taps inside the buffer: the three phases in one pass (same sums, same order)
+        for (let t = 0; t < taps; t++) { const v = buf[base + t]; s1 += v * k1[t]; s2 += v * k2[t]; s3 += v * k3[t]; }
+      } else {
+        for (let t = 0; t < taps; t++) {
+          const idx = base + t;
+          if (idx >= 0 && idx < bl) { const v = buf[idx]; s1 += v * k1[t]; s2 += v * k2[t]; s3 += v * k3[t]; }
         }
-        const aa = Math.abs(acc);
-        if (aa > this.peak) this.peak = aa;
       }
+      if (s1 < 0) s1 = -s1; if (s1 > peak) peak = s1;
+      if (s2 < 0) s2 = -s2; if (s2 > peak) peak = s2;
+      if (s3 < 0) s3 = -s3; if (s3 > peak) peak = s3;
     }
+    this.peak = peak;
     this.done = Math.max(this.done, limit);
     // keep enough history for the next window (half samples before the next unexamined one)
     const keepFrom = Math.max(this.histStart, this.done - this.half);

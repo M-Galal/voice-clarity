@@ -104,10 +104,13 @@ export class BiquadChainState {
       const c = this.chain[s];
       const o = s * 4;
       let x1 = this.st[o], x2 = this.st[o + 1], y1 = this.st[o + 2], y2 = this.st[o + 3];
-      const out = new Float32Array(cur.length);
-      for (let i = 0; i < cur.length; i++) {
+      // coefficients in locals: the app's JS engine (Hermes) interprets, property reads cost
+      const b0 = c.b0, b1 = c.b1, b2 = c.b2, a1 = c.a1, a2 = c.a2;
+      const n = cur.length;
+      const out = new Float32Array(n);
+      for (let i = 0; i < n; i++) {
         const x0 = cur[i];
-        const y0 = c.b0 * x0 + c.b1 * x1 + c.b2 * x2 - c.a1 * y1 - c.a2 * y2;
+        const y0 = b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
         out[i] = y0;
         x2 = x1; x1 = x0; y2 = y1; y1 = y0;
       }

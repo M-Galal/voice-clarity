@@ -25,8 +25,9 @@ export class FFT {
 
   transform(re: Float32Array, im: Float32Array, inverse = false): void {
     const n = this.size;
+    const rev = this.rev, cos = this.cos, sin = this.sin;
     for (let i = 0; i < n; i++) {
-      const j = this.rev[i];
+      const j = rev[i];
       if (j > i) {
         let t = re[i]; re[i] = re[j]; re[j] = t;
         t = im[i]; im[i] = im[j]; im[j] = t;
@@ -36,16 +37,18 @@ export class FFT {
     for (let len = 2; len <= n; len <<= 1) {
       const halfLen = len >> 1;
       const step = n / len;
-      for (let i = 0; i < n; i += len) {
-        for (let j = 0; j < halfLen; j++) {
-          const wr = this.cos[j * step];
-          const wi = sign * this.sin[j * step];
-          const a = i + j;
+      for (let j = 0; j < halfLen; j++) {
+        // one twiddle for all butterflies of this j (same arithmetic as before, fewer lookups)
+        const wr = cos[j * step];
+        const wi = sign * sin[j * step];
+        for (let a = j; a < n; a += len) {
           const b = a + halfLen;
-          const tr = re[b] * wr - im[b] * wi;
-          const ti = re[b] * wi + im[b] * wr;
-          re[b] = re[a] - tr; im[b] = im[a] - ti;
-          re[a] += tr; im[a] += ti;
+          const rb = re[b], ib = im[b];
+          const tr = rb * wr - ib * wi;
+          const ti = rb * wi + ib * wr;
+          const ra = re[a], ia = im[a];
+          re[b] = ra - tr; im[b] = ia - ti;
+          re[a] = ra + tr; im[a] = ia + ti;
         }
       }
     }
@@ -90,7 +93,7 @@ export class RealFFT {
   /** x (length n) → re/im (length n/2 + 1). */
   forward(x: Float32Array, re: Float32Array, im: Float32Array): void {
     const h = this.size / 2;
-    const zr = this.zr, zi = this.zi;
+    const zr = this.zr, zi = this.zi, twr = this.wr, twi = this.wi;
     for (let i = 0; i < h; i++) { zr[i] = x[2 * i]; zi[i] = x[2 * i + 1]; }
     this.half.transform(zr, zi);
     for (let k = 0; k <= h; k++) {
@@ -98,7 +101,7 @@ export class RealFFT {
       const ar = zr[a], ai = zi[a], br = zr[b], bi = -zi[b]; // Z[k], conj(Z[h-k])
       const er = 0.5 * (ar + br), ei = 0.5 * (ai + bi); // even part
       const or = 0.5 * (ai - bi), oi = -0.5 * (ar - br); // odd part: (Z[k] - conj)/2i
-      const wr = this.wr[k], wi = this.wi[k];
+      const wr = twr[k], wi = twi[k];
       re[k] = er + wr * or - wi * oi;
       im[k] = ei + wr * oi + wi * or;
     }
@@ -107,13 +110,13 @@ export class RealFFT {
   /** re/im (length n/2 + 1) → x (length n). */
   inverse(re: Float32Array, im: Float32Array, x: Float32Array): void {
     const h = this.size / 2;
-    const zr = this.zr, zi = this.zi;
+    const zr = this.zr, zi = this.zi, twr = this.wr, twi = this.wi;
     for (let k = 0; k < h; k++) {
       const ar = re[k], ai = im[k], br = re[h - k], bi = -im[h - k]; // X[k], conj(X[h-k])
       const er = 0.5 * (ar + br), ei = 0.5 * (ai + bi);
       const dr = 0.5 * (ar - br), di = 0.5 * (ai - bi);
       // odd part = d · W^-k
-      const wr = this.wr[k], wi = -this.wi[k];
+      const wr = twr[k], wi = -twi[k];
       const or = dr * wr - di * wi, oi = dr * wi + di * wr;
       // Z = E + i·O
       zr[k] = er - oi;
