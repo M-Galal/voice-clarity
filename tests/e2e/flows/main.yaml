@@ -211,6 +211,26 @@ appId: com.example.voiceclarity
           start: 4%, 30%
           end: 4%, 80%
           duration: 400
+# one-tap preset for a kind of recording: shows what it does and the sliders with its values
+- scrollUntilVisible:
+    element:
+      id: "situation-whisper"
+- tapOn:
+    id: "situation-whisper"
+- scrollUntilVisible:
+    element:
+      id: "situation-hint"
+- takeScreenshot: 10e_situation_whisper
+- repeat:
+    while:
+      notVisible:
+        id: "strength-auto"
+    times: 15
+    commands:
+      - swipe:
+          start: 4%, 30%
+          end: 4%, 80%
+          duration: 400
 - tapOn:
     id: "strength-auto"
 - scrollUntilVisible:

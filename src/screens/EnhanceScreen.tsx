@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useKeepAwake } from 'expo-keep-awake';
-import { settingsForPreset, type EnhanceSummary as EnhanceResult, type EnhanceSettings, type Strength, type WarningCode } from '../dsp/pipeline';
+import { isSituation, settingsForPreset, SITUATIONS, type EnhanceSummary as EnhanceResult, type EnhanceSettings, type Strength, type WarningCode } from '../dsp/pipeline';
 import { dbToPercent, formatDb, formatLevel, percentToDb } from '../dsp/units';
 import { audioUri, commitPreview, deleteEnhanced, discardPreview, EnhancePreviewer, enhanceToPreview, PREVIEW_SEC, type CancelToken, type PreviewRender } from '../services/processing';
 import { countSections, type SectionKind, type SectionSetting } from '../dsp/autoTune';
@@ -141,8 +141,16 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
               testID="strength"
               value={s.strength}
               onChange={(v) => setS((prev) => settingsForPreset(v, prev))}
-              options={(['auto', 'light', 'balanced', 'strong', 'advanced'] as Strength[]).map((v) => ({ value: v, label: t(v) }))}
+              options={(['auto', 'light', 'balanced', 'strong', 'advanced'] as const).map((v) => ({ value: v as Strength, label: t(v) }))}
             />
+            <Txt size="sm" bold>{t('situation_title')}</Txt>
+            <Choice<Strength>
+              testID="situation"
+              value={s.strength}
+              onChange={(v) => setS((prev) => settingsForPreset(v, prev))}
+              options={SITUATIONS.map((v) => ({ value: v, label: t(`sit_${v}`) }))}
+            />
+            {isSituation(s.strength) ? <Txt size="sm" testID="situation-hint">{t(`sit_${s.strength}_hint`)}</Txt> : null}
             {s.strength === 'auto' ? (
               <>
                 <Txt size="sm" testID="auto-hint">{t('auto_hint')}</Txt>
@@ -156,7 +164,7 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
                 <Toggle testID="level-speech" label={t('level_speech')} value={s.levelSpeech} onChange={(v) => patch({ levelSpeech: v })} />
               </>
             )}
-            {s.strength === 'advanced' ? (
+            {s.strength === 'advanced' || isSituation(s.strength) ? (
               <>
                 <LabeledSlider label={t('noise_amount')} value={s.noiseAmount} min={0.5} max={3} step={0.1} onChange={(v) => patch({ noiseAmount: v })} format={(v) => `${v.toFixed(1)}×`} disabled={!s.noiseSuppression} />
                 <LabeledSlider label={t('noise_floor')} value={s.noiseFloorDb} min={-40} max={-3} step={1} onChange={(v) => patch({ noiseFloorDb: v })} format={(v) => formatDb(v, 0)} disabled={!s.noiseSuppression} />
@@ -450,7 +458,7 @@ function summary(s: EnhanceSettings, rate: number, t: ReturnType<typeof useApp>[
     ].filter(Boolean).join('\n');
   }
   const parts = [
-    `${t('strength')}: ${t(s.strength)}`,
+    `${t('strength')}: ${t(isSituation(s.strength) ? `sit_${s.strength}` : s.strength)}`,
     `${t('noise_suppression')}: ${s.noiseSuppression ? `${s.noiseAmount.toFixed(1)}×, ${formatDb(s.noiseFloorDb, 0)}` : '—'}`,
     `${t('high_pass')}: ${s.highPassHz ? `${s.highPassHz} Hz` : '—'}`,
     `${t('clarity')}: ${s.clarityDb ? formatDb(s.clarityDb) : '—'}`,

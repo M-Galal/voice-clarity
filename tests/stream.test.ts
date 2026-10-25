@@ -71,6 +71,7 @@ test('chunked enhancement matches for every preset, manual gain and silence remo
   await compare(X24, 24000, { ...settingsForPreset('balanced'), gainMode: 'manual', manualGainDb: 6 }, 'manual');
   await compare(X24, 24000, { ...settingsForPreset('balanced'), removeSilence: true, keepGapMs: 300 }, 'silence');
   await compare(X16, 16000, { ...settingsForPreset('advanced'), noiseSuppression: false, humRemoval: false, highPassHz: 0 }, 'bare');
+  for (const sit of ['whisper', 'far', 'noisy', 'rumble'] as const) await compare(X24, 24000, settingsForPreset(sit), sit);
 });
 
 test('chunked enhancement handles a file without pauses (noise profile fallback)', async () => {

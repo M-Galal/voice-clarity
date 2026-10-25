@@ -16,7 +16,12 @@ import { chooseSettings, measureForAuto, type AutoMeasures, type AutoReason, typ
 import { clamp } from './units';
 import { detectSpeech, estimateSnrDb, type Segment, type VadOptions } from './vad';
 
-export type Strength = 'auto' | 'light' | 'balanced' | 'strong' | 'advanced';
+export type Strength = 'auto' | 'light' | 'balanced' | 'strong' | 'advanced' | Situation;
+
+/** One-tap presets for a known kind of recording. */
+export type Situation = 'whisper' | 'far' | 'noisy' | 'rumble';
+export const SITUATIONS: Situation[] = ['whisper', 'far', 'noisy', 'rumble'];
+export const isSituation = (s: Strength): s is Situation => (SITUATIONS as string[]).includes(s);
 
 export interface EnhanceSettings {
   strength: Strength;
@@ -82,6 +87,15 @@ export const PRESETS: Record<Exclude<Strength, 'advanced' | 'auto'>, Partial<Enh
   light: { noiseAmount: 1.0, noiseFloorDb: -10, highPassHz: 70, clarityDb: 2, pauseReductionDb: 0, levelSpeech: false, levelMaxBoostDb: 6 },
   balanced: { noiseAmount: 1.5, noiseFloorDb: -18, highPassHz: 80, clarityDb: 3, pauseReductionDb: 6, levelSpeech: true, levelMaxBoostDb: 12 },
   strong: { noiseAmount: 2.2, noiseFloorDb: -26, highPassHz: 100, clarityDb: 4, pauseReductionDb: 10, levelSpeech: true, levelMaxBoostDb: 20 },
+  // The same values Smart mode uses for such sections (autoTune.ts settingsForSection), as fixed presets.
+  // Whispers are noise-like: gentle subtraction keeps their consonants; presence boost; strong leveller.
+  whisper: { noiseSuppression: true, humRemoval: true, noiseAmount: 1.2, noiseFloorDb: -14, highPassHz: 100, clarityDb: 5, pauseReductionDb: 6, levelSpeech: true, levelMaxBoostDb: 24 },
+  // Distant voice: close to the noise, thin and quiet: moderate subtraction, presence boost, leveller.
+  far: { noiseSuppression: true, humRemoval: true, noiseAmount: 1.5, noiseFloorDb: -18, highPassHz: 100, clarityDb: 5, pauseReductionDb: 6, levelSpeech: true, levelMaxBoostDb: 20 },
+  // Loud steady background (fan, traffic, crowd): strong subtraction and pause lowering.
+  noisy: { noiseSuppression: true, humRemoval: true, noiseAmount: 2.0, noiseFloorDb: -22, highPassHz: 100, clarityDb: 3, pauseReductionDb: 10, levelSpeech: true, levelMaxBoostDb: 12 },
+  // Mains hum, wind, handling and traffic rumble: higher low-cut and hum notches, light subtraction.
+  rumble: { noiseSuppression: true, humRemoval: true, noiseAmount: 1.3, noiseFloorDb: -15, highPassHz: 150, clarityDb: 3, pauseReductionDb: 4, levelSpeech: true, levelMaxBoostDb: 12 },
 };
 
 /** 'auto' keeps the user's loudness/limiter values; the rest is chosen per file in enhance(). */
