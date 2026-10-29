@@ -22,11 +22,13 @@ export function TranscriptScreen({ id }: { id: string }) {
 }
 
 function TranscriptView({ rec }: { rec: Recording }) {
-  const { t, goBack, settings, updateSettings, updateRecording, showError, colors, fs, isAnalysing } = useApp();
+  const { t, goBack, settings, updateSettings, updateRecording, showError, colors, fs, isAnalysing, getRecording } = useApp();
   const [running, setRunning] = useState<number | null>(null);
   const [live, setLive] = useState<TranscriptSegment[]>([]);
   const [redo, setRedo] = useState(false);
   const job = useRef<TranscribeJob | null>(null);
+  const [waiting, setWaiting] = useState(false);
+  const stopWait = useRef(false);
   const tr = settings.transcription;
   const model = MODELS.find((m) => m.id === tr.modelId) ?? MODELS[1];
   const [dl, setDl] = useState<number | null>(null);
@@ -37,9 +39,19 @@ function TranscriptView({ rec }: { rec: Recording }) {
   const start = async () => {
     setRunning(0);
     setLive([]);
+    // transcription skips pauses using the speech sections: if they are still being found
+    // (in parallel, after import), wait for them here instead of blocking the button
+    if (isAnalysing(rec.id)) {
+      stopWait.current = false;
+      setWaiting(true);
+      while (isAnalysing(rec.id) && !stopWait.current) await new Promise((r) => setTimeout(r, 400));
+      setWaiting(false);
+      if (stopWait.current) { setRunning(null); return; }
+    }
+    const current = getRecording(rec.id) ?? rec;
     updateRecording(rec.id, { status: 'transcribing' });
     try {
-      job.current = await startTranscription(rec, { modelId: tr.modelId, language: tr.language, useEnhanced: tr.useEnhancedAudio, prompt: tr.prompt }, (p) => setRunning(p), setLive);
+      job.current = await startTranscription(current, { modelId: tr.modelId, language: tr.language, useEnhanced: tr.useEnhancedAudio, prompt: tr.prompt }, (p) => setRunning(p), setLive);
       const transcript = await job.current.promise;
       updateRecording(rec.id, { transcript, status: isAnalysing(rec.id) ? 'analyzing' : 'ready' });
       setRedo(false);
@@ -69,9 +81,9 @@ function TranscriptView({ rec }: { rec: Recording }) {
   const showSetup = !rec.transcript || redo;
   return (
     <View style={{ flex: 1 }}>
-      <Header title={`${t('transcript')} · ${rec.name}`} onBack={() => { void job.current?.stop(); goBack(); }} />
+      <Header title={`${t('transcript')} · ${rec.name}`} onBack={() => { stopWait.current = true; void job.current?.stop(); goBack(); }} />
       {running !== null ? (
-        <RunningView progress={running} live={live} onCancel={() => job.current?.stop()} />
+        <RunningView progress={running} live={live} waiting={waiting} onCancel={() => { stopWait.current = true; void job.current?.stop(); }} />
       ) : showSetup ? (
         <KeyboardAwareScrollView contentContainerStyle={{ padding: space.lg, gap: space.lg }}>
             <View style={{ gap: space.lg }}>
@@ -103,8 +115,7 @@ function TranscriptView({ rec }: { rec: Recording }) {
                   style={{ minHeight: TOUCH * 1.5, borderWidth: 1, borderColor: colors.border, borderRadius: radius, padding: space.md, color: colors.text, fontSize: fs.md, textAlign: 'auto' }}
                 />
               </Section>
-              {rec.status === 'analyzing' ? <Txt size="sm" muted testID="wait-analysis">{t('transcribe_wait_analysis')}</Txt> : null}
-              <Button testID="start-transcribe" label={t('transcribe')} icon="📝" onPress={start} disabled={!modelReady || rec.status === 'analyzing'} />
+              <Button testID="start-transcribe" label={t('transcribe')} icon="📝" onPress={start} disabled={!modelReady} />
               {rec.transcript ? <Button kind="ghost" label={t('cancel')} onPress={() => setRedo(false)} /> : null}
             </View>
         </KeyboardAwareScrollView>
@@ -116,13 +127,13 @@ function TranscriptView({ rec }: { rec: Recording }) {
 }
 
 /** Progress, and the text found so far (newest at the bottom, followed while it grows). */
-function RunningView({ progress, live, onCancel }: { progress: number; live: TranscriptSegment[]; onCancel: () => void }) {
+function RunningView({ progress, live, waiting, onCancel }: { progress: number; live: TranscriptSegment[]; waiting: boolean; onCancel: () => void }) {
   const { t, colors, fs } = useApp();
   useKeepAwake();
   const list = useRef<FlatList<TranscriptSegment>>(null);
   return (
     <View style={{ flex: 1, padding: space.lg, gap: space.md }}>
-      <ProgressBar value={progress} label={t('stage_transcribe')} />
+      <ProgressBar value={waiting ? 0 : progress} label={waiting ? t('transcribe_wait_analysis') : t('stage_transcribe')} />
       <Txt size="sm" muted testID="live-status">{live.length ? t('live_found', { n: live.length, time: clock(live[live.length - 1].end) }) : t('live_waiting')}</Txt>
       <FlatList
         ref={list}
