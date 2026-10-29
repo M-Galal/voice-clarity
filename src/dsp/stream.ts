@@ -632,6 +632,8 @@ interface LevelPlan {
   maxBoostDb: number;
   /** Windows raised less than wanted because of the noise in them (Smart mode). */
   held: number;
+  /** Windows held back by more than 3 dB (sample ranges): left out of the loudness measurement. */
+  heldBack: { a: number; b: number }[];
 }
 
 /** How far above the original background the noise under raised speech may end up (Smart mode), dB. */
@@ -658,9 +660,15 @@ function planLeveller(windows: { a: number; b: number }[], sums: Float64Array, l
   const levels = [...dbs].sort((p, q) => p - q);
   const ref = levels[Math.min(levels.length - 1, Math.floor(refP * levels.length))];
   let held = 0;
+  const heldBack: { a: number; b: number }[] = [];
   const boosts = dbs.map((d, i) => {
     const want = Math.max(0, Math.min(maxBoostDb, ref - d));
-    if (caps && caps[i] < want) { held++; return caps[i]; }
+    if (caps && caps[i] < want) {
+      held++;
+      // kept clearly quieter on purpose: the loudness target should not try to make up for it
+      if (caps[i] < want - 3) heldBack.push(windows[i]);
+      return caps[i];
+    }
     return want;
   });
   const block = Math.max(1, Math.round(0.01 * sampleRate));
@@ -678,7 +686,7 @@ function planLeveller(windows: { a: number; b: number }[], sums: Float64Array, l
   }
   const lin = new Float32Array(nb);
   for (let k = 0; k < nb; k++) lin[k] = Math.pow(10, smooth[k] / 20);
-  return { lin, block, maxBoostDb: boosts.reduce((a, b) => Math.max(a, b), 0), held };
+  return { lin, block, maxBoostDb: boosts.reduce((a, b) => Math.max(a, b), 0), held, heldBack };
 }
 
 function applyLevel(x: Float32Array, start: number, plan: LevelPlan): Float32Array {
@@ -1154,7 +1162,7 @@ export async function enhanceStream(
       const meter = new KLoudnessMeter(sr);
       await eachChunk(srcA, (x, start) => { meter.push(plan ? applyLevel(x, start, plan) : x); }, ticker(0.8, 0.85));
       const blocks: BlockPower[] = meter.blocks();
-      const current = speechLoudnessFromBlocks(blocks, sr, segments);
+      const current = speechLoudnessFromBlocks(blocks, sr, segments, plan?.heldBack ?? []);
       if (Number.isFinite(current)) {
         const wanted = settings.targetLufs - current;
         appliedGainDb = Math.min(wanted, settings.maxAutoGainDb);
@@ -1309,9 +1317,19 @@ export async function enhanceStream(
 }
 
 /** speechLoudness() from block powers. */
-function speechLoudnessFromBlocks(blocks: BlockPower[], sampleRate: number, segments: Segment[]): number {
+function speechLoudnessFromBlocks(blocks: BlockPower[], sampleRate: number, segments: Segment[], exclude: { a: number; b: number }[] = []): number {
   const all = loudnessFromBlocks(blocks, sampleRate, []).integrated;
   if (segments.length === 0) return all;
+  if (exclude.length) {
+    // speech held back on purpose (steady noise) does not count towards the loudness target
+    let xi = 0;
+    const kept = blocks.filter((b) => {
+      const c = b.start + 0.2 * sampleRate;
+      while (xi < exclude.length && exclude[xi].b <= c) xi++;
+      return !(xi < exclude.length && c >= exclude[xi].a);
+    });
+    if (kept.length >= 4) return speechLoudnessFromBlocks(kept, sampleRate, segments);
+  }
   const inSpeech = blocks.filter((b) => {
     const centre = b.start / sampleRate + 0.2;
     return segments.some((s) => centre >= s.start && centre <= s.end);
