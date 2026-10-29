@@ -25,7 +25,8 @@ export interface AutoReason {
     | 'auto_rumble'
     | 'auto_clarity_far'
     | 'auto_pauses'
-    | 'auto_sections';
+    | 'auto_sections'
+    | 'auto_level_steady';
   vars?: Record<string, string | number>;
 }
 
@@ -133,6 +134,7 @@ export function chooseSettings(base: EnhanceSettings, m: AutoMeasures): { settin
       pauseReductionDb,
       levelSpeech,
       levelMaxBoostDb,
+      steadyNoise: base.steadyNoise ?? true,
       gainMode: 'target',
     },
     reasons,

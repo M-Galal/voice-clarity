@@ -74,7 +74,7 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
   const perSection = s.perSection !== false;
   const fileSections = wantSmart && perSection && smart.kind === 'ready' ? smart.analysis.sections : null;
 
-  const patch = (p: Partial<EnhanceSettings>) => setS((prev) => ({ ...prev, ...p, strength: p.strength ?? (Object.keys(p).some((k) => k !== 'perSection' && k !== 'gainMode' && k !== 'targetLufs' && k !== 'manualGainDb' && k !== 'removeSilence' && k !== 'keepGapMs' && k !== 'limiterCeilingDb') ? 'advanced' : prev.strength) }));
+  const patch = (p: Partial<EnhanceSettings>) => setS((prev) => ({ ...prev, ...p, strength: p.strength ?? (Object.keys(p).some((k) => k !== 'perSection' && k !== 'steadyNoise' && k !== 'gainMode' && k !== 'targetLufs' && k !== 'manualGainDb' && k !== 'removeSilence' && k !== 'keepGapMs' && k !== 'limiterCeilingDb') ? 'advanced' : prev.strength) }));
 
   const run = async () => {
     token.current = { cancelled: false };
@@ -151,6 +151,7 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
                 <Txt size="sm" testID="auto-hint">{t('auto_hint')}</Txt>
                 <SmartCard state={smart} onRetry={() => { void analyse(); }} perSection={perSection} />
                 <Toggle testID="per-section" label={t('per_section')} hint={t('per_section_hint')} value={perSection} onChange={(v) => patch({ perSection: v })} />
+                <Toggle testID="steady-noise" label={t('steady_noise')} hint={t('steady_noise_hint')} value={s.steadyNoise !== false} onChange={(v) => patch({ steadyNoise: v })} />
               </>
             ) : (
               <>
@@ -434,6 +435,7 @@ function summary(s: EnhanceSettings, rate: number, t: ReturnType<typeof useApp>[
       `${t('strength')}: ${t('auto')}`,
       t('auto_hint'),
       s.perSection !== false ? t('per_section') : '',
+      s.steadyNoise !== false ? t('steady_noise') : '',
       s.gainMode === 'target' ? `${t('target_lufs')}: ${s.targetLufs} LUFS` : `${t('manual_gain')}: ${formatDb(s.manualGainDb)} (${pct(s.manualGainDb)})`,
       `${t('limiter_ceiling')}: ${s.limiterCeilingDb} dBFS`,
       `${t('processing_rate')}: ${rate / 1000} kHz`,

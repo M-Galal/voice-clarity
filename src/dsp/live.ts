@@ -19,7 +19,7 @@ import { DD_SMOOTHING, frameSizeFor, humNotches } from './denoise';
 import { kWeightingCoeffs } from './loudness';
 import type { EnhanceSettings } from './pipeline';
 import {
-  CLARITY_MAX_DB, maskRange, noiseControl, NoiseProfileAccumulator, predictedGainDb, SectionCurve, StreamingDenoiser, StreamingLimiter, type SampleSource,
+  CLARITY_MAX_DB, maskRange, noiseControl, NoiseProfileAccumulator, predictedGainDb, SectionCurve, steadyNoiseCaps, StreamingDenoiser, StreamingLimiter, type SampleSource,
 } from './stream';
 import { clamp, dbToGain } from './units';
 import type { Segment } from './vad';
@@ -98,12 +98,31 @@ class LiveLeveller {
   private nextOut = 0; // next block index to output (into the arrays below)
   private readonly alpha: number;
   maxBoostSeen = 0;
+  /** Smart mode: noise left after noise reduction per block (absolute block index), from the denoiser. */
+  private readonly left = new Map<number, { s: number; n: number }>();
+  private base = 0; // blocks dropped from the front of the arrays
 
-  constructor(sampleRate: number, private readonly refDb: number, private readonly maxBoostDb: number, private readonly isSpeech: (sample: number) => boolean) {
+  constructor(
+    sampleRate: number,
+    private readonly refDb: number,
+    private readonly maxBoostDb: number,
+    private readonly isSpeech: (sample: number) => boolean,
+    /** Smart mode (steady noise): the loudness gain now, dB; null = no noise limit. */
+    private readonly gainNow: (() => number) | null = null,
+  ) {
     this.k = new BiquadChainState(kWeightingCoeffs(sampleRate));
     this.block = Math.max(1, Math.round(BLOCK_SEC * sampleRate));
     this.alpha = 1 - Math.exp(-1 / (0.04 * sampleRate)); // ~40 ms smoothing
   }
+
+  /** Noise left in a denoiser frame centred at `sample` (fraction of the original noise). */
+  addResidual(sample: number, r: number) {
+    const b = Math.floor(sample / this.block);
+    const e = this.left.get(b);
+    if (e) { e.s += r; e.n++; } else this.left.set(b, { s: r, n: 1 });
+  }
+
+  get blockSize() { return this.block; }
 
   private blockIndex = 0;
   push(x: Float32Array): Float32Array {
@@ -139,6 +158,16 @@ class LiveLeveller {
       }
       const level = n ? 10 * Math.log10(e / n + 1e-12) : -120;
       this.boostDb = clamp(this.refDb - level, 0, this.maxBoostDb);
+      if (this.gainNow) {
+        // as in the file pipeline (steadyNoiseCaps): the noise left here, raised by the boost and
+        // the gain, stays within the allowance of the original background
+        let ls = 0, ln = 0;
+        for (let j = Math.max(0, b - LOOK_BLOCKS); j <= b + LOOK_BLOCKS && j < this.energies.length; j++) {
+          const v = this.speech[j] ? this.left.get(j + this.base) : undefined;
+          if (v) { ls += v.s; ln += v.n; }
+        }
+        if (ln) this.boostDb = Math.min(this.boostDb, steadyNoiseCaps([10 * Math.log10(ls / ln + 1e-30)], this.gainNow())[0]);
+      }
       if (this.boostDb > this.maxBoostSeen) this.maxBoostSeen = this.boostDb;
     }
     const x = this.pending.shift()!;
@@ -154,6 +183,8 @@ class LiveLeveller {
       this.energies.splice(0, drop);
       this.speech.splice(0, drop);
       this.nextOut -= drop;
+      for (const k of this.left.keys()) if (k < this.base + drop) this.left.delete(k);
+      this.base += drop;
     }
     return y;
   }
@@ -240,11 +271,13 @@ export class LiveChain {
     }
     this.pre = new BiquadChainState(chain);
     const sections = ctx.sections ? shift(ctx.sections, startSec) : null;
+    let residualSink: ((c: number, r: number) => void) | null = null;
     this.dn = settings.noiseSuppression && noiseProfile
       ? new StreamingDenoiser(
         sr, this.segs, Float32Array.from(noiseProfile),
         { overSubtraction: clamp(settings.noiseAmount, 0.5, 3), floorDb: clamp(settings.noiseFloorDb, -40, -3), smoothing: DD_SMOOTHING, rule: 'wiener-dd' }, BIG,
         noiseControl(settings, sections, shift(ctx.windows ?? [], startSec), ctx.speechRefDb, predictedGainDb(settings, ctx.inputSpeechLufs ?? NaN)),
+        settings.steadyNoise === true ? (c, r) => residualSink?.(c, r) : null,
       )
       : null;
     this.clarityCurve = sections?.length && sr > 8000 ? new SectionCurve(sections, (x) => x.clarityDb) : null;
@@ -257,9 +290,11 @@ export class LiveChain {
     const levCursor = new SpeechCursor(this.segs);
     const inSpeech = (rel: number) => levCursor.at(rel / sr);
     this.trackCursor = new SpeechCursor(this.segs);
+    const steady = settings.steadyNoise === true && !!this.dn;
     this.lev = settings.levelSpeech && ctx.speechRefDb !== undefined && this.segs.length
-      ? new LiveLeveller(sr, ctx.speechRefDb, clamp(settings.levelMaxBoostDb, 0, 30), inSpeech)
+      ? new LiveLeveller(sr, ctx.speechRefDb, clamp(settings.levelMaxBoostDb, 0, 30), inSpeech, steady ? () => this.initialGain : null)
       : null;
+    if (steady && this.lev) { const lev = this.lev; residualSink = (c, r) => lev.addResidual(c, r); }
     if (settings.gainMode === 'manual') {
       this.gainDb = clamp(settings.manualGainDb, -24, 30);
       this.targetLufs = null;

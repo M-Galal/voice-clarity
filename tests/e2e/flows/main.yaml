@@ -143,6 +143,9 @@ appId: com.example.voiceclarity
 - scrollUntilVisible:
     element:
       id: "per-section"
+- scrollUntilVisible:
+    element:
+      id: "steady-noise"
 - takeScreenshot: 10_enhance_setup
 # live listening: play with the Smart settings, switch original/enhanced, change a setting while playing
 - scrollUntilVisible:

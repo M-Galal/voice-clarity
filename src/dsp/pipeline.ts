@@ -61,6 +61,11 @@ export interface EnhanceSettings {
    */
   noiseFollowsBoost?: boolean;
   /**
+   * Smart mode: raise quiet speech only until the noise left under it is 3 dB above the noise
+   * under the loud speech, so the background stays steady.
+   */
+  steadyNoise?: boolean;
+  /**
    * Smart mode with measurements taken elsewhere (the preview uses the whole recording's, not
    * those of the previewed minute). Not saved with the user's settings.
    */

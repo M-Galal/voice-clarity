@@ -61,6 +61,7 @@ async function run(preset: 'auto' | 'whisper' | 'balanced') {
   return {
     quietSpeech: speechLevel(out, 'quiet') - speechLevel(mix, 'quiet'),
     noiseQuiet: bandLevel(out, 'quiet') - bandLevel(mix, 'quiet'),
+    noiseLoud: bandLevel(out, 'loud') - bandLevel(mix, 'loud'),
     humQuiet: humLevel(out, 'quiet') - humLevel(mix, 'quiet'),
     humPause: humLevel(out, 'pause') - humLevel(mix, 'pause'),
   };
@@ -80,3 +81,8 @@ for (const preset of ['auto', 'whisper', 'balanced'] as const) {
     assert.ok(r.noiseQuiet < r.quietSpeech - 6, `noise ${r.noiseQuiet.toFixed(1)} dB vs speech ${r.quietSpeech.toFixed(1)} dB`);
   });
 }
+
+test('Smart mode keeps the background steady: noise under raised quiet speech no louder than under loud speech', async () => {
+  const r = await run('auto');
+  assert.ok(r.noiseQuiet <= r.noiseLoud + 2, `quiet ${r.noiseQuiet.toFixed(1)} dB vs loud ${r.noiseLoud.toFixed(1)} dB`);
+});

@@ -371,6 +371,7 @@ export class StreamingDenoiser {
   private readonly gain: Float32Array;
   private readonly prevClean: Float32Array;
   private readonly power: Float32Array;
+  private readonly xi: Float32Array;
   private readonly dd: boolean;
   private readonly acc: Float32Array; // overlap-add for padded positions [framePos, framePos + n)
   private pend: Float32Array; // padded input from pendStart
@@ -388,6 +389,8 @@ export class StreamingDenoiser {
     private readonly length: number,
     /** Per-section over-subtraction and floor (dB); replaces opts.overSubtraction / floorDb. */
     private readonly control: { over: Curve; floorDb: Curve } | null = null,
+    /** Called per frame with the frame centre (sample) and the noise power expected to remain. */
+    private readonly onFrame: ((centre: number, residual: number) => void) | null = null,
   ) {
     this.n = frameSizeFor(sampleRate);
     this.hop = this.n / 2;
@@ -403,6 +406,7 @@ export class StreamingDenoiser {
     this.gain = new Float32Array(this.bins);
     this.prevClean = new Float32Array(this.bins);
     this.power = new Float32Array(this.bins);
+    this.xi = new Float32Array(this.bins);
     this.dd = opts.rule === 'wiener-dd';
     this.acc = new Float32Array(this.n);
     this.pend = new Float32Array(this.n); // leading padding
@@ -433,7 +437,7 @@ export class StreamingDenoiser {
         floor = Math.pow(10, clamp(this.control.floorDb.at(t), -40, -3) / 20);
       }
       const f2 = floor * floor;
-      const dd = this.dd, prevClean = this.prevClean, power = this.power;
+      const dd = this.dd, prevClean = this.prevClean, power = this.power, xiArr = this.xi;
       for (let k = 0; k < bins; k++) {
         const p = re[k] * re[k] + im[k] * im[k];
         power[k] = p;
@@ -443,6 +447,7 @@ export class StreamingDenoiser {
           const nk = noise[k] > 1e-20 ? noise[k] : 1e-20;
           const post = p / nk - 1;
           const xi = DD_ALPHA * (prevClean[k] / nk) + (1 - DD_ALPHA) * (post > 0 ? post : 0);
+          xiArr[k] = xi;
           const w = xi / (xi + over);
           gain[k] = w > floor ? w : floor;
         } else {
@@ -457,6 +462,17 @@ export class StreamingDenoiser {
         const fs = 0.25 * a + 0.5 * b + 0.25 * c;
         const g = smooth * prevGain[k] + (1 - smooth) * fs;
         prevGain[k] = Math.max(floor, Math.min(1, g));
+      }
+      if (this.onFrame) {
+        // noise left where it is not covered by speech: bins whose estimated speech-to-noise
+        // ratio is below 0 dB (in bins where speech dominates, the noise under it is masked)
+        let r = 0, nAll = 0;
+        for (let k = 0; k < bins; k++) {
+          nAll += noise[k];
+          if (!dd || xiArr[k] < 1) r += prevGain[k] * prevGain[k] * noise[k];
+        }
+        // as a fraction of all the noise, so it reads as "how much of the noise is left"
+        this.onFrame(this.frame * hop + n / 2 - n, r / (nAll || 1));
       }
       for (let k = 0; k < bins; k++) {
         const g = prevGain[k];
@@ -614,9 +630,26 @@ interface LevelPlan {
   lin: Float32Array; // smoothed gains per 10 ms block
   block: number;
   maxBoostDb: number;
+  /** Windows raised less than wanted because of the noise in them (Smart mode). */
+  held: number;
 }
 
-function planLeveller(windows: { a: number; b: number }[], sums: Float64Array, length: number, sampleRate: number, maxBoostDb: number, refP = 0.8): LevelPlan | null {
+/** How far above the original background the noise under raised speech may end up (Smart mode), dB. */
+export const STEADY_NOISE_ALLOWANCE_DB = 3;
+
+/**
+ * Smart mode's limit on raising quiet speech. For each window, `leftDb` is the noise left after
+ * noise reduction where speech does not cover it (bins with an estimated speech-to-noise ratio
+ * below 0 dB), relative to the original noise. Raised by `boost` and the loudness gain, that noise
+ * must stay within STEADY_NOISE_ALLOWANCE_DB of the original background:
+ * boost <= allowance - gain - leftDb. Infinity where there is no measurement.
+ */
+export function steadyNoiseCaps(leftDb: number[], gainDb: number): number[] {
+  const g = Math.max(0, Number.isFinite(gainDb) ? gainDb : 0);
+  return leftDb.map((v) => (Number.isFinite(v) ? Math.max(0, STEADY_NOISE_ALLOWANCE_DB - g - v) : Infinity));
+}
+
+function planLeveller(windows: { a: number; b: number }[], sums: Float64Array, length: number, sampleRate: number, maxBoostDb: number, refP = 0.8, caps: number[] | null = null): LevelPlan | null {
   if (windows.length === 0) return null;
   const dbs = windows.map((w, i) => {
     const ms = sums[i] / Math.max(1, w.b - w.a);
@@ -624,7 +657,12 @@ function planLeveller(windows: { a: number; b: number }[], sums: Float64Array, l
   });
   const levels = [...dbs].sort((p, q) => p - q);
   const ref = levels[Math.min(levels.length - 1, Math.floor(refP * levels.length))];
-  const boosts = dbs.map((d) => Math.max(0, Math.min(maxBoostDb, ref - d)));
+  let held = 0;
+  const boosts = dbs.map((d, i) => {
+    const want = Math.max(0, Math.min(maxBoostDb, ref - d));
+    if (caps && caps[i] < want) { held++; return caps[i]; }
+    return want;
+  });
   const block = Math.max(1, Math.round(0.01 * sampleRate));
   const nb = Math.ceil(length / block);
   const env = new Float32Array(nb);
@@ -640,7 +678,7 @@ function planLeveller(windows: { a: number; b: number }[], sums: Float64Array, l
   }
   const lin = new Float32Array(nb);
   for (let k = 0; k < nb; k++) lin[k] = Math.pow(10, smooth[k] / 20);
-  return { lin, block, maxBoostDb: boosts.reduce((a, b) => Math.max(a, b), 0) };
+  return { lin, block, maxBoostDb: boosts.reduce((a, b) => Math.max(a, b), 0), held };
 }
 
 function applyLevel(x: Float32Array, start: number, plan: LevelPlan): Float32Array {
@@ -1021,11 +1059,13 @@ export async function enhanceStream(
     tracks.push(trackA);
     const pre = new BiquadChainState(chain);
     const control = noiseControl(settings, sections, fm.windows ?? [], (requested.autoMeasures ?? fm.measures)?.speechRefDb, predictedGainDb(settings, input.speechLufs));
+    let residualSink: ((c: number, r: number) => void) | null = null;
     const dn = noiseProfile
       ? new StreamingDenoiser(
         sr, segments, noiseProfile,
         { overSubtraction: clamp(settings.noiseAmount, 0.5, 3), floorDb: clamp(settings.noiseFloorDb, -40, -3), smoothing: DD_SMOOTHING, rule: 'wiener-dd' }, len,
         control,
+        settings.steadyNoise === true ? (c, r) => residualSink?.(c, r) : null,
       )
       : null;
     if (dn) stages.push('noise-suppression');
@@ -1046,6 +1086,16 @@ export async function enhanceStream(
     const useLevel = settings.levelSpeech && segments.length > 0;
     const levelWins = useLevel ? speechWindows(segments, sr, len, 1) : [];
     const levelE = new RangeEnergy(levelWins);
+    // Smart mode: the noise left in each window after noise reduction (frames by centre)
+    const steady = useLevel && !!dn && settings.steadyNoise === true;
+    const resSum = new Float64Array(levelWins.length);
+    const resN = new Float64Array(levelWins.length);
+    let resWi = 0;
+    const onResidual = (c: number, r: number) => {
+      while (resWi < levelWins.length && levelWins[resWi].b <= c) resWi++;
+      if (resWi < levelWins.length && c >= levelWins[resWi].a) { resSum[resWi] += r; resN[resWi]++; }
+    };
+    if (steady) residualSink = onResidual;
     const levelK = new BiquadChainState(kWeightingCoeffs(sr));
     let aPos = 0;
     const stageA = async (y: Float32Array) => {
@@ -1088,8 +1138,14 @@ export async function enhanceStream(
     releaseInput?.();
 
     // ---- pass 5: leveller plan, loudness for the gain stage
-    const plan = useLevel ? planLeveller(levelWins, levelE.sums, len, sr, clamp(settings.levelMaxBoostDb, 0, 30)) : null;
+    const leftDb = steady ? Array.from(resSum, (s, i) => (resN[i] ? 10 * Math.log10(s / resN[i] + 1e-30) : NaN)) : null;
+    const caps = leftDb ? steadyNoiseCaps(leftDb, predictedGainDb(settings, input.speechLufs)) : null;
+    const plan = useLevel ? planLeveller(levelWins, levelE.sums, len, sr, clamp(settings.levelMaxBoostDb, 0, 30), 0.8, caps) : null;
     if (plan) stages.push('speech-leveller');
+    if (plan && steady) {
+      stages.push('steady-noise');
+      autoReasons?.push({ key: 'auto_level_steady', vars: { n: plan.held, total: levelWins.length } });
+    }
     let appliedGainDb = 0;
     let gainCapped = false;
     if (settings.gainMode === 'manual') {

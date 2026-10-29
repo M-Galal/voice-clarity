@@ -12,16 +12,16 @@ const fx = decodeWav(new Uint8Array(readFileSync(new URL('./fixtures/whisper_mix
 const X = resample(fx.channels[0], 16000, 24000);
 const SR = 24000;
 
-async function setup() {
+async function setup(steadyNoise = true) {
   const src = new MemorySource(X, SR);
   const a = await analyseForSmart(src, settingsForPreset('auto'));
-  const settings = chooseSettings(settingsForPreset('auto'), a.measures).settings;
+  const settings = chooseSettings({ ...settingsForPreset('auto'), steadyNoise }, a.measures).settings;
   const ctx: LiveContext = { segments: a.segments, humHz: a.humHz, sections: a.sections, speechRefDb: a.measures.speechRefDb, inputSpeechLufs: a.input.speechLufs };
   return { src, settings, ctx };
 }
 
-async function runLive(startSec: number, block: number) {
-  const { src, settings, ctx } = await setup();
+async function runLive(startSec: number, block: number, steadyNoise = true) {
+  const { src, settings, ctx } = await setup(steadyNoise);
   const s0 = Math.round(startSec * SR);
   const noise = await liveNoiseProfile(src, s0, settings, ctx);
   const chain = new LiveChain(SR, settings, ctx, s0, noise);
@@ -55,7 +55,8 @@ test('live chain: the result does not depend on the block size', async () => {
 });
 
 test('live chain: below the peak ceiling, louder whispers, quieter pauses', async () => {
-  const { enh, orig, s0, settings } = await runLive(0, 4096);
+  // without the steady-noise limit: these whispers are only ~1 dB above the background
+  const { enh, orig, s0, settings } = await runLive(0, 4096, false);
   let peak = 0;
   for (const v of enh) peak = Math.max(peak, Math.abs(v));
   assert.ok(20 * Math.log10(peak) <= settings.limiterCeilingDb + 0.01, `peak ${20 * Math.log10(peak)}`);

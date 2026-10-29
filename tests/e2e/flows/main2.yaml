@@ -52,6 +52,9 @@ appId: com.example.voiceclarity
 - scrollUntilVisible:
     element:
       id: "reason-auto_sections"
+- scrollUntilVisible:
+    element:
+      id: "reason-auto_level_steady"
 - takeScreenshot: 42_whisper_smart_reasons
 - scrollUntilVisible:
     element:

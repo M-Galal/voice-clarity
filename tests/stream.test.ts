@@ -37,7 +37,7 @@ const maxDiff = (a: Float32Array, b: Float32Array) => {
 
 async function compare(x: Float32Array, sr: number, given: EnhanceSettings, label: string) {
   // the whole-buffer pipeline has fixed noise-reduction settings: compare without the boost-following floor
-  const settings: EnhanceSettings = { ...given, noiseFollowsBoost: false };
+  const settings: EnhanceSettings = { ...given, noiseFollowsBoost: false, steadyNoise: false };
   const batch = await enhance([x], sr, settings);
   const sink = new MemorySink();
   const s = await enhanceStream(new OddSource(new MemorySource(x, sr), 4097), sink, settings, memoryTemp);
@@ -184,7 +184,8 @@ test('whole-file Smart analysis chooses exactly what a full Smart run uses', asy
   const sink = new MemorySink();
   const r = await enhanceStream(new MemorySource(X24, 24000), sink, s, memoryTemp);
   assert.deepEqual(a.settings, r.report.appliedSettings);
-  assert.deepEqual(a.reasons, r.report.autoReasons);
+  // the steady-noise line is added after processing (it reports what the leveller held back)
+  assert.deepEqual(a.reasons, r.report.autoReasons?.filter((x) => x.key !== 'auto_level_steady'));
   assert.equal(a.humHz, r.report.humHz);
   assert.deepEqual(a.segments, r.report.segments);
 });
