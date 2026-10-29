@@ -669,15 +669,19 @@ export async function analyseStream(src: SampleSource, vad: Partial<{ thresholdD
   const per = src.length / bars;
   await eachChunk(src, (x, start) => {
     fa.push(x);
-    // waveformPeaks: bar b covers [floor(b*per), floor((b+1)*per))
-    for (let k = 0; k < x.length; k++) {
-      const i = start + k;
-      let b = Math.floor(i / per);
-      if (b >= bars) b = bars - 1;
-      while (b > 0 && Math.floor(b * per) > i) b--;
-      while (b < bars - 1 && Math.floor((b + 1) * per) <= i) b++;
-      const a = Math.abs(x[k]);
-      if (a > peaks[b]) peaks[b] = a;
+    // waveformPeaks: bar b covers [floor(b*per), floor((b+1)*per)); the last bar takes the rest
+    const end = start + x.length;
+    let b = Math.min(bars - 1, Math.floor(start / per));
+    while (b > 0 && Math.floor(b * per) > start) b--;
+    while (b < bars - 1 && Math.floor((b + 1) * per) <= start) b++;
+    for (; b < bars; b++) {
+      const lo = Math.max(start, Math.floor(b * per));
+      const hi = b === bars - 1 ? end : Math.min(end, Math.floor((b + 1) * per));
+      if (lo >= end) break;
+      let m = peaks[b];
+      for (let i = lo - start, n = hi - start; i < n; i++) { let v = x[i]; if (v < 0) v = -v; if (v > m) m = v; }
+      peaks[b] = m;
+      if (hi >= end) break;
     }
   }, tick);
   const analysis = fa.finish();

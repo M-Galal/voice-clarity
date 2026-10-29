@@ -35,7 +35,7 @@ export function EnhanceScreen({ id, auto }: { id: string; auto?: boolean }) {
 }
 
 function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
-  const { t, goBack, settings, updateSettings, updateRecording, showError, navigate, colors } = useApp();
+  const { t, goBack, settings, updateSettings, updateRecording, showError, navigate, colors, isAnalysing } = useApp();
   const [s, setS] = useState<EnhanceSettings>(settings.enhance);
   const [rate, setRate] = useState(settings.processingRate);
   const [phase, setPhase] = useState<Phase>({ kind: 'setup' });
@@ -89,7 +89,8 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
       setPhase({ kind: 'setup' });
       showError(e);
     } finally {
-      updateRecording(rec.id, { status: 'ready' });
+      // speech detection may still be running for a file just imported
+      updateRecording(rec.id, { status: isAnalysing(rec.id) ? 'analyzing' : 'ready' });
     }
   };
 

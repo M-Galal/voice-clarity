@@ -46,6 +46,8 @@ interface Ctx {
   getRecording: (id: string) => Recording | undefined;
   importFromPicker: () => Promise<void>;
   reanalyse: (id: string) => Promise<void>;
+  /** Speech detection is still running for this recording (it runs in the background). */
+  isAnalysing: (id: string) => boolean;
   addRecording: (rec: Recording) => Promise<void>;
   deleteRecording: (id: string) => void;
   /** Deletes a play-list file from its folder, with any app data kept for it. Returns true when deleted. */
@@ -158,23 +160,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [t],
   );
 
+  const analysing = useRef(new Set<string>());
+  const isAnalysing = useCallback((id: string) => analysing.current.has(id), []);
   const runAnalysis = useCallback(
     async (rec: Recording) => {
+      analysing.current.add(rec.id);
       updateRecording(rec.id, { status: 'analyzing', error: undefined });
       try {
         const a = await analyse(rec, settings.vadThresholdDb, settings.vadWhisper);
-        updateRecording(rec.id, {
-          status: 'ready',
+        // an enhancement or transcription started meanwhile keeps its status
+        updateRecording(rec.id, (r) => ({
+          status: r.status === 'analyzing' ? 'ready' : r.status,
           durationSec: a.durationSec || rec.durationSec,
           channels: a.channels,
           segments: a.segments,
           waveform: a.waveform,
           noiseFloorDb: a.noiseFloorDb,
-        });
+        }));
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         console.warn(`[VC] analyse failed for ${rec.format}: ${msg}`);
-        updateRecording(rec.id, { status: 'error', error: msg });
+        updateRecording(rec.id, (r) => (r.status === 'analyzing' ? { status: 'error', error: msg } : { error: msg }));
+      } finally {
+        analysing.current.delete(rec.id);
       }
     },
     [settings.vadThresholdDb, settings.vadWhisper, updateRecording],
@@ -193,7 +201,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           showError(e);
         }
       }
-      for (const rec of added) await runAnalysis(rec);
+      // speech detection runs in the background (one file at a time); nothing waits for it
+      void (async () => { for (const rec of added) await runAnalysis(rec); })();
       if (added.length === 1 && settings.auto.runOnImport) setStack((s) => [...s, { name: 'enhance', id: added[0].id, auto: true }]);
     } catch (e) {
       showError(e);
@@ -303,13 +312,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       getRecording,
       importFromPicker,
       reanalyse,
+      isAnalysing,
       addRecording,
       deleteRecording,
       deleteFolderFile,
       showError,
       resetAll,
     }),
-    [ready, library, settings, stack, queue, queueOpening, playFromQueue, t, dark, updateSettings, updateRecording, getRecording, importFromPicker, reanalyse, addRecording, deleteRecording, deleteFolderFile, showError, resetAll],
+    [ready, library, settings, stack, queue, queueOpening, playFromQueue, t, dark, updateSettings, updateRecording, getRecording, importFromPicker, reanalyse, isAnalysing, addRecording, deleteRecording, deleteFolderFile, showError, resetAll],
   );
 
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;

@@ -194,6 +194,8 @@ function Player({ rec, queueIndex, autoplay }: { rec: Recording; queueIndex?: nu
       ]);
 
     const busy = rec.status === 'analyzing' || rec.status === 'enhancing' || rec.status === 'transcribing';
+    // speech detection runs in the background and blocks nothing; only one heavy job at a time
+    const heavy = rec.status === 'enhancing' || rec.status === 'transcribing';
 
     return (
       <View style={{ flex: 1 }}>
@@ -274,10 +276,10 @@ function Player({ rec, queueIndex, autoplay }: { rec: Recording; queueIndex?: nu
           <Toggle testID="skip-silence" label={t('skip_silence')} value={settings.skipSilence} onChange={(v) => updateSettings({ skipSilence: v })} hint={`${t('silence_gap')} ${settings.skipSilenceMinGapSec} s`} />
 
           <Row wrap>
-            <Button testID="auto-enhance" label={t('auto_enhance')} icon="✨" onPress={() => { player.pause(); navigate({ name: 'enhance', id: rec.id, auto: true }); }} disabled={busy} style={{ flexGrow: 1 }} />
-            <Button testID="enhance" label={t('enhance')} icon="🎚" kind="secondary" onPress={() => { player.pause(); navigate({ name: 'enhance', id: rec.id }); }} disabled={busy} style={{ flexGrow: 1 }} />
-            <Button testID="transcript" label={t('transcript')} icon="📝" kind="secondary" onPress={() => { player.pause(); navigate({ name: 'transcript', id: rec.id }); }} disabled={busy && rec.status !== 'transcribing'} style={{ flexGrow: 1 }} />
-            <Button testID="edit-audio" label={t('edit_audio')} icon="✂︎" kind="secondary" onPress={() => { player.pause(); navigate({ name: 'edit', id: rec.id }); }} disabled={busy} style={{ flexGrow: 1 }} />
+            <Button testID="auto-enhance" label={t('auto_enhance')} icon="✨" onPress={() => { player.pause(); navigate({ name: 'enhance', id: rec.id, auto: true }); }} disabled={heavy} style={{ flexGrow: 1 }} />
+            <Button testID="enhance" label={t('enhance')} icon="🎚" kind="secondary" onPress={() => { player.pause(); navigate({ name: 'enhance', id: rec.id }); }} disabled={heavy} style={{ flexGrow: 1 }} />
+            <Button testID="transcript" label={t('transcript')} icon="📝" kind="secondary" onPress={() => { player.pause(); navigate({ name: 'transcript', id: rec.id }); }} disabled={rec.status === 'enhancing'} style={{ flexGrow: 1 }} />
+            <Button testID="edit-audio" label={t('edit_audio')} icon="✂︎" kind="secondary" onPress={() => { player.pause(); navigate({ name: 'edit', id: rec.id }); }} disabled={heavy} style={{ flexGrow: 1 }} />
             <Button testID="export" label={t('export')} icon="⇪" kind="secondary" onPress={() => setExportOpen(true)} style={{ flexGrow: 1 }} />
           </Row>
 

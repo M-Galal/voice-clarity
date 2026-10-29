@@ -22,7 +22,7 @@ export function TranscriptScreen({ id }: { id: string }) {
 }
 
 function TranscriptView({ rec }: { rec: Recording }) {
-  const { t, goBack, settings, updateSettings, updateRecording, showError, colors, fs } = useApp();
+  const { t, goBack, settings, updateSettings, updateRecording, showError, colors, fs, isAnalysing } = useApp();
   const [running, setRunning] = useState<number | null>(null);
   const [live, setLive] = useState<TranscriptSegment[]>([]);
   const [redo, setRedo] = useState(false);
@@ -41,10 +41,10 @@ function TranscriptView({ rec }: { rec: Recording }) {
     try {
       job.current = await startTranscription(rec, { modelId: tr.modelId, language: tr.language, useEnhanced: tr.useEnhancedAudio, prompt: tr.prompt }, (p) => setRunning(p), setLive);
       const transcript = await job.current.promise;
-      updateRecording(rec.id, { transcript, status: 'ready' });
+      updateRecording(rec.id, { transcript, status: isAnalysing(rec.id) ? 'analyzing' : 'ready' });
       setRedo(false);
     } catch (e) {
-      updateRecording(rec.id, { status: 'ready' });
+      updateRecording(rec.id, { status: isAnalysing(rec.id) ? 'analyzing' : 'ready' });
       if (!(e instanceof Error && e.message === 'aborted')) showError(e);
     } finally {
       job.current = null;
@@ -103,7 +103,8 @@ function TranscriptView({ rec }: { rec: Recording }) {
                   style={{ minHeight: TOUCH * 1.5, borderWidth: 1, borderColor: colors.border, borderRadius: radius, padding: space.md, color: colors.text, fontSize: fs.md, textAlign: 'auto' }}
                 />
               </Section>
-              <Button testID="start-transcribe" label={t('transcribe')} icon="📝" onPress={start} disabled={!modelReady} />
+              {rec.status === 'analyzing' ? <Txt size="sm" muted testID="wait-analysis">{t('transcribe_wait_analysis')}</Txt> : null}
+              <Button testID="start-transcribe" label={t('transcribe')} icon="📝" onPress={start} disabled={!modelReady || rec.status === 'analyzing'} />
               {rec.transcript ? <Button kind="ghost" label={t('cancel')} onPress={() => setRedo(false)} /> : null}
             </View>
         </KeyboardAwareScrollView>

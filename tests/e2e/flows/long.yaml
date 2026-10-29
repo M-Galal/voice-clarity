@@ -15,15 +15,24 @@ appId: com.example.voiceclarity
     env:
       FILE: long_20min.wav
       SHOT: "70"
+# open it straight away: speech detection runs in the background and must not block Enhance
 - extendedWaitUntil:
-    visible: ".*long_20min.*Ready.*"
-    timeout: 600000
+    visible:
+      id: "rec-long_20min"
+    timeout: 60000
 - takeScreenshot: 71_long_imported
 - tapOn:
     id: "rec-long_20min"
-- extendedWaitUntil:
-    visible: ".*[1-9][0-9]+ speech sections.*"
-    timeout: 60000
+- scrollUntilVisible:
+    element:
+      id: "auto-enhance"
+      enabled: true
+    timeout: 10000
+- takeScreenshot: 71b_long_enhance_enabled_while_analysing
+- scrollUntilVisible:
+    element: ".*[1-9][0-9]+ speech sections.*"
+    direction: UP
+    timeout: 600000
 - takeScreenshot: 72_long_player
 - scrollUntilVisible:
     element:
