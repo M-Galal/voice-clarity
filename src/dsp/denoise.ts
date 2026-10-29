@@ -10,6 +10,7 @@
  * - Per-bin gain: g = max(floor, 1 − α·N/P), smoothed over time and neighbouring bins to limit
  *   "musical noise". `floorDb` caps how deep any bin can be cut, which protects words.
  */
+import { designBiquad, type BiquadCoeffs } from './biquad';
 import { RealFFT, nextPow2 } from './fft';
 import type { Segment } from './vad';
 
@@ -240,4 +241,53 @@ export function detectHum(samples: Float32Array, sampleRate: number, segments: S
   const s60 = score(60);
   if (!Number.isFinite(s50) && !Number.isFinite(s60)) return null;
   return s50 >= s60 ? 50 : 60;
+}
+
+/** Highest hum harmonic considered for notching, Hz (buzz from rectifiers and transformers). */
+export const HUM_MAX_HZ = 1000;
+
+/**
+ * Which harmonics of the detected hum to notch: the first four always (as before), and every
+ * higher one up to HUM_MAX_HZ that stands at least 6 dB above its neighbours (±5, ±9 Hz) in the
+ * pauses. Raising quiet speech by 20 dB raises any hum left under it by as much, so a harmonic
+ * that was barely there becomes audible.
+ */
+export function humHarmonics(samples: Float32Array, sampleRate: number, segments: Segment[], base: 50 | 60): number[] {
+  const parts: Float32Array[] = [];
+  let total = 0;
+  const maxLen = sampleRate * 10;
+  let cursor = 0;
+  const gaps: Segment[] = [];
+  for (const s of segments) { if (s.start > cursor) gaps.push({ start: cursor, end: s.start }); cursor = s.end; }
+  const dur = samples.length / sampleRate;
+  if (cursor < dur) gaps.push({ start: cursor, end: dur });
+  for (const g of gaps) {
+    if (total >= maxLen) break;
+    const a = Math.round(g.start * sampleRate);
+    const b = Math.min(Math.round(g.end * sampleRate), a + (maxLen - total));
+    if (b - a > sampleRate * 0.25) { parts.push(samples.subarray(a, b)); total += b - a; }
+  }
+  const out = [1, 2, 3, 4].filter((h) => base * h < sampleRate / 2);
+  if (total < sampleRate) return out;
+  const x = new Float32Array(total);
+  let off = 0;
+  for (const p of parts) { x.set(p, off); off += p.length; }
+  const goertzel = (freq: number) => {
+    const c = 2 * Math.cos((2 * Math.PI * freq) / sampleRate);
+    let s1 = 0, s2 = 0;
+    for (let i = 0; i < x.length; i++) { const s0 = x[i] + c * s1 - s2; s2 = s1; s1 = s0; }
+    return s1 * s1 + s2 * s2 - c * s1 * s2;
+  };
+  for (let h = 5; base * h <= Math.min(HUM_MAX_HZ, sampleRate * 0.45); h++) {
+    const f = base * h;
+    const on = goertzel(f);
+    const offP = (goertzel(f - 5) + goertzel(f + 5) + goertzel(f - 9) + goertzel(f + 9)) / 4;
+    if (10 * Math.log10((on + 1e-20) / (offP + 1e-20)) >= 6) out.push(h);
+  }
+  return out;
+}
+
+/** Notch filters for the given hum harmonics (Q 30, as before). */
+export function humNotches(sampleRate: number, base: number, harmonics: number[]): BiquadCoeffs[] {
+  return harmonics.filter((h) => base * h < sampleRate / 2).map((h) => designBiquad('notch', sampleRate, base * h, 30));
 }

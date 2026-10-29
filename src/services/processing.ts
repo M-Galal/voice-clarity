@@ -223,7 +223,7 @@ export class EnhancePreviewer {
       if (parts) {
         try {
           r = await analyseForSmart(parts.source, settings, { onProgress: (f) => onProgress(0.5 + 0.5 * f, 'measuring'), isCancelled, yieldFn: yieldToUi });
-          r = { ...r, sampled: { parts: plan.length, seconds: parts.source.length / 16000 }, sections: r.sections && mapToParts(r.sections, plan, parts.partFrames, 16000) };
+          r = { ...r, sampled: { parts: plan.length, seconds: parts.source.length / 16000 }, sections: r.sections && mapToParts(r.sections, plan, parts.partFrames, 16000), windows: mapToParts(r.windows, plan, parts.partFrames, 16000) };
         } finally {
           parts.dispose();
         }

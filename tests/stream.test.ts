@@ -35,7 +35,9 @@ const maxDiff = (a: Float32Array, b: Float32Array) => {
   return m;
 };
 
-async function compare(x: Float32Array, sr: number, settings: EnhanceSettings, label: string) {
+async function compare(x: Float32Array, sr: number, given: EnhanceSettings, label: string) {
+  // the whole-buffer pipeline has fixed noise-reduction settings: compare without the boost-following floor
+  const settings: EnhanceSettings = { ...given, noiseFollowsBoost: false };
   const batch = await enhance([x], sr, settings);
   const sink = new MemorySink();
   const s = await enhanceStream(new OddSource(new MemorySource(x, sr), 4097), sink, settings, memoryTemp);

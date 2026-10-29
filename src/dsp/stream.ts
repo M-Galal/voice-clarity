@@ -20,8 +20,8 @@
  * own noise reduction and clarity, which pass 4 follows with short crossfades at section edges.
  */
 import { BiquadChainState, designBiquad, type BiquadCoeffs } from './biquad';
-import { chooseSettings, countSections, planSections, type AutoMeasures, type AutoReason, type SectionSetting, type SectionWindow } from './autoTune';
-import { CancelledError, DD_ALPHA, DD_SMOOTHING, detectHum, frameSizeFor, type Progress } from './denoise';
+import { boostFloorPlan, chooseSettings, countSections, planSections, type AutoMeasures, type AutoReason, type SectionSetting, type SectionWindow } from './autoTune';
+import { CancelledError, DD_ALPHA, DD_SMOOTHING, detectHum, frameSizeFor, humHarmonics, humNotches, type Progress } from './denoise';
 import { RealFFT } from './fft';
 import { KLoudnessMeter, kWeightingCoeffs, loudnessFromBlocks, TruePeakMeter, type BlockPower } from './loudness';
 import type { EnhanceReport, EnhanceSettings, LevelReport, WarningCode } from './pipeline';
@@ -227,11 +227,17 @@ function gapsOf(segments: Segment[], duration: number): [number, number][] {
  * where sections meet, a linear move across the pause between two sections. Queries must not go
  * backwards in time (each consumer has its own curve).
  */
-export class SectionCurve {
+/** Anything that gives a setting for a time (times only move forward). */
+export interface Curve { at(time: number): number }
+/** The smaller of two curves at each time (the deeper floor, for example). */
+export const minCurve = (a: Curve, b: Curve): Curve => ({ at: (t) => Math.min(a.at(t), b.at(t)) });
+export const constCurve = (v: number): Curve => ({ at: () => v });
+
+export class SectionCurve<T extends { start: number; end: number } = SectionSetting> implements Curve {
   private readonly t: number[] = [];
   private readonly v: number[] = [];
   private i = 0;
-  constructor(sections: SectionSetting[], value: (s: SectionSetting) => number, rampSec = 0.3) {
+  constructor(sections: T[], value: (s: T) => number, rampSec = 0.3) {
     for (const s of sections) {
       const r = Math.min(rampSec / 2, (s.end - s.start) / 2);
       const x = value(s);
@@ -381,7 +387,7 @@ export class StreamingDenoiser {
     private readonly opts: { overSubtraction: number; floorDb: number; smoothing: number; rule?: 'subtract' | 'wiener-dd' },
     private readonly length: number,
     /** Per-section over-subtraction and floor (dB); replaces opts.overSubtraction / floorDb. */
-    private readonly control: { over: SectionCurve; floorDb: SectionCurve } | null = null,
+    private readonly control: { over: Curve; floorDb: Curve } | null = null,
   ) {
     this.n = frameSizeFor(sampleRate);
     this.hop = this.n / 2;
@@ -856,6 +862,35 @@ interface SmartChoice {
   sections: SectionSetting[] | null;
 }
 
+/** The loudness gain the gain stage is expected to apply (before levelling is known), dB. */
+export function predictedGainDb(settings: EnhanceSettings, inputSpeechLufs: number): number {
+  if (settings.gainMode === 'manual') return clamp(settings.manualGainDb, -24, 30);
+  return Number.isFinite(inputSpeechLufs) ? Math.min(settings.targetLufs - inputSpeechLufs, settings.maxAutoGainDb) : 0;
+}
+
+/**
+ * Over-subtraction and floor over time for the noise reducer: per section (Smart mode), and with
+ * the floor at least as deep as the boost planned for each speech window (boostFloorPlan).
+ * null = the fixed settings.
+ */
+export function noiseControl(
+  settings: EnhanceSettings,
+  sections: SectionSetting[] | null,
+  windows: SectionWindow[],
+  refDb: number | undefined,
+  gainDb: number,
+): { over: Curve; floorDb: Curve } | null {
+  const base = clamp(settings.noiseFloorDb, -40, -3);
+  const over: Curve = sections?.length ? new SectionCurve(sections, (x) => x.noiseAmount) : constCurve(clamp(settings.noiseAmount, 0.5, 3));
+  let floor: Curve = sections?.length ? new SectionCurve(sections, (x) => x.noiseFloorDb) : constCurve(base);
+  const follows = settings.noiseFollowsBoost !== false && windows.length > 0;
+  if (follows) {
+    const plan = boostFloorPlan(windows, refDb, settings, gainDb);
+    floor = minCurve(floor, new SectionCurve(plan, (x) => x.floorDb));
+  }
+  return sections?.length || follows ? { over, floorDb: floor } : null;
+}
+
 /** Smart-mode settings for the file and, when asked, for each section of it. */
 function smartChoice(requested: EnhanceSettings, fm: FileMeasures): SmartChoice {
   const measures = requested.autoMeasures ?? fm.measures!;
@@ -881,6 +916,10 @@ export interface SmartAnalysis {
   sampled?: { parts: number; seconds: number };
   /** Per-section settings (Smart mode per section), times in seconds of the analysed audio. */
   sections: SectionSetting[] | null;
+  /** ~1 s speech windows (level, noise), for the boost-following noise floor of live listening. */
+  windows: SectionWindow[];
+  /** Hum harmonics to notch (when hum was found). */
+  humHarmonics: number[];
 }
 
 /**
@@ -894,7 +933,8 @@ export async function analyseForSmart(src: SampleSource, requested: EnhanceSetti
   void _ignored;
   const chosen = smartChoice(own, fm);
   const humHz = chosen.settings.humRemoval && fm.humAudio.length >= src.sampleRate ? detectHum(fm.humAudio, src.sampleRate, []) : null;
-  return { measures: fm.measures!, settings: chosen.settings, reasons: chosen.reasons, humHz, segments: fm.segments, input: fm.input, sections: chosen.sections };
+  const humHarm = humHz ? humHarmonics(fm.humAudio, src.sampleRate, [], humHz) : [];
+  return { measures: fm.measures!, settings: chosen.settings, reasons: chosen.reasons, humHz, segments: fm.segments, input: fm.input, sections: chosen.sections, windows: fm.windows ?? [], humHarmonics: humHarm };
 }
 
 export interface StreamEnhanceResult {
@@ -925,11 +965,12 @@ export async function enhanceStream(
 
   try {
     // ---- passes 1-2: speech, levels, Smart-mode measures, hum audio
-    const fm = await measureFile(src, settings.vad, requested.strength === 'auto', ticker(0, 0.2));
+    // the measurements are taken in every mode: the boost-following noise floor uses them too
+    const fm = await measureFile(src, settings.vad, true, ticker(0, 0.2));
     const { segments, analysis, snrDb, input, clip, humAudio } = fm;
     stages.push('analyse');
     let sections: SectionSetting[] | null = null;
-    if (fm.measures) {
+    if (requested.strength === 'auto' && fm.measures) {
       const chosen = smartChoice(requested, fm);
       settings = chosen.settings;
       autoReasons = chosen.reasons;
@@ -948,7 +989,7 @@ export async function enhanceStream(
     if (settings.humRemoval) {
       humHz = humAudio.length >= sr ? detectHum(humAudio, sr, []) : null;
       if (humHz) {
-        for (let h = 1; h <= 4 && humHz * h < sr / 2; h++) chain.push(designBiquad('notch', sr, humHz * h, 30));
+        chain.push(...humNotches(sr, humHz, humHarmonics(humAudio, sr, [], humHz)));
         stages.push(`hum-${humHz}`);
       }
     }
@@ -979,14 +1020,16 @@ export async function enhanceStream(
     const trackA = temp(sr, 'float');
     tracks.push(trackA);
     const pre = new BiquadChainState(chain);
+    const control = noiseControl(settings, sections, fm.windows ?? [], (requested.autoMeasures ?? fm.measures)?.speechRefDb, predictedGainDb(settings, input.speechLufs));
     const dn = noiseProfile
       ? new StreamingDenoiser(
         sr, segments, noiseProfile,
         { overSubtraction: clamp(settings.noiseAmount, 0.5, 3), floorDb: clamp(settings.noiseFloorDb, -40, -3), smoothing: DD_SMOOTHING, rule: 'wiener-dd' }, len,
-        sections ? { over: new SectionCurve(sections, (x) => x.noiseAmount), floorDb: new SectionCurve(sections, (x) => x.noiseFloorDb) } : null,
+        control,
       )
       : null;
     if (dn) stages.push('noise-suppression');
+    if (dn && settings.noiseFollowsBoost !== false && fm.windows?.length) stages.push('noise-follows-boost');
     // per section: the full-boost filter is mixed with the dry signal (exact gain at the centre frequency)
     const clarityCurve = sections && sr > 8000 ? new SectionCurve(sections, (x) => x.clarityDb) : null;
     const clarityMax = clarityCurve ? CLARITY_MAX_DB : clamp(settings.clarityDb, 0, 8);

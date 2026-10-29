@@ -348,6 +348,8 @@ function LivePanel({ rec, pv, settings, rate, smart, sections }: { rec: Recordin
       sections: settings.strength === 'auto' ? sections : null,
       speechRefDb: smart.measures.speechRefDb,
       inputSpeechLufs: smart.input.speechLufs,
+      humHarmonics: smart.humHarmonics,
+      windows: smart.windows,
     };
     return { resolved, ctx };
   }, [settings, smart, sections, rec.segments, app.settings.vadThresholdDb, app.settings.vadWhisper]);

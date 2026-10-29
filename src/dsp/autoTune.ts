@@ -252,3 +252,27 @@ export function countSections(sections: SectionSetting[]): Record<SectionKind, n
   for (const s of sections) n[s.kind]++;
   return n;
 }
+
+/** Deepest noise reduction the boost-following floor asks for, dB. */
+export const BOOST_FLOOR_LIMIT_DB = -40;
+
+/**
+ * Noise reduction that follows the boost. Where quiet speech is raised by the leveller (and
+ * everything by the loudness gain), the noise left under it is raised by as much; with a floor of
+ * -14 dB and a 26 dB boost it ends up 12 dB louder than in the original. So for each speech window
+ * the floor goes at least as deep as the boost planned there (leveller estimate from the original
+ * level, plus the positive part of the gain), down to BOOST_FLOOR_LIMIT_DB: the noise then stays at
+ * or below its original level. Settings may ask for deeper reduction; never shallower.
+ */
+export function boostFloorPlan(
+  windows: SectionWindow[],
+  refDb: number | undefined,
+  settings: { levelSpeech: boolean; levelMaxBoostDb: number },
+  gainDb: number,
+): { start: number; end: number; floorDb: number }[] {
+  const g = Math.max(0, Number.isFinite(gainDb) ? gainDb : 0);
+  return windows.map((w) => {
+    const boost = settings.levelSpeech && refDb !== undefined ? Math.max(0, Math.min(settings.levelMaxBoostDb, refDb - w.levelDb)) : 0;
+    return { start: w.start, end: w.end, floorDb: Math.max(BOOST_FLOOR_LIMIT_DB, -(boost + g)) };
+  });
+}

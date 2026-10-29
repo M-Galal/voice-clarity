@@ -9,7 +9,7 @@
  */
 import { applyChain, designBiquad, type BiquadCoeffs } from './biquad';
 import { mixToMono, removeSilence } from './buffers';
-import { CancelledError, DD_SMOOTHING, denoise, detectHum, type Progress } from './denoise';
+import { CancelledError, DD_SMOOTHING, denoise, detectHum, humHarmonics, humNotches, type Progress } from './denoise';
 import { applyGain, attenuateGaps, detectClipping, levelSpeech, limit } from './dynamics';
 import { kWeight, loudnessPair, samplePeakDb, speechLoudness, truePeakDb } from './loudness';
 import { chooseSettings, measureForAuto, type AutoMeasures, type AutoReason, type SectionKind } from './autoTune';
@@ -54,6 +54,12 @@ export interface EnhanceSettings {
   vad: Partial<VadOptions>;
   /** Smart mode: choose noise reduction and clarity for each section (whispered, distant, close). */
   perSection?: boolean;
+  /**
+   * Noise reduction goes at least as deep as the boost planned for each part (leveller + gain),
+   * so raising quiet speech does not raise the noise and hum under it above their original level.
+   * On unless set to false.
+   */
+  noiseFollowsBoost?: boolean;
   /**
    * Smart mode with measurements taken elsewhere (the preview uses the whole recording's, not
    * those of the previewed minute). Not saved with the user's settings.
@@ -210,7 +216,7 @@ export async function enhance(
   if (settings.humRemoval) {
     humHz = detectHum(x, sampleRate, segments);
     if (humHz) {
-      for (let h = 1; h <= 4 && humHz * h < sampleRate / 2; h++) chain.push(designBiquad('notch', sampleRate, humHz * h, 30));
+      chain.push(...humNotches(sampleRate, humHz, humHarmonics(x, sampleRate, segments, humHz)));
       stages.push(`hum-${humHz}`);
     }
   }

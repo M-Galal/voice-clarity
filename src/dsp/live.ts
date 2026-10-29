@@ -14,12 +14,12 @@
  * limiter are the same code as the file pipeline.
  */
 import { BiquadChainState, designBiquad, type BiquadCoeffs } from './biquad';
-import type { SectionSetting } from './autoTune';
-import { DD_SMOOTHING, frameSizeFor } from './denoise';
+import type { SectionSetting, SectionWindow } from './autoTune';
+import { DD_SMOOTHING, frameSizeFor, humNotches } from './denoise';
 import { kWeightingCoeffs } from './loudness';
 import type { EnhanceSettings } from './pipeline';
 import {
-  CLARITY_MAX_DB, maskRange, NoiseProfileAccumulator, SectionCurve, StreamingDenoiser, StreamingLimiter, type SampleSource,
+  CLARITY_MAX_DB, maskRange, noiseControl, NoiseProfileAccumulator, predictedGainDb, SectionCurve, StreamingDenoiser, StreamingLimiter, type SampleSource,
 } from './stream';
 import { clamp, dbToGain } from './units';
 import type { Segment } from './vad';
@@ -35,6 +35,10 @@ export interface LiveContext {
   speechRefDb?: number;
   /** Speech loudness of the original, LUFS: the starting point for the loudness gain. */
   inputSpeechLufs?: number;
+  /** Hum harmonics to notch (default: the first four). */
+  humHarmonics?: number[];
+  /** ~1 s speech windows (recording timeline), for the boost-following noise floor. */
+  windows?: SectionWindow[];
 }
 
 const BIG = Number.MAX_SAFE_INTEGER;
@@ -232,7 +236,7 @@ export class LiveChain {
     const chain: BiquadCoeffs[] = [];
     if (settings.highPassHz > 0) chain.push(designBiquad('highpass', sr, settings.highPassHz, 0.707));
     if (settings.humRemoval && ctx.humHz) {
-      for (let h = 1; h <= 4 && ctx.humHz * h < sr / 2; h++) chain.push(designBiquad('notch', sr, ctx.humHz * h, 30));
+      chain.push(...humNotches(sr, ctx.humHz, ctx.humHarmonics ?? [1, 2, 3, 4]));
     }
     this.pre = new BiquadChainState(chain);
     const sections = ctx.sections ? shift(ctx.sections, startSec) : null;
@@ -240,7 +244,7 @@ export class LiveChain {
       ? new StreamingDenoiser(
         sr, this.segs, Float32Array.from(noiseProfile),
         { overSubtraction: clamp(settings.noiseAmount, 0.5, 3), floorDb: clamp(settings.noiseFloorDb, -40, -3), smoothing: DD_SMOOTHING, rule: 'wiener-dd' }, BIG,
-        sections?.length ? { over: new SectionCurve(sections, (x) => x.noiseAmount), floorDb: new SectionCurve(sections, (x) => x.noiseFloorDb) } : null,
+        noiseControl(settings, sections, shift(ctx.windows ?? [], startSec), ctx.speechRefDb, predictedGainDb(settings, ctx.inputSpeechLufs ?? NaN)),
       )
       : null;
     this.clarityCurve = sections?.length && sr > 8000 ? new SectionCurve(sections, (x) => x.clarityDb) : null;
@@ -391,7 +395,7 @@ export async function liveNoiseProfile(src: SampleSource, startSample: number, s
   const chain: BiquadCoeffs[] = [];
   if (settings.highPassHz > 0) chain.push(designBiquad('highpass', sr, settings.highPassHz, 0.707));
   if (settings.humRemoval && ctx.humHz) {
-    for (let h = 1; h <= 4 && ctx.humHz * h < sr / 2; h++) chain.push(designBiquad('notch', sr, ctx.humHz * h, 30));
+    chain.push(...humNotches(sr, ctx.humHz, ctx.humHarmonics ?? [1, 2, 3, 4]));
   }
   const f = new BiquadChainState(chain).process(x);
   const segs = shift(ctx.segments, a / sr);
