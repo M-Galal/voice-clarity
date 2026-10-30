@@ -1,0 +1,10 @@
+# Second part of asr-pair.yaml, run after the "[VC] transcribe" log line: the finished transcript
+# is on screen with the time it took. No launchApp: the app is left as asr-pair.yaml left it.
+appId: com.example.voiceclarity
+---
+- extendedWaitUntil:
+    visible:
+      id: "seg-s0"
+    timeout: 120000
+- takeScreenshot: 82_asr_pair_transcript
+- assertVisible: ".*took.*"

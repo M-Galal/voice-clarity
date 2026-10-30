@@ -40,9 +40,11 @@ appId: com.example.voiceclarity
 - tapOn:
     id: "auto-enhance"
 # wait for the Smart analysis: its result (and the section strip) changes the page height
+# (the docked live panel shows when the Smart settings are in; the result card itself may be
+# below the fold)
 - extendedWaitUntil:
     visible:
-      id: "smart-ready"
+      id: "pv-settled"
     timeout: 180000
 - scrollUntilVisible:
     element:

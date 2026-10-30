@@ -8,7 +8,7 @@ mkdir -p "$RES/screens"
 # A retry reuses the results folder: keep the first attempt's output under attempt1/
 if [ -f "$RES/STATUS" ]; then
   mkdir -p "$RES/attempt1"
-  mv "$RES"/STATUS "$RES"/MAIN2_STATUS "$RES"/maestro-2.txt "$RES"/junit-2.xml "$RES"/LONG_STATUS "$RES"/PAIR_STATUS "$RES"/maestro-pair.txt "$RES"/junit-pair.xml "$RES"/maestro-long.txt "$RES"/junit-long.xml "$RES"/maestro.txt "$RES"/junit.xml "$RES"/logcat-js.txt "$RES"/app-errors.txt "$RES"/crashes.txt "$RES"/process-deaths.txt "$RES"/final-ui.xml "$RES/attempt1/" 2>/dev/null || true
+  mv "$RES"/STATUS "$RES"/MAIN2_STATUS "$RES"/maestro-2.txt "$RES"/junit-2.xml "$RES"/LONG_STATUS "$RES"/PAIR_STATUS "$RES"/maestro-pair.txt "$RES"/junit-pair.xml "$RES"/junit-pair-check.xml "$RES"/pair-log.txt "$RES"/maestro-long.txt "$RES"/junit-long.xml "$RES"/maestro.txt "$RES"/junit.xml "$RES"/logcat-js.txt "$RES"/app-errors.txt "$RES"/crashes.txt "$RES"/process-deaths.txt "$RES"/final-ui.xml "$RES/attempt1/" 2>/dev/null || true
   mv "$RES/screens" "$RES/attempt1/screens" 2>/dev/null || true
   mkdir -p "$RES/screens"
 fi
@@ -51,9 +51,23 @@ echo "main2_exit=$CODE2" > "$RES/MAIN2_STATUS"
 [ "$CODE" -eq 0 ] && CODE=$CODE2
 # Parallel transcription (two chunks per call) in its own Maestro session
 if [ -f e2e-audio/talk_90s.wav ]; then
-  timeout 30m "$HOME/.maestro/bin/maestro" test tests/e2e/flows/asr-pair.yaml --format junit --output "$RES/junit-pair.xml" \
+  timeout 20m "$HOME/.maestro/bin/maestro" test tests/e2e/flows/asr-pair.yaml --format junit --output "$RES/junit-pair.xml" \
     --test-output-dir "$RES/maestro-out-pair" > "$RES/maestro-pair.txt" 2>&1
   PAIR=$?
+  if [ "$PAIR" -eq 0 ]; then
+    # wait (outside Maestro) for the transcription to finish, up to 40 minutes
+    PAIR=1
+    for _ in $(seq 1 80); do
+      if grep -q "\[VC\] transcribe .*paired chunks=" "$RES/logcat-full.txt"; then PAIR=0; break; fi
+      sleep 30
+    done
+    grep "\[VC\] transcribe .*paired chunks=" "$RES/logcat-full.txt" > "$RES/pair-log.txt" || echo "no transcribe log line" > "$RES/pair-log.txt"
+    if [ "$PAIR" -eq 0 ]; then
+      timeout 10m "$HOME/.maestro/bin/maestro" test tests/e2e/flows/asr-pair-check.yaml --format junit --output "$RES/junit-pair-check.xml" \
+        --test-output-dir "$RES/maestro-out-pair" >> "$RES/maestro-pair.txt" 2>&1
+      PAIR=$?
+    fi
+  fi
   echo "pair_exit=$PAIR" > "$RES/PAIR_STATUS"
   [ "$CODE" -eq 0 ] && CODE=$PAIR
 fi

@@ -36,9 +36,11 @@ appId: com.example.voiceclarity
 - assertVisible:
     id: "auto-hint"
 # the Smart analysis changes the page height when it finishes: wait for it before scrolling
+# (the docked live panel shows when the Smart settings are in; the result card itself may be
+# below the fold)
 - extendedWaitUntil:
     visible:
-      id: "smart-ready"
+      id: "pv-settled"
     timeout: 120000
 # swipe along the left edge: a swipe through the middle can land on a slider and move it
 - repeat:

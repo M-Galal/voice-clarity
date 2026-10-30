@@ -132,9 +132,11 @@ appId: com.example.voiceclarity
     visible: ".*These settings will be used.*|.*Strength.*"
     timeout: 15000
 # Smart mode analyses the whole recording as soon as the screen opens
+# (the docked live panel shows when the Smart settings are in; the result card itself may be
+# below the fold)
 - extendedWaitUntil:
     visible:
-      id: "smart-ready"
+      id: "pv-settled"
     timeout: 120000
 - scrollUntilVisible:
     element:

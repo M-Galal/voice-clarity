@@ -1,6 +1,8 @@
 # Parallel transcription: a 90-second recording has several speech chunks, sent two at a time
 # (the "[VC] transcribe ... paired chunks=N" log line). Own Maestro session; keeps the app's data,
-# so the base model downloaded in main1b.yaml is used.
+# so the base model downloaded in main1b.yaml is used (or downloaded here).
+# This flow only starts the transcription: a Maestro session longer than about 10 minutes loses
+# its device server, so run-on-emulator.sh waits for the log line and then runs asr-pair-check.yaml.
 appId: com.example.voiceclarity
 ---
 - launchApp
@@ -40,13 +42,20 @@ appId: com.example.voiceclarity
       id: "asr-parallel"
 - takeScreenshot: 81_asr_parallel_setting
 - scrollUntilVisible:
+    element: ".*(Download \\(148 MB\\)|On device).*"
+    timeout: 20000
+- runFlow:
+    when:
+      visible:
+        id: "download-model"
+    commands:
+      - tapOn:
+          id: "download-model"
+- extendedWaitUntil:
+    visible: ".*On device.*"
+    timeout: 480000
+- scrollUntilVisible:
     element:
       id: "start-transcribe"
 - tapOn:
     id: "start-transcribe"
-- extendedWaitUntil:
-    visible:
-      id: "seg-s0"
-    timeout: 1500000
-- takeScreenshot: 82_asr_pair_transcript
-- assertVisible: ".*took.*"

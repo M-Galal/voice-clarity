@@ -406,7 +406,7 @@ function LivePanel({ rec, pv, settings, rate, smart, sections }: { rec: Recordin
   return (
     <View testID="pv-dock" style={{ borderTopWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: space.lg, paddingVertical: space.sm, gap: space.xs }}>
       <Row style={{ justifyContent: 'space-between' }}>
-        <Txt bold size="sm">{t('pv_title')}</Txt>
+        <Txt bold size="sm" testID={live.provisional ? 'pv-provisional' : 'pv-settled'}>{t('pv_title')}</Txt>
         {ready ? (
           <Txt size="xs" muted testID="pv-summary" style={{ flex: 1, textAlign: 'right' }} numberOfLines={1}>
             {live.provisional ? t('pv_provisional') : settings.gainMode === 'target' ? t('pv_live_gain', { gain: `${gainDb >= 0 ? '+' : ''}${gainDb.toFixed(1)}` }) : t('pv_live_note')}
