@@ -40,9 +40,17 @@ appId: com.example.voiceclarity
     visible:
       id: "smart-ready"
     timeout: 120000
-- scrollUntilVisible:
-    element:
-      id: "start-enhance"
+# swipe along the left edge: a swipe through the middle can land on a slider and move it
+- repeat:
+    while:
+      notVisible:
+        id: "start-enhance"
+    times: 20
+    commands:
+      - swipe:
+          start: 4%, 80%
+          end: 4%, 30%
+          duration: 400
 - tapOn:
     id: "start-enhance"
 - extendedWaitUntil:
