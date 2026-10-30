@@ -266,11 +266,30 @@ appId: com.example.voiceclarity
     id: "eq-3000-value"
     text: "\\+1[0-2].*dB"
 - takeScreenshot: 10f_equaliser
+# the bands pushed the Adjust/Hide button above the screen; swipe along the left edge so no
+# band slider is moved
+- repeat:
+    while:
+      notVisible:
+        id: "eq-open"
+    times: 10
+    commands:
+      - swipe:
+          start: 4%, 30%
+          end: 4%, 60%
+          duration: 400
 - tapOn:
     id: "eq-open"
-- scrollUntilVisible:
-    element:
-      id: "start-enhance"
+- repeat:
+    while:
+      notVisible:
+        id: "start-enhance"
+    times: 20
+    commands:
+      - swipe:
+          start: 4%, 65%
+          end: 4%, 20%
+          duration: 400
 - assertVisible: "(?s).*Equaliser: 3k \\+1[0-2] dB.*"
 - takeScreenshot: 11_enhance_summary
 - tapOn:

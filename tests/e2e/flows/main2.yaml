@@ -50,8 +50,8 @@ appId: com.example.voiceclarity
     times: 20
     commands:
       - swipe:
-          start: 4%, 80%
-          end: 4%, 30%
+          start: 4%, 65%
+          end: 4%, 20%
           duration: 400
 - tapOn:
     id: "start-enhance"
