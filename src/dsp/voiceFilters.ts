@@ -10,6 +10,8 @@ export const EQ_BANDS = [125, 250, 500, 1000, 2000, 3000, 4000, 6000] as const;
 export const EQ_MAX_DB = 12;
 /** Bandwidth of each band: Q 1.4 is about one octave. */
 const EQ_Q = 1.4;
+/** The voice-band low-pass offered in the app (ITU-T G.722 wideband speech: 50 Hz-7 kHz). */
+export const LOW_PASS_HZ = 7000;
 
 /**
  * 4th-order Butterworth low-pass (two biquads, Q 0.541 and 1.307): -3 dB at `hz`, -24 dB per

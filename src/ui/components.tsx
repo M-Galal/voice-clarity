@@ -189,13 +189,15 @@ export function Choice<T extends string | number>({
  * formatted value.
  */
 export function LabeledSlider({
-  label, value, min, max, step, onChange, format, hint, disabled, onLive, testID,
+  label, value, min, max, step, onChange, format, hint, disabled, onLive, testID, compact,
 }: {
   label: string; value: number; min: number; max: number; step: number;
   onChange: (v: number) => void; format: (v: number) => string; hint?: string; disabled?: boolean;
   /** Called while dragging; onChange is called on release. */
   onLive?: (v: number) => void;
   testID?: string;
+  /** Label, slider and value on one line (no hint shown). */
+  compact?: boolean;
 }) {
   const { colors } = useApp();
   // value shown while the thumb is being dragged
@@ -204,33 +206,45 @@ export function LabeledSlider({
   const shown = dragging ?? value;
   // The native slider (Android SeekBar, iOS UISlider) is adjustable with TalkBack/VoiceOver;
   // it carries the label and value itself, so it stays reachable for screen readers and tests.
+  const slider = (
+    <Slider
+      value={value}
+      minimumValue={min}
+      maximumValue={max}
+      step={step}
+      disabled={disabled}
+      onValueChange={(v) => {
+        const c = clampStep(v);
+        setDragging(c);
+        onLive?.(c);
+      }}
+      onSlidingComplete={(v) => { setDragging(null); onChange(clampStep(v)); }}
+      testID={testID ? `${testID}-track` : undefined}
+      accessibilityLabel={label}
+      accessibilityHint={hint}
+      accessibilityValue={{ text: format(shown) }}
+      minimumTrackTintColor={colors.primary}
+      maximumTrackTintColor={colors.border}
+      thumbTintColor={colors.primary}
+      style={compact ? { height: 32, flex: 1 } : { height: 32 }}
+    />
+  );
+  if (compact) {
+    return (
+      <View testID={testID} style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs, opacity: disabled ? 0.5 : 1 }}>
+        <Txt size="sm">{label}</Txt>
+        {slider}
+        <Txt size="sm" bold testID={testID ? `${testID}-value` : undefined} style={{ minWidth: 48, textAlign: 'right' }}>{format(shown)}</Txt>
+      </View>
+    );
+  }
   return (
     <View style={{ gap: space.xs, opacity: disabled ? 0.5 : 1 }} testID={testID}>
       <Row style={{ justifyContent: 'space-between' }}>
         <Txt style={{ flex: 1 }}>{label}</Txt>
         <Txt bold testID={testID ? `${testID}-value` : undefined}>{format(shown)}</Txt>
       </Row>
-      <Slider
-        value={value}
-        minimumValue={min}
-        maximumValue={max}
-        step={step}
-        disabled={disabled}
-        onValueChange={(v) => {
-          const c = clampStep(v);
-          setDragging(c);
-          onLive?.(c);
-        }}
-        onSlidingComplete={(v) => { setDragging(null); onChange(clampStep(v)); }}
-        testID={testID ? `${testID}-track` : undefined}
-        accessibilityLabel={label}
-        accessibilityHint={hint}
-        accessibilityValue={{ text: format(shown) }}
-        minimumTrackTintColor={colors.primary}
-        maximumTrackTintColor={colors.border}
-        thumbTintColor={colors.primary}
-        style={{ height: 32 }}
-      />
+      {slider}
       {hint ? <Txt size="sm" muted>{hint}</Txt> : null}
     </View>
   );

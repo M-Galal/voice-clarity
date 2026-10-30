@@ -154,19 +154,21 @@ appId: com.example.voiceclarity
     timeout: 120000
 - tapOn:
     id: "pv-play"
-- scrollUntilVisible:
-    element:
+# the live panel is docked at the bottom; its details hold the spectrum
+- tapOn:
+    id: "pv-details"
+- extendedWaitUntil:
+    visible:
       id: "pv-spectrum"
     timeout: 20000
+- takeScreenshot: 10a_live_details
+- tapOn:
+    id: "pv-details"
 - tapOn:
     id: "pv-ab-original"
 - tapOn:
     id: "pv-ab-enhanced"
 # listening speed while playing: all the way right (about 5x), then back to 1x
-- scrollUntilVisible:
-    element:
-      id: "pv-speed-track"
-    centerElement: true
 - swipe:
     from:
       id: "pv-speed-track"
@@ -245,9 +247,29 @@ appId: com.example.voiceclarity
           duration: 400
 - tapOn:
     id: "strength-auto"
+# equaliser: raise 3 kHz (consonants) on top of the Smart settings; the saved file uses it too
+- scrollUntilVisible:
+    element:
+      id: "eq-open"
+- tapOn:
+    id: "eq-open"
+- scrollUntilVisible:
+    element:
+      id: "eq-flat"
+- swipe:
+    from:
+      id: "eq-3000-track"
+    direction: RIGHT
+- assertVisible:
+    id: "eq-3000-value"
+    text: "\\+1[0-2].*dB"
+- takeScreenshot: 10f_equaliser
+- tapOn:
+    id: "eq-open"
 - scrollUntilVisible:
     element:
       id: "start-enhance"
+- assertVisible: "(?s).*Equaliser: 3k \\+1[0-2] dB.*"
 - takeScreenshot: 11_enhance_summary
 - tapOn:
     id: "start-enhance"

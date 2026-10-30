@@ -193,6 +193,8 @@ export async function enhanceToPreview(
  */
 /** Longer recordings are analysed and previewed from parts decoded by seeking (Android). */
 export const FULL_DECODE_MAX_SEC = 12 * 60;
+/** Live listening decodes by seeking above this length, so playback can start at once. */
+const LIVE_SEEK_ABOVE_SEC = 60;
 
 export class EnhancePreviewer {
   private decoded: DecodedPcm | null = null;
@@ -253,11 +255,12 @@ export class EnhancePreviewer {
   }
 
   /**
-   * The recording at `rate` for live listening: the whole decode for short recordings (shared
-   * with the Smart analysis and the full run), decoded by seeking in 20 s blocks for long ones.
+   * The recording at `rate` for live listening: the whole decode for recordings up to a minute
+   * (shared with the Smart analysis and the full run, a few seconds), decoded by seeking in 20 s
+   * blocks around the play position for longer ones, so listening never waits for a full decode.
    */
   async liveSource(rate: number, onProgress: (f: number) => void, isCancelled: () => boolean): Promise<SampleSource> {
-    if (this.long && VoiceEncoder?.decodeRangesToPcm) {
+    if (this.rec.durationSec > LIVE_SEEK_ABOVE_SEC && VoiceEncoder?.decodeRangesToPcm) {
       if (this.seeking?.sampleRate !== rate) {
         this.seeking?.dispose();
         this.seeking = new SeekingSource(originalUri(this.rec), rate, this.rec.durationSec);
