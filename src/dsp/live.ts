@@ -16,6 +16,7 @@
 import { BiquadChainState, designBiquad, type BiquadCoeffs } from './biquad';
 import type { SectionSetting, SectionWindow } from './autoTune';
 import { DD_SMOOTHING, frameSizeFor, humNotches } from './denoise';
+import { eqChain, lowPassChain } from './voiceFilters';
 import { kWeightingCoeffs } from './loudness';
 import { MAX_GAIN_DB, type EnhanceSettings } from './pipeline';
 import {
@@ -231,6 +232,7 @@ export class LiveChain {
   private readonly clarity: BiquadChainState | null;
   private readonly clarityCurve: SectionCurve | null;
   private readonly clarityMax: number;
+  private readonly eq: BiquadChainState | null;
   private readonly lev: LiveLeveller | null;
   private readonly lim: StreamingLimiter;
   private readonly hist: History;
@@ -269,7 +271,10 @@ export class LiveChain {
     if (settings.humRemoval && ctx.humHz) {
       chain.push(...humNotches(sr, ctx.humHz, ctx.humHarmonics ?? [1, 2, 3, 4]));
     }
+    chain.push(...lowPassChain(sr, settings.lowPassHz ?? 0));
     this.pre = new BiquadChainState(chain);
+    const eqf = eqChain(sr, settings.eq);
+    this.eq = eqf.length ? new BiquadChainState(eqf) : null;
     const sections = ctx.sections ? shift(ctx.sections, startSec) : null;
     let residualSink: ((c: number, r: number) => void) | null = null;
     this.dn = settings.noiseSuppression && noiseProfile
@@ -357,6 +362,7 @@ export class LiveChain {
         }
         z = o;
       }
+      if (this.eq) z = this.eq.process(z);
       if (this.gapOn) {
         const m = maskRange(this.segs, sr, BIG, 40, this.aPos, z.length);
         const o = new Float32Array(z.length);
@@ -432,6 +438,7 @@ export async function liveNoiseProfile(src: SampleSource, startSample: number, s
   if (settings.humRemoval && ctx.humHz) {
     chain.push(...humNotches(sr, ctx.humHz, ctx.humHarmonics ?? [1, 2, 3, 4]));
   }
+  chain.push(...lowPassChain(sr, settings.lowPassHz ?? 0));
   const f = new BiquadChainState(chain).process(x);
   const segs = shift(ctx.segments, a / sr);
   const acc = new NoiseProfileAccumulator(sr, segs);

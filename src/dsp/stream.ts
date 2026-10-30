@@ -20,6 +20,7 @@
  * own noise reduction and clarity, which pass 4 follows with short crossfades at section edges.
  */
 import { BiquadChainState, designBiquad, type BiquadCoeffs } from './biquad';
+import { eqChain, lowPassChain } from './voiceFilters';
 import { boostFloorPlan, chooseSettings, countSections, planSections, type AutoMeasures, type AutoReason, type SectionSetting, type SectionWindow } from './autoTune';
 import { CancelledError, DD_ALPHA, DD_SMOOTHING, detectHum, frameSizeFor, humHarmonics, humNotches, type Progress } from './denoise';
 import { RealFFT } from './fft';
@@ -1067,6 +1068,8 @@ export async function enhanceStream(
         stages.push(`hum-${humHz}`);
       }
     }
+    const lp = lowPassChain(sr, settings.lowPassHz ?? 0);
+    if (lp.length) { chain.push(...lp); stages.push('low-pass'); }
 
     // ---- pass 3: noise profile of the filtered signal
     let noiseProfile: Float32Array | null = null;
@@ -1113,6 +1116,9 @@ export async function enhanceStream(
       ? new BiquadChainState([designBiquad('peaking', sr, Math.min(3000, sr * 0.4), 0.9, clarityMax)])
       : null;
     if (clarity) stages.push('clarity');
+    const eqf = eqChain(sr, settings.eq);
+    const eq = eqf.length ? new BiquadChainState(eqf) : null;
+    if (eq) stages.push('equaliser');
     const clarityBlock = Math.max(1, Math.round(0.01 * sr));
     let mixBlock = -1, mixNextBlock = -1, mixW0 = 0, mixW1 = 0;
     const mixFor = (db: number) => (Math.pow(10, clamp(db, 0, clarityMax) / 20) - 1) / (Math.pow(10, clarityMax / 20) - 1);
@@ -1155,6 +1161,7 @@ export async function enhanceStream(
         }
         z = o;
       }
+      if (eq) z = eq.process(z);
       if (gapDb > 0) {
         const m = maskRange(segments, sr, len, 40, aPos, z.length);
         const o = new Float32Array(z.length);

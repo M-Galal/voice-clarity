@@ -8,6 +8,7 @@
  * The original audio is never modified; a new buffer is returned.
  */
 import { applyChain, designBiquad, type BiquadCoeffs } from './biquad';
+import { eqChain, lowPassChain } from './voiceFilters';
 import { mixToMono, removeSilence } from './buffers';
 import { CancelledError, DD_SMOOTHING, denoise, detectHum, humHarmonics, humNotches, type Progress } from './denoise';
 import { applyGain, attenuateGaps, detectClipping, levelSpeech, limit } from './dynamics';
@@ -32,6 +33,10 @@ export interface EnhanceSettings {
   noiseFloorDb: number;
   /** High-pass cutoff in Hz (0 = off). Removes rumble, wind and plosive pops. */
   highPassHz: number;
+  /** Voice-band low-pass in Hz (0 = off): removes hiss above the voice. */
+  lowPassHz?: number;
+  /** Equaliser: dB per band of EQ_BANDS (voiceFilters.ts); missing = 0. */
+  eq?: number[];
   /** Remove 50/60 Hz mains hum and harmonics when detected. */
   humRemoval: boolean;
   /** Presence boost around 3 kHz, dB (0 = off). */
@@ -81,6 +86,7 @@ const BASE: EnhanceSettings = {
   noiseAmount: 1.5,
   noiseFloorDb: -18,
   highPassHz: 80,
+  lowPassHz: 0,
   humRemoval: true,
   clarityDb: 3,
   pauseReductionDb: 6,
@@ -229,6 +235,8 @@ export async function enhance(
       stages.push(`hum-${humHz}`);
     }
   }
+  const lp = lowPassChain(sampleRate, settings.lowPassHz ?? 0);
+  if (lp.length) { chain.push(...lp); stages.push('low-pass'); }
   if (chain.length) x = applyChain(x, chain);
   await step(0.15);
 
@@ -252,6 +260,8 @@ export async function enhance(
     x = applyChain(x, [designBiquad('peaking', sampleRate, Math.min(3000, sampleRate * 0.4), 0.9, clamp(settings.clarityDb, 0, 8))]);
     stages.push('clarity');
   }
+  const eqf = eqChain(sampleRate, settings.eq);
+  if (eqf.length) { x = applyChain(x, eqf); stages.push('equaliser'); }
   if (settings.pauseReductionDb > 0) {
     x = attenuateGaps(x, sampleRate, segments, settings.pauseReductionDb);
     stages.push('pause-reduction');

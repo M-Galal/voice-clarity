@@ -12,7 +12,7 @@ import type { Recording } from '../types';
 import { Button, Choice, Dialog, Header, IconButton, ProgressBar, Row, Section, Toggle, Txt, Warning } from '../ui/components';
 import { radius, space, TOUCH } from '../ui/theme';
 
-export const LANGS = ['auto', 'ar', 'en', 'fr', 'ur', 'hi'] as const;
+export const LANGS = ['auto', 'ar', 'en', 'fr', 'tr', 'ur', 'hi'] as const;
 
 export function TranscriptScreen({ id }: { id: string }) {
   const { library } = useApp();
