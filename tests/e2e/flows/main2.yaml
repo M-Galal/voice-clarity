@@ -35,6 +35,11 @@ appId: com.example.voiceclarity
     id: "auto-enhance"
 - assertVisible:
     id: "auto-hint"
+# the Smart analysis changes the page height when it finishes: wait for it before scrolling
+- extendedWaitUntil:
+    visible:
+      id: "smart-ready"
+    timeout: 120000
 - scrollUntilVisible:
     element:
       id: "start-enhance"
