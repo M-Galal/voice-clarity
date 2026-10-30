@@ -11,7 +11,7 @@
  * cannot leave a half-written library.json.
  */
 import { Directory, File, Paths } from 'expo-file-system';
-import { DEFAULT_SETTINGS } from '../dsp/pipeline';
+import { DEFAULT_SETTINGS, MAX_GAIN_DB } from '../dsp/pipeline';
 import type { AppSettings, Recording } from '../types';
 
 export const root = () => new Directory(Paths.document, 'VoiceClarity');
@@ -87,7 +87,7 @@ export async function loadSettings(): Promise<AppSettings> {
   return {
     ...DEFAULT_APP_SETTINGS,
     ...s,
-    enhance: { ...DEFAULT_APP_SETTINGS.enhance, ...s.enhance },
+    enhance: { ...DEFAULT_APP_SETTINGS.enhance, ...s.enhance, maxAutoGainDb: MAX_GAIN_DB },
     auto: { ...DEFAULT_APP_SETTINGS.auto, ...s.auto },
     transcription: { ...DEFAULT_APP_SETTINGS.transcription, ...s.transcription },
     export: { ...DEFAULT_APP_SETTINGS.export, ...s.export },

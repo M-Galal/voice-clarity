@@ -23,3 +23,14 @@ test('whisper and distant presets match what Smart mode uses for such sections',
     assert.ok((p.noiseAmount ?? 0) <= (kind === 'whisper' ? 1.2 : 1.5));
   }
 });
+
+test('the voice level can be raised by up to +30 dB, also with settings saved by older versions', async () => {
+  const { MAX_GAIN_DB } = await import('../src/dsp/pipeline');
+  assert.equal(MAX_GAIN_DB, 30);
+  assert.equal(settingsForPreset('auto', { maxAutoGainDb: 24 }).maxAutoGainDb, 30);
+  const { enhanceStream, MemorySink, MemorySource, memoryTemp } = await import('../src/dsp/stream');
+  // a very quiet tone: the manual gain is applied in full
+  const x = Float32Array.from({ length: 16000 * 3 }, (_, i) => 0.0005 * Math.sin(i / 7));
+  const r = await enhanceStream(new MemorySource(x, 16000), new MemorySink(), { ...settingsForPreset('advanced'), noiseSuppression: false, levelSpeech: false, gainMode: 'manual', manualGainDb: 30 }, memoryTemp);
+  assert.equal(r.report.appliedGainDb, 30);
+});

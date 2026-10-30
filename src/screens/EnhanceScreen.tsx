@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useKeepAwake } from 'expo-keep-awake';
-import { isSituation, settingsForPreset, SITUATIONS, type EnhanceSummary as EnhanceResult, type EnhanceSettings, type Strength, type WarningCode } from '../dsp/pipeline';
+import { isSituation, MAX_GAIN_DB, settingsForPreset, SITUATIONS, type EnhanceSummary as EnhanceResult, type EnhanceSettings, type Strength, type WarningCode } from '../dsp/pipeline';
 import { dbToPercent, formatDb, formatLevel, percentToDb } from '../dsp/units';
 import { audioUri, commitPreview, deleteEnhanced, discardPreview, EnhancePreviewer, enhanceToPreview, type CancelToken } from '../services/processing';
 import { LivePlayer } from '../services/livePlayer';
@@ -482,7 +482,7 @@ function LoudnessSection({ s, patch }: { s: EnhanceSettings; patch: (p: Partial<
     const n = Number(pctText.replace(',', '.').replace('%', ''));
     setPctDraft(null);
     if (!isFinite(n) || n <= -100) return;
-    patch({ manualGainDb: Math.max(-24, Math.min(30, Math.round(percentToDb(n) * 10) / 10)) });
+    patch({ manualGainDb: Math.max(-24, Math.min(MAX_GAIN_DB, Math.round(percentToDb(n) * 10) / 10)) });
   };
   return (
     <Section title={t('loudness')}>
@@ -499,7 +499,7 @@ function LoudnessSection({ s, patch }: { s: EnhanceSettings; patch: (p: Partial<
         <LabeledSlider label={t('target_lufs')} value={s.targetLufs} min={-30} max={-10} step={1} onChange={(v) => patch({ targetLufs: v })} format={(v) => `${v} LUFS`} />
       ) : (
         <>
-          <LabeledSlider label={t('manual_gain')} value={s.manualGainDb} min={-12} max={24} step={0.5} onChange={(v) => patch({ manualGainDb: v })} format={(v) => `${formatDb(v)} (${pct(v)})`} />
+          <LabeledSlider testID="manual-gain" label={t('manual_gain')} value={s.manualGainDb} min={-24} max={MAX_GAIN_DB} step={0.5} onChange={(v) => patch({ manualGainDb: v })} format={(v) => `${formatDb(v)} (${pct(v)})`} />
           <Row>
             <Txt style={{ flex: 1 }}>%</Txt>
             <TextInput

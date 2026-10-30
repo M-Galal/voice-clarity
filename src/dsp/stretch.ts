@@ -64,9 +64,9 @@ export class StreamStretcher {
     const x = this.inA, len = x.length;
     let a = p - this.inStart, b = q - this.inStart;
     // only the part where both windows are inside the buffer contributes
-    let i0 = 0, i1 = n;
+    let i0 = 0;
     if (a < 0 || b < 0) { const s = -Math.min(a, b); i0 = Math.ceil(s / step) * step; }
-    i1 = Math.min(n, len - a, len - b);
+    const i1 = Math.min(n, len - a, len - b);
     let xy = 0, xx = 0, yy = 0;
     a += i0; b += i0;
     for (let i = i0; i < i1; i += step, a += step, b += step) {

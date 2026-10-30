@@ -72,6 +72,9 @@ export interface EnhanceSettings {
   autoMeasures?: AutoMeasures;
 }
 
+/** Most the voice level may be raised by the gain stage (automatic or manual), dB. */
+export const MAX_GAIN_DB = 30;
+
 const BASE: EnhanceSettings = {
   strength: 'auto',
   noiseSuppression: true,
@@ -86,7 +89,7 @@ const BASE: EnhanceSettings = {
   gainMode: 'target',
   targetLufs: -16,
   manualGainDb: 0,
-  maxAutoGainDb: 24,
+  maxAutoGainDb: MAX_GAIN_DB,
   limiterCeilingDb: -1,
   removeSilence: false,
   keepGapMs: 300,
@@ -111,7 +114,8 @@ export const PRESETS: Record<Exclude<Strength, 'advanced' | 'auto'>, Partial<Enh
 
 /** 'auto' keeps the user's loudness/limiter values; the rest is chosen per file in enhance(). */
 export function settingsForPreset(strength: Strength, current?: Partial<EnhanceSettings>): EnhanceSettings {
-  const merged = { ...BASE, ...current, strength };
+  // maxAutoGainDb has no control of its own: always the current limit (older saved settings had 24)
+  const merged = { ...BASE, ...current, strength, maxAutoGainDb: MAX_GAIN_DB };
   return strength === 'advanced' || strength === 'auto' ? merged : { ...merged, ...PRESETS[strength] };
 }
 

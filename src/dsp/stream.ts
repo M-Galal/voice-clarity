@@ -24,7 +24,7 @@ import { boostFloorPlan, chooseSettings, countSections, planSections, type AutoM
 import { CancelledError, DD_ALPHA, DD_SMOOTHING, detectHum, frameSizeFor, humHarmonics, humNotches, type Progress } from './denoise';
 import { RealFFT } from './fft';
 import { KLoudnessMeter, kWeightingCoeffs, loudnessFromBlocks, TruePeakMeter, type BlockPower } from './loudness';
-import type { EnhanceReport, EnhanceSettings, LevelReport, WarningCode } from './pipeline';
+import { MAX_GAIN_DB, type EnhanceReport, type EnhanceSettings, type LevelReport, type WarningCode } from './pipeline';
 import { clamp, dbToGain } from './units';
 import { detectSpeechFromAnalysis, estimateSnrDb, FrameAnalyzer, type Segment } from './vad';
 
@@ -926,7 +926,7 @@ export const HISS_MARGIN_DB = 6;
 
 /** The loudness gain the gain stage is expected to apply (before levelling is known), dB. */
 export function predictedGainDb(settings: EnhanceSettings, inputSpeechLufs: number): number {
-  if (settings.gainMode === 'manual') return clamp(settings.manualGainDb, -24, 30);
+  if (settings.gainMode === 'manual') return clamp(settings.manualGainDb, -24, MAX_GAIN_DB);
   return Number.isFinite(inputSpeechLufs) ? Math.min(settings.targetLufs - inputSpeechLufs, settings.maxAutoGainDb) : 0;
 }
 
