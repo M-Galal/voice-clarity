@@ -127,6 +127,7 @@ jobs:
           mkdir -p e2e-audio results
           cp tests/e2e/audio/* e2e-audio/
           node tests/e2e/make-long-wav.mjs e2e-audio/long_20min.wav 20
+          node tests/e2e/make-long-wav.mjs e2e-audio/talk_90s.wav 1.5
           { ls -l /dev/kvm; nproc; free -m; } > results/runner.txt 2>&1 || true
 
       - name: Install Maestro

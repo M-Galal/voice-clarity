@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { chunkTimeToRecording, GAP_SEC, planAsrChunks } from '../src/transcript/chunks';
+import { chunkTimeToRecording, GAP_SEC, pairLayout, planAsrChunks, splitPair } from '../src/transcript/chunks';
 
 test('speech is packed into chunks of at most 28 s, pauses left out', () => {
   const segs = [{ start: 1, end: 6 }, { start: 20, end: 30 }, { start: 100, end: 110 }, { start: 200, end: 205 }];
@@ -40,4 +40,28 @@ test('quiet chunks are raised to about -20 dBFS, loud ones are left alone', asyn
   const mid = asrGainDb(tone(0.03)); // about -33 dBFS
   assert.ok(Math.abs(mid.rmsDb + mid.gainDb + 20) < 0.1, `${mid.rmsDb} + ${mid.gainDb}`);
   assert.equal(asrGainDb(tone(0.5)).gainDb, 0);
+});
+
+test('two chunks share one parallel call and split back exactly at the boundary', () => {
+  const sr = 16000;
+  const lenA = 20 * sr, lenB = 26.5 * sr;
+  const lay = pairLayout(lenA, lenB);
+  // whisper_full_parallel: n_samples_per_processor = n_samples / 2 must be the boundary
+  // each chunk ends at the end of its half, so the halves split exactly between them
+  assert.equal(lay.offA + lenA, lay.half);
+  assert.equal(lay.offB + lenB, 2 * lay.half);
+  assert.equal(lay.half, lenB);
+  assert.equal(lay.offA, 6.5 * sr); // the shorter chunk starts after leading silence
+  assert.equal(lay.offB, lay.half); // the longer one fills its half
+  // segments as whisper.cpp reports them: half A from 0, half B shifted by 100*half/sr centiseconds
+  const shift = Math.floor((100 * lay.half) / sr) / 100;
+  const segs = [
+    { t0: 6.6, t1: 12, text: 'a1' }, { t0: 12, t1: 26.5, text: 'a2' },
+    { t0: shift + 0, t1: shift + 9, text: 'b1' }, { t0: shift + 9, t1: shift + 26.4, text: 'b2' },
+  ];
+  const [a, b] = splitPair(segs, lay, sr);
+  assert.deepEqual(a.map((s) => s.text), ['a1', 'a2']);
+  assert.deepEqual(b.map((s) => s.text), ['b1', 'b2']);
+  assert.ok(Math.abs(a[0].t0 - 0.1) < 1e-9 && Math.abs(a[1].t1 - 20) < 1e-9);
+  assert.ok(Math.abs(b[0].t0) < 1e-9 && Math.abs(b[1].t1 - 26.4) < 1e-9);
 });

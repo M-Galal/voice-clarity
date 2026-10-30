@@ -21,7 +21,9 @@ import { yieldToUi } from './audio';
 import { decodeToPcmFile, toInt16 } from './pcm';
 import { audioUri } from './processing';
 import { modelsDir } from './storage';
-import { asrGainDb, chunkTimeToRecording, GAP_SEC, isSilencePhrase, planAsrChunks } from '../transcript/chunks';
+import {
+  asrGainDb, chunkTimeToRecording, GAP_SEC, isSilencePhrase, pairLayout, planAsrChunks, splitPair, type AsrChunk, type TimedText,
+} from '../transcript/chunks';
 
 export interface ModelInfo {
   id: string;
@@ -86,7 +88,7 @@ export function lowQualityRanges(levels: { start: number; end: number; marginDb:
 
 export async function startTranscription(
   rec: Recording,
-  opts: { modelId: string; language: string; useEnhanced: boolean; prompt: string },
+  opts: { modelId: string; language: string; useEnhanced: boolean; prompt: string; parallel?: boolean },
   onProgress: (p: number) => void,
   /** The text found so far, in order, after each chunk (the final transcript replaces it). */
   onSegments?: (soFar: TranscriptSegment[]) => void,
@@ -127,11 +129,12 @@ export async function startTranscription(
       let detected = '';
       const raw: TranscriptSegment[] = [];
       let removed = 0;
+      let paired = 0;
       const tStart = Date.now();
-      for (let c = 0; c < chunks.length; c++) {
-        if (cancelled) throw new Error('aborted');
+
+      /** The chunk's pieces joined with short silences, levelled, as 16-bit PCM. */
+      const prepare = async (c: number) => {
         const ch = chunks[c];
-        // the chunk's pieces joined with short silences, as raw 16-bit PCM
         const parts: Float32Array[] = [];
         for (let i = 0; i < ch.pieces.length; i++) {
           const p = ch.pieces[i];
@@ -146,53 +149,123 @@ export async function startTranscription(
         // quiet speech is raised to a normal level (Whisper treats very quiet input like silence)
         const { gainDb, rmsDb } = asrGainDb(flt);
         if (gainDb > 0) { const g = Math.pow(10, gainDb / 20); for (let i = 0; i < n; i++) flt[i] *= g; }
-        const pcm = toInt16(flt);
-        // Whisper can stop before the end of the audio it is given; then the rest is sent again
-        // (from where the text ended), at most three more times.
-        let from = 0; // seconds into the chunk
-        for (let pass = 0; pass < 4; pass++) {
-          const startSample = Math.round(from * 16000);
-          const part = pcm.subarray(startSample);
-          if (part.length < 16000) break;
-          const job = context.transcribeData(part.slice().buffer, {
-            language,
-            maxLen: 0,
-            prompt: opts.prompt || undefined,
-            onProgress: (q) => onProgress((c + Math.min(1, from / ch.duration + (q / 100) * (1 - from / ch.duration))) / chunks.length),
+        return { c, ch, pcm: toInt16(flt), gainDb, rmsDb };
+      };
+      type Prepared = Awaited<ReturnType<typeof prepare>>;
+
+      const call = async (pcm: Int16Array, nProcessors: number, progress: (q: number) => void) => {
+        if (cancelled) throw new Error('aborted');
+        const job = context.transcribeData(pcm.slice().buffer, {
+          language,
+          maxLen: 0,
+          prompt: opts.prompt || undefined,
+          nProcessors,
+          onProgress: (q) => progress(q / 100),
+        });
+        current = job;
+        const res = await job.promise;
+        current = null;
+        if (res.isAborted || cancelled) throw new Error('aborted');
+        // after auto-detection, keep the detected language for the rest (consistent and faster)
+        if (!detected && res.language) {
+          detected = res.language;
+          if (language === 'auto') language = detected;
+        }
+        const scale = detectTimeScale(res.segments.map((s) => s.t1), pcm.length / 16000);
+        return res.segments.map((s): TimedText => ({ t0: s.t0 * scale, t1: s.t1 * scale, text: s.text }));
+      };
+
+      /** Adds a chunk's text from `from` s on; returns where the text ended (0: none). */
+      const take = (ch: AsrChunk, from: number, list: TimedText[]) => {
+        let lastEnd = 0;
+        for (const s of list) {
+          const text = cleanText(s.text);
+          if (!text) continue;
+          lastEnd = Math.max(lastEnd, s.t1);
+          if (isSilencePhrase(text)) { removed++; continue; }
+          raw.push({
+            id: `s${raw.length}`,
+            start: chunkTimeToRecording(ch, from + s.t0),
+            end: chunkTimeToRecording(ch, from + s.t1),
+            text: arabicPunctuation(text), // only changes mostly-Arabic text
           });
-          current = job;
-          const res = await job.promise;
-          current = null;
-          if (res.isAborted || cancelled) throw new Error('aborted');
-          // after auto-detection, keep the detected language for the rest (consistent and faster)
-          if (!detected && res.language) {
-            detected = res.language;
-            if (language === 'auto') language = detected;
-          }
+        }
+        return lastEnd;
+      };
+
+      const log = (p: Prepared, list: TimedText[], how: string) =>
+        console.log(`[VC] asr chunk ${p.c + 1}/${chunks.length}${how}: ${p.ch.duration.toFixed(1)} s, level ${p.rmsDb.toFixed(1)} dBFS, gain +${p.gainDb.toFixed(1)} dB: ${list.map((x) => cleanText(x.text)).join(' | ').slice(0, 200)}`);
+
+      // Whisper can stop before the end of the audio it is given; then the rest is sent again
+      // (from where the text ended), at most three more times.
+      const rest = async (p: Prepared, ended: number, passesLeft: number) => {
+        let from = ended;
+        for (let pass = 0; pass < passesLeft; pass++) {
+          const part = p.pcm.subarray(Math.round(from * 16000));
           const partSec = part.length / 16000;
-          if (pass === 0) console.log(`[VC] asr chunk ${c + 1}/${chunks.length}: ${ch.duration.toFixed(1)} s, level ${rmsDb.toFixed(1)} dBFS, gain +${gainDb.toFixed(1)} dB: ${res.segments.map((x) => cleanText(x.text)).join(' | ').slice(0, 200)}`);
-          const scale = detectTimeScale(res.segments.map((s) => s.t1), partSec);
-          let lastEnd = 0;
-          for (const s of res.segments) {
-            const text = cleanText(s.text);
-            if (!text) continue;
-            lastEnd = Math.max(lastEnd, s.t1 * scale);
-            if (isSilencePhrase(text)) { removed++; continue; }
-            raw.push({
-              id: `s${raw.length}`,
-              start: chunkTimeToRecording(ch, from + s.t0 * scale),
-              end: chunkTimeToRecording(ch, from + s.t1 * scale),
-              text: arabicPunctuation(text), // only changes mostly-Arabic text
-            });
-          }
-          if (lastEnd <= 0 || lastEnd >= partSec - 1.5) break;
-          console.log(`[VC] transcribe: text ended at ${(from + lastEnd).toFixed(1)} s of a ${ch.duration.toFixed(1)} s chunk; sending the rest again`);
+          if (ended <= 0 || part.length < 16000 || from >= p.ch.duration - 1.5) return;
+          console.log(`[VC] transcribe: text ended at ${from.toFixed(1)} s of a ${p.ch.duration.toFixed(1)} s chunk; sending the rest again`);
+          const lastEnd = take(p.ch, from, await call(part, 1, (q) => onProgress((p.c + Math.min(1, from / p.ch.duration + q * (1 - from / p.ch.duration))) / chunks.length)));
+          if (lastEnd <= 0 || lastEnd >= partSec - 1.5) return;
           from += lastEnd;
+        }
+      };
+
+      const single = async (p: Prepared) => {
+        if (p.pcm.length < 16000) return;
+        const list = await call(p.pcm, 1, (q) => onProgress((p.c + q) / chunks.length));
+        log(p, list, '');
+        const lastEnd = take(p.ch, 0, list);
+        if (lastEnd > 0 && lastEnd < p.pcm.length / 16000 - 1.5) await rest(p, lastEnd, 3);
+      };
+
+      // Two chunks at a time on two threads (whisper_full_parallel), once the language is known
+      // so both halves use the same one. The next chunks are read while Whisper works.
+      const parallel = opts.parallel !== false;
+      const ready = new Map<number, Promise<Prepared>>();
+      const get = (k: number) => {
+        let pr = ready.get(k);
+        if (!pr) { pr = prepare(k); pr.catch(() => undefined); ready.set(k, pr); }
+        return pr;
+      };
+      let c = 0;
+      while (c < chunks.length) {
+        if (cancelled) throw new Error('aborted');
+        const A = await get(c);
+        ready.delete(c);
+        const pair = parallel && language !== 'auto' && c + 1 < chunks.length;
+        if (!pair || A.pcm.length < 16000) {
+          if (c + 1 < chunks.length) void get(c + 1);
+          await single(A);
+          c += 1;
+        } else {
+          const B = await get(c + 1);
+          ready.delete(c + 1);
+          for (let k = c + 2; k < Math.min(chunks.length, c + 4); k++) void get(k);
+          if (B.pcm.length < 16000) {
+            await single(A);
+            await single(B);
+          } else {
+            const lay = pairLayout(A.pcm.length, B.pcm.length);
+            const both = new Int16Array(2 * lay.half);
+            both.set(A.pcm, lay.offA);
+            both.set(B.pcm, lay.offB);
+            const list = await call(both, 2, (q) => onProgress((c + 2 * q) / chunks.length));
+            const [la, lb] = splitPair(list, lay, 16000);
+            log(A, la, ' (pair)');
+            log(B, lb, ' (pair)');
+            paired += 2;
+            const endA = take(A.ch, 0, la);
+            if (endA > 0 && endA < A.pcm.length / 16000 - 1.5) await rest(A, endA, 3);
+            const endB = take(B.ch, 0, lb);
+            if (endB > 0 && endB < B.pcm.length / 16000 - 1.5) await rest(B, endB, 3);
+          }
+          c += 2;
         }
         onSegments?.(flagSegments(raw.map((x) => ({ ...x })), weak));
         await yieldToUi();
       }
-      console.log(`[VC] transcribe ${duration.toFixed(1)}s model=${model.id} lang=${opts.language}: ${chunks.length} chunks, ${chunks.reduce((t, x) => t + x.duration, 0).toFixed(0)}s of speech, ${Date.now() - tStart} ms, detected=${detected}, segments=${raw.length}, silence phrases removed=${removed}`);
+      console.log(`[VC] transcribe ${duration.toFixed(1)}s model=${model.id} lang=${opts.language}: ${chunks.length} chunks, ${chunks.reduce((t, x) => t + x.duration, 0).toFixed(0)}s of speech, ${Date.now() - tStart} ms, detected=${detected}, segments=${raw.length}, silence phrases removed=${removed}, paired chunks=${paired}`);
       onProgress(1);
       return {
         language: detected || opts.language,
@@ -202,6 +275,7 @@ export async function startTranscription(
         fromEnhanced: useEnhanced,
         segments: flagSegments(raw, weak),
         removedSilencePhrases: removed || undefined,
+        elapsedMs: Date.now() - tStart,
       };
     } finally {
       decoded.dispose();

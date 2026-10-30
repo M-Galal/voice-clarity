@@ -101,3 +101,32 @@ export function isSilencePhrase(text: string): boolean {
     .trim();
   return /^(ترجمه|ترجمة)\s+نانسي\s+قنقر$/.test(t) || /^نانسي\s+قنقر$/.test(t);
 }
+
+/**
+ * Two chunks in one whisper.rn call with nProcessors: 2. whisper.cpp's whisper_full_parallel
+ * splits the samples into equal halves and decodes each on its own thread with its own state,
+ * adding the half's start to the second half's timestamps (whisper.cpp, whisper.h). Both chunks
+ * are placed in halves of the same length L, the shorter one after leading silence, so the split
+ * falls exactly between them: each chunk is decoded alone, as in a one-chunk call, and the
+ * boundary-accuracy loss whisper.h warns about does not apply.
+ */
+export interface PairLayout { half: number; offA: number; offB: number }
+
+export function pairLayout(lenA: number, lenB: number): PairLayout {
+  const half = Math.max(lenA, lenB);
+  return { half, offA: half - lenA, offB: 2 * half - lenB };
+}
+
+export interface TimedText { t0: number; t1: number; text: string }
+
+/** Splits a paired call's segments (in seconds) back into each chunk's own time. */
+export function splitPair(segs: TimedText[], layout: PairLayout, sampleRate: number): [TimedText[], TimedText[]] {
+  const half = layout.half / sampleRate;
+  const offA = layout.offA / sampleRate, offB = layout.offB / sampleRate;
+  const a: TimedText[] = [], b: TimedText[] = [];
+  for (const s of segs) {
+    if (s.t0 < half - 0.05) a.push({ ...s, t0: Math.max(0, s.t0 - offA), t1: Math.max(0, Math.min(half, s.t1) - offA) });
+    else b.push({ ...s, t0: Math.max(0, s.t0 - offB), t1: Math.max(0, s.t1 - offB) });
+  }
+  return [a, b];
+}

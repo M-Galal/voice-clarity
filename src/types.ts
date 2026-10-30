@@ -91,6 +91,8 @@ export interface AppSettings {
     useEnhancedAudio: boolean;
     /** Optional prompt to bias vocabulary/dialect, e.g. place names. */
     prompt: string;
+    /** Two chunks at a time on two threads (default on). */
+    parallel?: boolean;
   };
   export: {
     transcriptFormat: 'txt' | 'srt' | 'vtt' | 'json';

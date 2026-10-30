@@ -51,7 +51,7 @@ function TranscriptView({ rec }: { rec: Recording }) {
     const current = getRecording(rec.id) ?? rec;
     updateRecording(rec.id, { status: 'transcribing' });
     try {
-      job.current = await startTranscription(current, { modelId: tr.modelId, language: tr.language, useEnhanced: tr.useEnhancedAudio, prompt: tr.prompt }, (p) => setRunning(p), setLive);
+      job.current = await startTranscription(current, { modelId: tr.modelId, language: tr.language, useEnhanced: tr.useEnhancedAudio, prompt: tr.prompt, parallel: tr.parallel !== false }, (p) => setRunning(p), setLive);
       const transcript = await job.current.promise;
       updateRecording(rec.id, { transcript, status: isAnalysing(rec.id) ? 'analyzing' : 'ready' });
       setRedo(false);
@@ -104,6 +104,8 @@ function TranscriptView({ rec }: { rec: Recording }) {
               </Section>
               <Section title={t('transcription')}>
                 <Toggle testID="use-enhanced" label={t('use_enhanced_audio')} value={tr.useEnhancedAudio} onChange={(v) => updateSettings({ transcription: { ...tr, useEnhancedAudio: v } })} disabled={!rec.enhanced} />
+                <Toggle testID="asr-parallel" label={t('asr_parallel')} value={tr.parallel !== false} onChange={(v) => updateSettings({ transcription: { ...tr, parallel: v } })} />
+                <Txt size="sm" muted>{t('asr_parallel_note')}</Txt>
                 <Txt>{t('prompt')}</Txt>
                 <TextInput
                   value={tr.prompt}
@@ -188,12 +190,13 @@ function TranscriptBody({ rec, onRedo }: { rec: Recording; onRedo: () => void })
     setEditing(null);
   };
 
+  const fmtTook = (ms: number) => { const sec = Math.round(ms / 1000); return sec < 60 ? `${sec} s` : `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`; };
   const langName = (code: string) => (LANGS as readonly string[]).includes(code) ? t(`lang_${code}` as 'lang_ar') : code;
 
   return (
     <View style={{ flex: 1 }}>
       <View style={{ padding: space.lg, gap: space.sm }}>
-        <Txt size="sm" muted>{t('detected_language', { lang: langName(transcript.language) })} · {t('transcript_from', { src: t(src), model: transcript.model })}</Txt>
+        <Txt size="sm" muted>{t('detected_language', { lang: langName(transcript.language) })} · {t('transcript_from', { src: t(src), model: transcript.model })}{transcript.elapsedMs ? ` · ${t('asr_took', { time: fmtTook(transcript.elapsedMs) })}` : ''}</Txt>
         {flagged ? <Warning text={`${t('uncertain')}: ${flagged}`} /> : null}
         {transcript.removedSilencePhrases ? (
           <Txt size="sm" muted testID="removed-silence">{t(transcript.segments.length ? 'silence_phrases_removed' : 'silence_phrases_only', { n: transcript.removedSilencePhrases })}</Txt>
