@@ -162,6 +162,24 @@ appId: com.example.voiceclarity
     id: "pv-ab-original"
 - tapOn:
     id: "pv-ab-enhanced"
+# listening speed while playing: all the way right (about 5x), then back to 1x
+- scrollUntilVisible:
+    element:
+      id: "pv-speed-track"
+    centerElement: true
+- swipe:
+    from:
+      id: "pv-speed-track"
+    direction: RIGHT
+- assertVisible:
+    id: "pv-speed-value"
+    text: "(4\\.[5-9][0-9]|5\\.00)×"
+- takeScreenshot: 10b2_live_fast
+- tapOn:
+    id: "pv-speed-reset"
+- assertVisible:
+    id: "pv-speed-value"
+    text: "1.00×"
 - takeScreenshot: 10b_live
 - repeat:
     while:

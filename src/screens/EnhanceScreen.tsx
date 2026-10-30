@@ -6,6 +6,7 @@ import { isSituation, settingsForPreset, SITUATIONS, type EnhanceSummary as Enha
 import { dbToPercent, formatDb, formatLevel, percentToDb } from '../dsp/units';
 import { audioUri, commitPreview, deleteEnhanced, discardPreview, EnhancePreviewer, enhanceToPreview, type CancelToken } from '../services/processing';
 import { LivePlayer } from '../services/livePlayer';
+import { STRETCH_MAX, STRETCH_MIN } from '../dsp/stretch';
 import type { LiveContext } from '../dsp/live';
 import { chooseSettings, countSections, type SectionKind, type SectionSetting } from '../dsp/autoTune';
 import type { SmartAnalysis } from '../dsp/stream';
@@ -318,6 +319,7 @@ function LivePanel({ rec, pv, settings, rate, smart, sections }: { rec: Recordin
   const [which, setWhich] = useState<'original' | 'enhanced'>('enhanced');
   const [spec, setSpec] = useState<{ original: Spectrum; enhanced: Spectrum } | null>(null);
   const [gainDb, setGainDb] = useState(0);
+  const [speed, setSpeed] = useState(1);
 
   // the source at this rate (shared decode for short recordings), and a player for it
   useEffect(() => {
@@ -328,6 +330,7 @@ function LivePanel({ rec, pv, settings, rate, smart, sections }: { rec: Recordin
         if (!alive) return;
         made = new LivePlayer(src);
         made.onError = (e) => app.showError(e);
+        made.setSpeed(speed);
         made.onEnded = () => setStatus((x) => ({ ...x, playing: false }));
         setPlayer(made);
         setPrep(null);
@@ -414,6 +417,19 @@ function LivePanel({ rec, pv, settings, rate, smart, sections }: { rec: Recordin
           <Choice testID="pv-ab" value={which} onChange={switchTo} options={[{ value: 'original', label: t('original') }, { value: 'enhanced', label: t('enhanced') }]} />
         </View>
       </Row>
+      <LabeledSlider
+        testID="pv-speed"
+        label={t('pv_speed')}
+        value={speed}
+        min={STRETCH_MIN}
+        max={STRETCH_MAX}
+        step={0.05}
+        onLive={(v) => player?.setSpeed(v)}
+        onChange={(v) => { setSpeed(v); player?.setSpeed(v); }}
+        format={(v) => `${v.toFixed(2)}×`}
+        hint={t('pv_speed_hint')}
+      />
+      <Button testID="pv-speed-reset" compact kind="secondary" label={t('speed_normal')} onPress={() => { setSpeed(1); player?.setSpeed(1); }} disabled={speed === 1} style={{ alignSelf: 'flex-start' }} />
       {now ? (
         <Txt size="sm" testID="pv-now-section" style={{ color: sectionColor(now.kind, colors) }}>
           {t('pv_now_section', { kind: t(`sec_${now.kind}`), noise: now.noiseAmount.toFixed(1), clarity: now.clarityDb })}
