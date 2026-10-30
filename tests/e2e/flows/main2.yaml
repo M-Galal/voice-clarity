@@ -73,6 +73,9 @@ appId: com.example.voiceclarity
     element:
       id: "sec-counts"
 - scrollUntilVisible:
+    element:
+      id: "voice-change"
+- scrollUntilVisible:
     element: "Whispered or distant sections"
 - takeScreenshot: 43_whisper_levels
 - tapOn:

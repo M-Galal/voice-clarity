@@ -103,3 +103,22 @@ test('whisper recording in Smart mode: whispers come up near normal speech, hiss
   const hiss = rms(applyChain(y, hp), 10, 11.3) - rms(applyChain(x, hp), 10, 11.3);
   assert.ok(hiss < -22, `pause hiss ${hiss.toFixed(1)} dB vs original`);
 });
+
+test('hiss does not rise with the gain: pauses stay far below the voice at +20 and +40 dB', async () => {
+  // a far, quiet recording with clearly audible hiss (voice about -53 dBFS, hiss about -71 dBFS)
+  let seed = 9; const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff) * 2 - 1;
+  const x = mix.map((v) => v * 0.03 + 0.0004 * rnd());
+  const pauses: [number, number][] = segs.slice(0, -1).map((s, k) => [s.end + 0.25, segs[k + 1].start - 0.25]);
+  const loud: [number, number][] = segs.filter((s) => !s.quiet).map((s) => [s.start + 0.3, s.end - 0.3]);
+  const lvl = (v: Float32Array, rs: [number, number][]) => { let e = 0, n = 0; for (const [a, b] of rs) for (let i = Math.round(a * sr); i < Math.round(b * sr); i++) { e += v[i] ** 2; n++; } return 10 * Math.log10(e / n + 1e-20); };
+  const hissAt = async (g: number) => {
+    const sink = new MemorySink();
+    await enhanceStream(new MemorySource(x, sr), sink, { ...settingsForPreset('balanced'), gainMode: 'manual', manualGainDb: g, levelSpeech: false }, memoryTemp);
+    const y = sink.toArray();
+    return { hiss: lvl(y, pauses), voice: lvl(y, loud) };
+  };
+  const a = await hissAt(20), b = await hissAt(40);
+  assert.ok(b.hiss < a.hiss + 15, `hiss ${a.hiss.toFixed(1)} -> ${b.hiss.toFixed(1)} dBFS for 20 dB more gain`);
+  assert.ok(b.voice - b.hiss > 60, `voice-to-hiss at +40 dB: ${(b.voice - b.hiss).toFixed(1)} dB`);
+  assert.ok(b.hiss < lvl(x, pauses) - 10, `hiss ${b.hiss.toFixed(1)} vs original ${lvl(x, pauses).toFixed(1)} dBFS`);
+});

@@ -17,7 +17,7 @@ import { BiquadChainState, designBiquad, type BiquadCoeffs } from './biquad';
 import type { SectionSetting, SectionWindow } from './autoTune';
 import { DD_SMOOTHING, frameSizeFor, humNotches } from './denoise';
 import { kWeightingCoeffs } from './loudness';
-import type { EnhanceSettings } from './pipeline';
+import { MAX_GAIN_DB, type EnhanceSettings } from './pipeline';
 import {
   CLARITY_MAX_DB, maskRange, noiseControl, NoiseProfileAccumulator, predictedGainDb, SectionCurve, steadyNoiseCaps, StreamingDenoiser, StreamingLimiter, type SampleSource,
 } from './stream';
@@ -296,7 +296,7 @@ export class LiveChain {
       : null;
     if (steady && this.lev) { const lev = this.lev; residualSink = (c, r) => lev.addResidual(c, r); }
     if (settings.gainMode === 'manual') {
-      this.gainDb = clamp(settings.manualGainDb, -24, 30);
+      this.gainDb = clamp(settings.manualGainDb, -24, MAX_GAIN_DB);
       this.targetLufs = null;
     } else {
       const inLufs = ctx.inputSpeechLufs;

@@ -431,14 +431,14 @@ export class StreamingDenoiser {
       const isNoise = !this.speech(this.frame);
       let floor = this.floor;
       let over = this.opts.overSubtraction;
-      let e = 1; // extra cut for noise-dominated bins (linear), see noiseControl
+      let extraDb = 0; // extra cut for noise-dominated bins, see noiseControl
       if (this.control) {
         const t = (this.frame * this.hop + this.n / 2 - this.n) / this.sampleRate;
         over = clamp(this.control.over.at(t), 0.5, 3);
         floor = Math.pow(10, clamp(this.control.floorDb.at(t), -40, -3) / 20);
         if (this.control.extraDb) {
-          e = Math.pow(10, -clamp(this.control.extraDb.at(t), 0, 50) / 20);
-          floor *= e;
+          extraDb = clamp(this.control.extraDb.at(t), 0, 90);
+          floor *= Math.pow(10, -extraDb / 20);
         }
       }
       const f2 = floor * floor;
@@ -454,9 +454,9 @@ export class StreamingDenoiser {
           const xi = DD_ALPHA * (prevClean[k] / nk) + (1 - DD_ALPHA) * (post > 0 ? post : 0);
           xiArr[k] = xi;
           let w = xi / (xi + over);
-          // hiss: bins where noise outweighs speech get the extra cut, speech bins keep theirs
-          // (weight 1/(1+xi): 1 for noise only, 1/2 at 0 dB, ~0 where speech dominates)
-          if (e < 1) w *= 1 - (1 - e) / (1 + xi);
+          // hiss: bins where noise outweighs speech get the extra cut (in dB, weighted by
+          // 1/(1+(xi/HISS_XI)^2): 96 % of it at xi = 0.1, half at xi = 0.5, 2.4 % at 0 dB)
+          if (extraDb > 0) { const r = xi / HISS_XI; w *= Math.pow(10, (-extraDb / (1 + r * r)) / 20); }
           gain[k] = w > floor ? w : floor;
         } else {
           let g = f2;
@@ -923,6 +923,14 @@ interface SmartChoice {
  * -17.5 dBFS) because the steady-noise limit no longer needs to hold them back.
  */
 export const HISS_MARGIN_DB = 6;
+/**
+ * Speech-to-noise ratio (a priori, linear) at which a band gets half the hiss cut. The cut in dB
+ * is weighted by 1/(1+(xi/HISS_XI)^2). Measured (synthetic far speech with hiss at -71 dBFS,
+ * +40 dB gain): 1.0 left the pause hiss at -102 dBFS but lowered weak speech (Balanced: quiet
+ * speech raised 6 dB instead of 13); 0.5 kept it at +10 dB with the hiss at -89 dBFS, 72 dB below
+ * the voice; 0.3 let the hiss reach -81 dBFS.
+ */
+export const HISS_XI = 0.5;
 
 /** The loudness gain the gain stage is expected to apply (before levelling is known), dB. */
 export function predictedGainDb(settings: EnhanceSettings, inputSpeechLufs: number): number {
@@ -1177,7 +1185,7 @@ export async function enhanceStream(
     let appliedGainDb = 0;
     let gainCapped = false;
     if (settings.gainMode === 'manual') {
-      appliedGainDb = clamp(settings.manualGainDb, -24, 30);
+      appliedGainDb = clamp(settings.manualGainDb, -24, MAX_GAIN_DB);
     } else {
       const meter = new KLoudnessMeter(sr);
       await eachChunk(srcA, (x, start) => { meter.push(plan ? applyLevel(x, start, plan) : x); }, ticker(0.8, 0.85));

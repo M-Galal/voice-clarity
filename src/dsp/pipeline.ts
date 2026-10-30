@@ -73,7 +73,7 @@ export interface EnhanceSettings {
 }
 
 /** Most the voice level may be raised by the gain stage (automatic or manual), dB. */
-export const MAX_GAIN_DB = 30;
+export const MAX_GAIN_DB = 50;
 
 const BASE: EnhanceSettings = {
   strength: 'auto',
@@ -268,7 +268,7 @@ export async function enhance(
   let appliedGainDb = 0;
   let gainCapped = false;
   if (settings.gainMode === 'manual') {
-    appliedGainDb = clamp(settings.manualGainDb, -24, 30);
+    appliedGainDb = clamp(settings.manualGainDb, -24, MAX_GAIN_DB);
   } else {
     const current = speechLoudness(x, sampleRate, segments);
     if (Number.isFinite(current)) {

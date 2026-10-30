@@ -182,7 +182,7 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
             <Toggle label={t('dereverb')} value={false} onChange={() => {}} disabled hint={t('not_available')} />
           </Section>
 
-          <LoudnessSection s={s} patch={patch} />
+          <LoudnessSection s={s} patch={patch} inputPeakDb={smart.kind === 'ready' ? smart.analysis.input.truePeakDb : null} />
 
           <Section title={t('processing_rate')}>
             <Choice
@@ -473,7 +473,7 @@ function summary(s: EnhanceSettings, rate: number, t: ReturnType<typeof useApp>[
   return parts.filter(Boolean).join('\n');
 }
 
-function LoudnessSection({ s, patch }: { s: EnhanceSettings; patch: (p: Partial<EnhanceSettings>) => void }) {
+function LoudnessSection({ s, patch, inputPeakDb }: { s: EnhanceSettings; patch: (p: Partial<EnhanceSettings>) => void; inputPeakDb: number | null }) {
   const { t, colors, fs } = useApp();
   // null = not editing; the field then shows the current gain as a percentage
   const [pctDraft, setPctDraft] = useState<string | null>(null);
@@ -513,6 +513,11 @@ function LoudnessSection({ s, patch }: { s: EnhanceSettings; patch: (p: Partial<
             />
           </Row>
           <Txt size="sm" muted>{t('percent_note')}</Txt>
+          {inputPeakDb !== null && Number.isFinite(inputPeakDb) && s.manualGainDb > s.limiterCeilingDb - inputPeakDb + 0.5 ? (
+            <Txt size="sm" testID="gain-headroom" style={{ color: colors.warn }}>
+              {t('gain_headroom', { free: formatDb(s.limiterCeilingDb - inputPeakDb), pct: pct(s.limiterCeilingDb - inputPeakDb) })}
+            </Txt>
+          ) : null}
         </>
       )}
       <LabeledSlider label={t('limiter_ceiling')} value={s.limiterCeilingDb} min={-6} max={-0.5} step={0.5} onChange={(v) => patch({ limiterCeilingDb: v })} format={(v) => `${v.toFixed(1)} dBFS`} />
@@ -607,6 +612,9 @@ function Review({ rec, result, previewUri, onKeep, onDiscard }: { rec: Recording
         <LevelRow label={t('integrated_loudness')} a={lv(r.input.integratedLufs, 'LUFS')} b={lv(r.output.integratedLufs, 'LUFS')} />
         <LevelRow label={t('sample_peak')} a={lv(r.input.samplePeakDb, 'dBFS')} b={lv(r.output.samplePeakDb, 'dBFS')} />
         <LevelRow label={t('true_peak')} a={lv(r.input.truePeakDb, 'dBTP')} b={lv(r.output.truePeakDb, 'dBTP')} />
+        {Number.isFinite(r.output.speechLufs - r.input.speechLufs) ? (
+          <View testID="voice-change"><KeyValue k={t('voice_change')} v={`${formatDb(r.output.speechLufs - r.input.speechLufs)} (${pct(r.output.speechLufs - r.input.speechLufs)})`} /></View>
+        ) : null}
         <KeyValue k={t('gain_applied')} v={`${formatDb(r.appliedGainDb)} (${pct(r.appliedGainDb)})`} />
         <KeyValue k={t('snr')} v={Number.isFinite(r.snrDb) ? `${r.snrDb.toFixed(0)} dB` : '—'} />
         {r.humHz ? <Txt size="sm">{t('hum_found', { hz: r.humHz })}</Txt> : null}
