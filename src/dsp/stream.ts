@@ -388,7 +388,7 @@ export class StreamingDenoiser {
     private readonly opts: { overSubtraction: number; floorDb: number; smoothing: number; rule?: 'subtract' | 'wiener-dd' },
     private readonly length: number,
     /** Per-section over-subtraction and floor (dB); replaces opts.overSubtraction / floorDb. */
-    private readonly control: { over: Curve; floorDb: Curve } | null = null,
+    private readonly control: { over: Curve; floorDb: Curve; extraDb?: Curve } | null = null,
     /** Called per frame with the frame centre (sample) and the noise power expected to remain. */
     private readonly onFrame: ((centre: number, residual: number) => void) | null = null,
   ) {
@@ -431,10 +431,15 @@ export class StreamingDenoiser {
       const isNoise = !this.speech(this.frame);
       let floor = this.floor;
       let over = this.opts.overSubtraction;
+      let e = 1; // extra cut for noise-dominated bins (linear), see noiseControl
       if (this.control) {
         const t = (this.frame * this.hop + this.n / 2 - this.n) / this.sampleRate;
         over = clamp(this.control.over.at(t), 0.5, 3);
         floor = Math.pow(10, clamp(this.control.floorDb.at(t), -40, -3) / 20);
+        if (this.control.extraDb) {
+          e = Math.pow(10, -clamp(this.control.extraDb.at(t), 0, 50) / 20);
+          floor *= e;
+        }
       }
       const f2 = floor * floor;
       const dd = this.dd, prevClean = this.prevClean, power = this.power, xiArr = this.xi;
@@ -448,7 +453,10 @@ export class StreamingDenoiser {
           const post = p / nk - 1;
           const xi = DD_ALPHA * (prevClean[k] / nk) + (1 - DD_ALPHA) * (post > 0 ? post : 0);
           xiArr[k] = xi;
-          const w = xi / (xi + over);
+          let w = xi / (xi + over);
+          // hiss: bins where noise outweighs speech get the extra cut, speech bins keep theirs
+          // (weight 1/(1+xi): 1 for noise only, 1/2 at 0 dB, ~0 where speech dominates)
+          if (e < 1) w *= 1 - (1 - e) / (1 + xi);
           gain[k] = w > floor ? w : floor;
         } else {
           let g = f2;
@@ -908,6 +916,14 @@ interface SmartChoice {
   sections: SectionSetting[] | null;
 }
 
+/**
+ * How far below its original level the hiss in noise-dominated bands should end, dB (on top of
+ * the boost there). Measured on the whisper fixture in Smart mode: pause hiss above 4.5 kHz
+ * -16.9 dB -> -28.3 dB vs the original, whispers raised level with normal speech (-19.8 vs
+ * -17.5 dBFS) because the steady-noise limit no longer needs to hold them back.
+ */
+export const HISS_MARGIN_DB = 6;
+
 /** The loudness gain the gain stage is expected to apply (before levelling is known), dB. */
 export function predictedGainDb(settings: EnhanceSettings, inputSpeechLufs: number): number {
   if (settings.gainMode === 'manual') return clamp(settings.manualGainDb, -24, 30);
@@ -925,16 +941,20 @@ export function noiseControl(
   windows: SectionWindow[],
   refDb: number | undefined,
   gainDb: number,
-): { over: Curve; floorDb: Curve } | null {
+): { over: Curve; floorDb: Curve; extraDb?: Curve } | null {
   const base = clamp(settings.noiseFloorDb, -40, -3);
   const over: Curve = sections?.length ? new SectionCurve(sections, (x) => x.noiseAmount) : constCurve(clamp(settings.noiseAmount, 0.5, 3));
   let floor: Curve = sections?.length ? new SectionCurve(sections, (x) => x.noiseFloorDb) : constCurve(base);
   const follows = settings.noiseFollowsBoost !== false && windows.length > 0;
+  let extraDb: Curve | undefined;
   if (follows) {
     const plan = boostFloorPlan(windows, refDb, settings, gainDb);
     floor = minCurve(floor, new SectionCurve(plan, (x) => x.floorDb));
+    // hiss: noise-dominated bins are cut by the boost planned there plus a margin, so the hiss
+    // between the voice's harmonics ends below its original level however much the voice is raised
+    extraDb = new SectionCurve(plan, (x) => -x.floorDb + HISS_MARGIN_DB);
   }
-  return sections?.length || follows ? { over, floorDb: floor } : null;
+  return sections?.length || follows ? { over, floorDb: floor, extraDb } : null;
 }
 
 /** Smart-mode settings for the file and, when asked, for each section of it. */

@@ -86,3 +86,20 @@ test('Smart mode keeps the background steady: noise under raised quiet speech no
   const r = await run('auto');
   assert.ok(r.noiseQuiet <= r.noiseLoud + 2, `quiet ${r.noiseQuiet.toFixed(1)} dB vs loud ${r.noiseLoud.toFixed(1)} dB`);
 });
+
+test('whisper recording in Smart mode: whispers come up near normal speech, hiss in the pauses well below the original', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { decodeWav } = await import('../src/dsp/wav');
+  const { resample } = await import('../src/dsp/buffers');
+  const w = decodeWav(new Uint8Array(readFileSync(new URL('./fixtures/whisper_mix_16k.wav', import.meta.url))));
+  const x = resample(w.channels[0], 16000, sr);
+  const sink = new MemorySink();
+  await enhanceStream(new MemorySource(x, sr), sink, settingsForPreset('auto'), memoryTemp);
+  const y = sink.toArray();
+  const rms = (v: Float32Array, a: number, b: number) => { let e = 0; for (let i = Math.round(a * sr); i < Math.round(b * sr); i++) e += v[i] ** 2; return 10 * Math.log10(e / ((b - a) * sr)); };
+  const normal = rms(y, 1.56, 4.3), whisper = rms(y, 6.22, 9.56);
+  assert.ok(whisper > normal - 4, `whisper ${whisper.toFixed(1)} vs normal ${normal.toFixed(1)} dBFS`);
+  const hp = [designBiquad('highpass', sr, 4500, 0.707), designBiquad('highpass', sr, 4500, 0.707)];
+  const hiss = rms(applyChain(y, hp), 10, 11.3) - rms(applyChain(x, hp), 10, 11.3);
+  assert.ok(hiss < -22, `pause hiss ${hiss.toFixed(1)} dB vs original`);
+});
