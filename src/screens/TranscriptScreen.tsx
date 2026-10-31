@@ -95,7 +95,7 @@ function TranscriptView({ rec }: { rec: Recording }) {
               </Section>
               <Section title={t('model')}>
                 <Choice testID="model" value={tr.modelId} onChange={(v) => updateSettings({ transcription: { ...tr, modelId: v } })} options={MODELS.map((m) => ({ value: m.id, label: t(m.labelKey) }))} />
-                {modelReady ? <Txt size="sm" style={{ color: colors.ok }}>✓ {t('downloaded')}</Txt> : dl !== null ? <ProgressBar value={dl} label={t('downloading')} /> : (
+                {modelReady ? <Txt size="sm" testID="model-ready" style={{ color: colors.ok }}>✓ {t('downloaded')}</Txt> : dl !== null ? <ProgressBar value={dl} label={t('downloading')} /> : (
                   <>
                     <Txt size="sm" muted>{t('model_download_note')}</Txt>
                     <Button testID="download-model" kind="secondary" label={`${t('download')} (${model.sizeMB} MB)`} onPress={download} />
@@ -196,7 +196,7 @@ function TranscriptBody({ rec, onRedo }: { rec: Recording; onRedo: () => void })
   return (
     <View style={{ flex: 1 }}>
       <View style={{ padding: space.lg, gap: space.sm }}>
-        <Txt size="sm" muted>{t('detected_language', { lang: langName(transcript.language) })} · {t('transcript_from', { src: t(src), model: transcript.model })}{transcript.elapsedMs ? ` · ${t('asr_took', { time: fmtTook(transcript.elapsedMs) })}` : ''}</Txt>
+        <Txt size="sm" muted testID={transcript.elapsedMs ? 'asr-took' : undefined}>{t('detected_language', { lang: langName(transcript.language) })} · {t('transcript_from', { src: t(src), model: transcript.model })}{transcript.elapsedMs ? ` · ${t('asr_took', { time: fmtTook(transcript.elapsedMs) })}` : ''}</Txt>
         {flagged ? <Warning text={`${t('uncertain')}: ${flagged}`} /> : null}
         {transcript.removedSilencePhrases ? (
           <Txt size="sm" muted testID="removed-silence">{t(transcript.segments.length ? 'silence_phrases_removed' : 'silence_phrases_only', { n: transcript.removedSilencePhrases })}</Txt>

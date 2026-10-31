@@ -37,8 +37,10 @@ appId: com.example.voiceclarity
     id: "lang-ar"
 - tapOn:
     id: "model-base"
+# ids, not text: main2.yaml leaves the app in Arabic
 - scrollUntilVisible:
-    element: ".*(Download \\(148 MB\\)|On device).*"
+    element:
+      id: "(download-model|model-ready)"
     timeout: 20000
 - runFlow:
     when:
@@ -48,7 +50,8 @@ appId: com.example.voiceclarity
       - tapOn:
           id: "download-model"
 - extendedWaitUntil:
-    visible: ".*On device.*"
+    visible:
+      id: "model-ready"
     timeout: 480000
 - scrollUntilVisible:
     element:

@@ -7,4 +7,6 @@ appId: com.example.voiceclarity
       id: "seg-s0"
     timeout: 120000
 - takeScreenshot: 82_asr_pair_transcript
-- assertVisible: ".*took.*"
+# the line with the time it took (the app may be in Arabic, so by id)
+- assertVisible:
+    id: "asr-took"
