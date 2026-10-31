@@ -274,12 +274,17 @@ appId: com.example.voiceclarity
       id: "pv-tools-close"
 - tapOn:
     id: "pv-tools-close"
+# playback reached the end of this 20 s recording during the steps above: play again
+- tapOn:
+    id: "pv-play"
 - extendedWaitUntil:
     visible:
       id: "pv-rep-status"
       text: ".*0:02-0:04.*Pass [2-9].*"
     timeout: 25000
 - takeScreenshot: 10b3_live_repeat
+- tapOn:
+    id: "pv-play"
 - tapOn:
     id: "pv-tools"
 - scrollUntilVisible:
