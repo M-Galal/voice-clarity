@@ -99,9 +99,11 @@ appId: com.example.voiceclarity
 - takeScreenshot: 08_bookmark_renamed
 
 # ---- Jump to a time, A-B repeat ----
+# (the bookmark list is below the jump and repeat card)
 - scrollUntilVisible:
     element:
       id: "jump-input"
+    direction: UP
     centerElement: true
 - tapOn:
     id: "jump-input"
