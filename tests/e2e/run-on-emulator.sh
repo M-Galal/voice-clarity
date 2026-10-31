@@ -58,10 +58,10 @@ if [ -f e2e-audio/talk_90s.wav ]; then
     # wait (outside Maestro) for the transcription to finish, up to 40 minutes
     PAIR=1
     for _ in $(seq 1 80); do
-      if grep -q "\[VC\] transcribe .*paired chunks=" "$RES/logcat-full.txt"; then PAIR=0; break; fi
+      if grep -q "\[VC\] transcribe 90\.0s .*paired chunks=" "$RES/logcat-full.txt"; then PAIR=0; break; fi
       sleep 30
     done
-    grep "\[VC\] transcribe .*paired chunks=" "$RES/logcat-full.txt" > "$RES/pair-log.txt" || echo "no transcribe log line" > "$RES/pair-log.txt"
+    grep "\[VC\] transcribe 90\.0s .*paired chunks=" "$RES/logcat-full.txt" > "$RES/pair-log.txt" || echo "no transcribe log line" > "$RES/pair-log.txt"
     if [ "$PAIR" -eq 0 ]; then
       timeout 10m "$HOME/.maestro/bin/maestro" test tests/e2e/flows/asr-pair-check.yaml --format junit --output "$RES/junit-pair-check.xml" \
         --test-output-dir "$RES/maestro-out-pair" >> "$RES/maestro-pair.txt" 2>&1
