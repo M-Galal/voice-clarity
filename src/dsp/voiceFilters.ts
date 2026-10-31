@@ -5,8 +5,17 @@
  */
 import { designBiquad, type BiquadCoeffs } from './biquad';
 
-/** Equaliser band centres, Hz: speech fundamentals to sibilants. */
-export const EQ_BANDS = [125, 250, 500, 1000, 2000, 3000, 4000, 6000] as const;
+/**
+ * Equaliser band centres, Hz: speech fundamentals to sibilants, then the hiss range (8-16 kHz).
+ * A band works only below 0.45 x the processing rate (eqBandsFor): at 24 kHz up to 10 kHz, at
+ * 48 kHz all of them. New bands are added at the end so saved settings keep their meaning.
+ */
+export const EQ_BANDS = [125, 250, 500, 1000, 2000, 3000, 4000, 6000, 8000, 10000, 12000, 16000] as const;
+
+/** Indexes of the EQ_BANDS that the processing rate can carry. */
+export function eqBandsFor(sampleRate: number): number[] {
+  return EQ_BANDS.map((f, i) => (f < sampleRate * 0.45 ? i : -1)).filter((i) => i >= 0);
+}
 export const EQ_MAX_DB = 12;
 /** Bandwidth of each band: Q 1.4 is about one octave. */
 const EQ_Q = 1.4;

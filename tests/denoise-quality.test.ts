@@ -71,3 +71,24 @@ test('decision-directed noise reduction: cleaner pauses, less musical noise, spe
     }
   }
 });
+
+// Phase inversion (Hagerman & Olofsson): processing speech+noise and speech-noise, (a-b)/2 is the
+// noise as processed and (a+b)/2 the speech, for the noise left under speech and in pauses.
+test('two-step gain: less hiss left under speech, speech kept, pauses as clean (24 kHz, white hiss)', async () => {
+  const sr2 = 24000;
+  const up = new Float32Array(clean.length * 1.5);
+  for (let i = 0; i < up.length; i++) { const p = i / 1.5, a = Math.floor(p), f = p - a; up[i] = (clean[a] ?? 0) * (1 - f) + (clean[a + 1] ?? 0) * f; }
+  const hiss = new Float32Array(up.length);
+  for (let i = 0; i < hiss.length; i++) hiss[i] = rnd() * 0.004;
+  const run = (x: Float32Array, twoStep: boolean) => denoise(x, sr2, segs, { overSubtraction: 1.5, floorDb: -18, smoothing: DD_SMOOTHING, rule: 'wiener-dd', twoStep });
+  const measure = async (twoStep: boolean) => {
+    const a = await run(up.map((v, i) => v + hiss[i]), twoStep), b = await run(up.map((v, i) => v - hiss[i]), twoStep);
+    let es = 0, en = 0, ep = 0, np = 0;
+    for (const g of segs) for (let i = Math.round(g.start * sr2); i < Math.round(g.end * sr2); i++) { es += ((a[i] + b[i]) / 2) ** 2; en += ((a[i] - b[i]) / 2) ** 2; }
+    for (let k = 0; k < segs.length - 1; k++) for (let i = Math.round((segs[k].end + 0.15) * sr2); i < Math.round((segs[k + 1].start - 0.15) * sr2); i++) { ep += ((a[i] - b[i]) / 2) ** 2; np++; }
+    return { snr: 10 * Math.log10(es / en), pause: 10 * Math.log10(ep / np) };
+  };
+  const one = await measure(false), two = await measure(true);
+  assert.ok(two.snr > one.snr + 0.2, `speech-to-hiss during speech ${two.snr.toFixed(2)} vs ${one.snr.toFixed(2)} dB`);
+  assert.ok(two.pause < one.pause + 0.5, `pauses ${two.pause.toFixed(1)} vs ${one.pause.toFixed(1)} dB`);
+});

@@ -98,6 +98,71 @@ appId: com.example.voiceclarity
 - assertVisible: "Intro"
 - takeScreenshot: 08_bookmark_renamed
 
+# ---- Jump to a time, A-B repeat ----
+- scrollUntilVisible:
+    element:
+      id: "jump-input"
+    centerElement: true
+- tapOn:
+    id: "jump-input"
+- inputText: "0:05"
+- pressKey: Enter
+- scrollUntilVisible:
+    element:
+      id: "elapsed"
+    direction: UP
+- assertVisible:
+    id: "elapsed"
+    text: "0:05"
+- scrollUntilVisible:
+    element:
+      id: "rep-a"
+    centerElement: true
+- tapOn:
+    id: "rep-a"
+- inputText: "0:02"
+- pressKey: Enter
+- tapOn:
+    id: "rep-b"
+- eraseText: 10
+- inputText: "0:04"
+- pressKey: Enter
+- scrollUntilVisible:
+    element:
+      id: "rep-on"
+- tapOn:
+    id: "rep-times-0"
+- tapOn:
+    id: "rep-on"
+- assertVisible:
+    id: "rep-progress"
+    text: "Pass 1"
+- takeScreenshot: 08b_repeat_set
+- scrollUntilVisible:
+    element:
+      id: "play-pause"
+    direction: UP
+- tapOn:
+    id: "play-pause"
+- scrollUntilVisible:
+    element:
+      id: "rep-progress"
+# the 2 s part has been played again at least once
+- extendedWaitUntil:
+    visible:
+      id: "rep-progress"
+      text: "Pass [2-9]"
+    timeout: 20000
+- takeScreenshot: 08c_repeating
+- tapOn:
+    id: "rep-on"
+- scrollUntilVisible:
+    element:
+      id: "play-pause"
+    direction: UP
+- tapOn:
+    id: "play-pause"
+
 # ---- Speed and skip silence ----
 - scrollUntilVisible:
     element:
@@ -185,6 +250,46 @@ appId: com.example.voiceclarity
     id: "pv-speed-value"
     text: "1.00×"
 - takeScreenshot: 10b_live
+# jump and A-B repeat from the live panel (the part set in the player is kept with the recording)
+- tapOn:
+    id: "pv-tools"
+- tapOn:
+    id: "pv-jump-input"
+- inputText: "0:03"
+- pressKey: Enter
+- assertVisible:
+    id: "pv-range"
+    text: "0:0[3-6] / .*"
+- tapOn:
+    id: "pv-tools"
+- scrollUntilVisible:
+    element:
+      id: "pv-rep-on"
+- tapOn:
+    id: "pv-rep-on"
+- scrollUntilVisible:
+    element:
+      id: "pv-tools-close"
+- tapOn:
+    id: "pv-tools-close"
+- extendedWaitUntil:
+    visible:
+      id: "pv-rep-status"
+      text: ".*0:02-0:04.*Pass [2-9].*"
+    timeout: 25000
+- takeScreenshot: 10b3_live_repeat
+- tapOn:
+    id: "pv-tools"
+- scrollUntilVisible:
+    element:
+      id: "pv-rep-on"
+- tapOn:
+    id: "pv-rep-on"
+- scrollUntilVisible:
+    element:
+      id: "pv-tools-close"
+- tapOn:
+    id: "pv-tools-close"
 - repeat:
     while:
       notVisible:

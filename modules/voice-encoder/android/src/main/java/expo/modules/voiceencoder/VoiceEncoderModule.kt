@@ -4,6 +4,7 @@ import android.media.MediaCodec
 import android.media.MediaCodecInfo
 import android.media.MediaFormat
 import android.media.MediaMuxer
+import expo.modules.kotlin.functions.Coroutine
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.io.File
@@ -11,49 +12,61 @@ import java.io.FileOutputStream
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Encodes a 16-bit PCM WAV file (as written by the app) to AAC-LC with the platform encoder,
  * either in an MPEG-4 container (.m4a / .mp4) or as raw ADTS (.aac).
  */
 class VoiceEncoderModule : Module() {
+  // Decoding and encoding run on the IO dispatcher, not on Expo's single async-function thread
+  // ("expo.modules.AsyncFunctionQueue", expo-modules-core AppContext.kt), which every module's
+  // async calls share: a long decode there held back the live player's 20 s block decodes and
+  // the start of every file read (expo-file-system readBytes) until it finished.
   override fun definition() = ModuleDefinition {
     Name("VoiceEncoder")
 
     Constant("containers") { listOf("mpeg4", "adts") }
 
-    AsyncFunction("encodeAac") { inputUri: String, outputUri: String, container: String, bitrate: Int ->
-      encode(toPath(inputUri), toPath(outputUri), container, bitrate)
-      File(toPath(outputUri)).length().toDouble()
+    AsyncFunction("encodeAac") Coroutine { inputUri: String, outputUri: String, container: String, bitrate: Int ->
+      withContext(Dispatchers.IO) {
+        encode(toPath(inputUri), toPath(outputUri), container, bitrate)
+        File(toPath(outputUri)).length().toDouble()
+      }
     }
 
     Events("onDecodeProgress")
 
     // Streams any readable audio file (file:// or content://) to mono 16-bit PCM at `sampleRate`.
-    AsyncFunction("decodeToPcm") { id: String, inputUri: String, outputUri: String, sampleRate: Int ->
+    AsyncFunction("decodeToPcm") Coroutine { id: String, inputUri: String, outputUri: String, sampleRate: Int ->
       val ctx = appContext.reactContext ?: throw IllegalStateException("No React context")
       cancelled.remove(id)
-      try {
-        val r = PcmDecoder(ctx).decode(inputUri, toPath(outputUri), sampleRate, { cancelled.contains(id) }) { p ->
-          sendEvent("onDecodeProgress", mapOf("id" to id, "fraction" to p))
+      withContext(Dispatchers.IO) {
+        try {
+          val r = PcmDecoder(ctx).decode(inputUri, toPath(outputUri), sampleRate, { cancelled.contains(id) }) { p ->
+            sendEvent("onDecodeProgress", mapOf("id" to id, "fraction" to p))
+          }
+          mapOf("frames" to r.frames.toDouble(), "sourceRate" to r.sourceRate, "sourceChannels" to r.sourceChannels)
+        } finally {
+          cancelled.remove(id)
         }
-        mapOf("frames" to r.frames.toDouble(), "sourceRate" to r.sourceRate, "sourceChannels" to r.sourceChannels)
-      } finally {
-        cancelled.remove(id)
       }
     }
 
     // Decodes only the given parts (seconds) into one PCM file; used for quick analysis and previews.
-    AsyncFunction("decodeRangesToPcm") { id: String, inputUri: String, outputUri: String, sampleRate: Int, starts: List<Double>, lengths: List<Double> ->
+    AsyncFunction("decodeRangesToPcm") Coroutine { id: String, inputUri: String, outputUri: String, sampleRate: Int, starts: List<Double>, lengths: List<Double> ->
       val ctx = appContext.reactContext ?: throw IllegalStateException("No React context")
       cancelled.remove(id)
-      try {
-        val (per, r) = PcmDecoder(ctx).decodeRanges(inputUri, toPath(outputUri), sampleRate, starts, lengths, { cancelled.contains(id) }) { p ->
-          sendEvent("onDecodeProgress", mapOf("id" to id, "fraction" to p))
+      withContext(Dispatchers.IO) {
+        try {
+          val (per, r) = PcmDecoder(ctx).decodeRanges(inputUri, toPath(outputUri), sampleRate, starts, lengths, { cancelled.contains(id) }) { p ->
+            sendEvent("onDecodeProgress", mapOf("id" to id, "fraction" to p))
+          }
+          mapOf("frames" to per.map { it.toDouble() }, "sourceRate" to r.sourceRate, "sourceChannels" to r.sourceChannels)
+        } finally {
+          cancelled.remove(id)
         }
-        mapOf("frames" to per.map { it.toDouble() }, "sourceRate" to r.sourceRate, "sourceChannels" to r.sourceChannels)
-      } finally {
-        cancelled.remove(id)
       }
     }
 

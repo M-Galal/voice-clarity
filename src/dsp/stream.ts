@@ -21,8 +21,8 @@
  */
 import { BiquadChainState, designBiquad, type BiquadCoeffs } from './biquad';
 import { eqChain, lowPassChain } from './voiceFilters';
-import { boostFloorPlan, chooseSettings, countSections, planSections, type AutoMeasures, type AutoReason, type SectionSetting, type SectionWindow } from './autoTune';
-import { CancelledError, DD_ALPHA, DD_SMOOTHING, detectHum, frameSizeFor, humHarmonics, humNotches, type Progress } from './denoise';
+import { boostFloorPlan, chooseSettings, countSections, hissBandChain, hissSnrFrom, planSections, type AutoMeasures, type AutoReason, type SectionSetting, type SectionWindow } from './autoTune';
+import { CancelledError, tsnrGain, DD_ALPHA, DD_SMOOTHING, detectHum, frameSizeFor, humHarmonics, humNotches, type Progress } from './denoise';
 import { RealFFT } from './fft';
 import { KLoudnessMeter, kWeightingCoeffs, loudnessFromBlocks, TruePeakMeter, type BlockPower } from './loudness';
 import { MAX_GAIN_DB, type EnhanceReport, type EnhanceSettings, type LevelReport, type WarningCode } from './pipeline';
@@ -454,7 +454,7 @@ export class StreamingDenoiser {
           const post = p / nk - 1;
           const xi = DD_ALPHA * (prevClean[k] / nk) + (1 - DD_ALPHA) * (post > 0 ? post : 0);
           xiArr[k] = xi;
-          let w = xi / (xi + over);
+          let w = tsnrGain(xi, p, nk, over);
           // hiss: bins where noise outweighs speech get the extra cut (in dB, weighted by
           // 1/(1+(xi/HISS_XI)^2): 96 % of it at xi = 0.1, half at xi = 0.5, 2.4 % at 0 dB)
           if (extraDb > 0) { const r = xi / HISS_XI; w *= Math.pow(10, (-extraDb / (1 + r * r)) / 20); }
@@ -823,6 +823,11 @@ async function measureFile(src: SampleSource, vad: EnhanceSettings['vad'], wantA
   const midF = new BiquadChainState([designBiquad('highpass', sr, 100, 0.707), designBiquad('lowpass', sr, Math.min(4000, sr * 0.45), 0.707)]);
   const lowE = new RangeEnergy(gapRanges);
   const midE = new RangeEnergy(gapRanges);
+  const hissChain = hissBandChain(sr);
+  const hissF = hissChain ? new BiquadChainState(hissChain) : null;
+  const speechRanges = segments.map((g) => ({ a: Math.round(g.start * sr), b: Math.min(len, Math.round(g.end * sr)) }));
+  const hissSpeechE = new RangeEnergy(speechRanges);
+  const hissGapE = new RangeEnergy(gapRanges);
   await eachChunk(src, (x, start) => {
     const end = start + x.length;
     humRanges.forEach((r, i) => {
@@ -833,6 +838,7 @@ async function measureFile(src: SampleSource, vad: EnhanceSettings['vad'], wantA
       spreadE.push(kw.process(x), start);
       lowE.push(lowF.process(x), start);
       midE.push(midF.process(x), start);
+      if (hissF) { const h = hissF.process(x); hissSpeechE.push(h, start); hissGapE.push(h, start); }
     }
   }, (f) => half(0.6, 1, f));
   let measures: AutoMeasures | undefined;
@@ -854,6 +860,7 @@ async function measureFile(src: SampleSource, vad: EnhanceSettings['vad'], wantA
       spreadDb: levels.length >= 2 ? pick(0.9) - pick(0.1) : 0,
       rumbleDb: low > 0 && mid > 0 ? 10 * Math.log10(low / mid) : -60,
       speechRefDb: levels.length ? pick(0.8) : undefined,
+      hissSnrDb: hissF ? hissSnrFrom(hissSpeechE.sums.reduce((a, b) => a + b, 0) / Math.max(1, n(speechRanges)), hissGapE.sums.reduce((a, b) => a + b, 0) / Math.max(1, gapN)) : undefined,
     };
   }
   const total = humAudio.reduce((t, h) => t + h.length, 0);

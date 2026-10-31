@@ -14,6 +14,8 @@ import { statusText } from './LibraryScreen';
 import { newId } from '../services/storage';
 import { secureFolderLikely } from '../services/playlist';
 import { stepIndex } from '../playlist/filter';
+import { PlaybackTools } from '../ui/PlaybackTools';
+import { useRepeat } from '../playback/useRepeat';
 
 
 export function PlayerScreen({ id, queueIndex, autoplay }: { id: string; queueIndex?: number; autoplay?: boolean }) {
@@ -142,6 +144,18 @@ function Player({ rec, queueIndex, autoplay }: { rec: Recording; queueIndex?: nu
         player.play();
       }
     };
+    // A-B repeat (the part is kept with the recording, on the original timeline)
+    const loop = rec.loop ?? null;
+    const loopShown = source === 'original' || !rec.enhanced?.report.silenceMap;
+    const repeat = useRepeat({
+      loop: loopShown ? loop : null,
+      duration,
+      position,
+      playing: status.playing,
+      seek,
+      pause: () => player.pause(),
+      play: () => { setPausedAt(null); player.play(); },
+    });
     const switchSource = (s: 'original' | 'enhanced') => {
       if (s === source) return;
       const keep = position;
@@ -238,6 +252,7 @@ function Player({ rec, queueIndex, autoplay }: { rec: Recording; queueIndex?: nu
             segments={segments}
             bookmarks={bookmarksVisible ? bookmarks : []}
             onSeek={seek}
+            loop={loopShown ? loop : null}
           />
           <Row style={{ justifyContent: 'space-between', direction: 'ltr' }}>
             <Txt size="sm" muted testID="elapsed">{clock(position)}</Txt>
@@ -274,6 +289,18 @@ function Player({ rec, queueIndex, autoplay }: { rec: Recording; queueIndex?: nu
           />
           <Button testID="speed-reset" compact kind="secondary" label={t('speed_normal')} onPress={() => setRate(1)} disabled={settings.playbackRate === 1} style={{ alignSelf: 'flex-start' }} />
           <Toggle testID="skip-silence" label={t('skip_silence')} value={settings.skipSilence} onChange={(v) => updateSettings({ skipSilence: v })} hint={`${t('silence_gap')} ${settings.skipSilenceMinGapSec} s`} />
+          <Card>
+            <PlaybackTools
+              duration={duration}
+              position={here}
+              onJump={seek}
+              loop={loopShown ? loop : null}
+              onLoop={(l) => updateRecording(rec.id, { loop: l ?? undefined })}
+              repeatOn={repeat.on}
+              onRepeat={repeat.setOn}
+              pass={repeat.pass}
+            />
+          </Card>
 
           <Row wrap>
             <Button testID="auto-enhance" label={t('auto_enhance')} icon="✨" onPress={() => { player.pause(); navigate({ name: 'enhance', id: rec.id, auto: true }); }} disabled={heavy} style={{ flexGrow: 1 }} />

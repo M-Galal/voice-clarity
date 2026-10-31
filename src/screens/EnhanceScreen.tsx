@@ -18,9 +18,13 @@ import { clock } from '../transcript/format';
 import type { Recording } from '../types';
 import {
   Button, Card, Choice, Header, IconButton, KeyValue, LabeledSlider, ProgressBar, Row, Section, Toggle, Txt, Warning,
+  Dialog,
 } from '../ui/components';
 import { radius, space, TOUCH } from '../ui/theme';
-import { EQ_BANDS, EQ_MAX_DB, LOW_PASS_HZ } from '../dsp/voiceFilters';
+import { EQ_BANDS, EQ_MAX_DB, eqBandsFor, LOW_PASS_HZ } from '../dsp/voiceFilters';
+import { hissFilterOf } from '../dsp/autoTune';
+import { PlaybackTools } from '../ui/PlaybackTools';
+import { useRepeat } from '../playback/useRepeat';
 
 type Phase = { kind: 'setup' } | { kind: 'running'; progress: number; stage: string } | { kind: 'review'; result: EnhanceResult; previewUri: string };
 
@@ -76,7 +80,7 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
   const perSection = s.perSection !== false;
   const fileSections = wantSmart && perSection && smart.kind === 'ready' ? smart.analysis.sections : null;
 
-  const patch = (p: Partial<EnhanceSettings>) => setS((prev) => ({ ...prev, ...p, strength: p.strength ?? (Object.keys(p).some((k) => k !== 'perSection' && k !== 'steadyNoise' && k !== 'gainMode' && k !== 'targetLufs' && k !== 'manualGainDb' && k !== 'removeSilence' && k !== 'keepGapMs' && k !== 'limiterCeilingDb' && k !== 'eq' && k !== 'lowPassHz') ? 'advanced' : prev.strength) }));
+  const patch = (p: Partial<EnhanceSettings>) => setS((prev) => ({ ...prev, ...p, strength: p.strength ?? (Object.keys(p).some((k) => k !== 'perSection' && k !== 'steadyNoise' && k !== 'gainMode' && k !== 'targetLufs' && k !== 'manualGainDb' && k !== 'removeSilence' && k !== 'keepGapMs' && k !== 'limiterCeilingDb' && k !== 'eq' && k !== 'lowPassHz' && k !== 'hissFilter') ? 'advanced' : prev.strength) }));
 
   const run = async () => {
     token.current = { cancelled: false };
@@ -184,7 +188,7 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
             <Toggle label={t('dereverb')} value={false} onChange={() => {}} disabled hint={t('not_available')} />
           </Section>
 
-          <EqualiserSection s={s} patch={patch} />
+          <EqualiserSection s={s} patch={patch} rate={rate} />
 
           <LoudnessSection s={s} patch={patch} inputPeakDb={smart.kind === 'ready' ? smart.analysis.input.truePeakDb : null} />
 
@@ -401,6 +405,18 @@ function LivePanel({ rec, pv, settings, rate, smart, sections }: { rec: Recordin
     else if (player) void player.seek(time);
   };
   const switchTo = (w: 'original' | 'enhanced') => { setWhich(w); player?.setMode(w); };
+  // jump to a time, and A-B repeat (the part is kept with the recording, shared with the player)
+  const [tools, setTools] = useState(false);
+  const loop = rec.loop ?? null;
+  const repeat = useRepeat({
+    loop,
+    duration: rec.durationSec,
+    position: status.position,
+    playing: status.playing,
+    seek: onTimeline,
+    pause: () => { void player?.pause(); },
+    play: () => { void player?.play(); },
+  });
   const now = sections?.find((x) => status.position >= x.start && status.position <= x.end) ?? null;
 
   return (
@@ -412,6 +428,7 @@ function LivePanel({ rec, pv, settings, rate, smart, sections }: { rec: Recordin
             {live.provisional ? t('pv_provisional') : settings.gainMode === 'target' ? t('pv_live_gain', { gain: `${gainDb >= 0 ? '+' : ''}${gainDb.toFixed(1)}` }) : t('pv_live_note')}
           </Txt>
         ) : null}
+        <Button testID="pv-tools" compact kind="secondary" label={t('pv_tools')} onPress={() => setTools(true)} accessibilityHint={t('rep_hint')} />
         <Button testID="pv-details" compact kind="ghost" label={details ? t('pv_less') : t('pv_more')} onPress={() => setDetails((d) => !d)} />
       </Row>
       <View testID="pv-timeline">
@@ -423,6 +440,7 @@ function LivePanel({ rec, pv, settings, rate, smart, sections }: { rec: Recordin
           bookmarks={[]}
           onSeek={onTimeline}
           height={36}
+          loop={loop}
         />
       </View>
       {sections?.length ? <SectionStrip sections={sections} duration={rec.durationSec} compact={!details} /> : null}
@@ -452,6 +470,27 @@ function LivePanel({ rec, pv, settings, rate, smart, sections }: { rec: Recordin
         </View>
         <Button testID="pv-speed-reset" compact kind="secondary" label="1×" onPress={() => { setSpeed(1); player?.setSpeed(1); }} disabled={speed === 1} />
       </Row>
+      {repeat.on && loop ? (
+        <Txt size="xs" testID="pv-rep-status" style={{ color: colors.primary }}>
+          {`${t('rep_on')} ${clock(loop.a)}-${clock(loop.b)} · ${loop.times > 0 ? t('rep_progress', { i: Math.min(repeat.pass, loop.times), n: loop.times }) : t('rep_progress_forever', { i: repeat.pass })}`}
+        </Txt>
+      ) : null}
+      {tools ? (
+        <Dialog onClose={() => setTools(false)}>
+          <PlaybackTools
+            prefix="pv-"
+            duration={rec.durationSec}
+            position={() => player?.position() ?? status.position}
+            onJump={(sec) => { onTimeline(sec); setTools(false); }}
+            loop={loop}
+            onLoop={(l) => app.updateRecording(rec.id, { loop: l ?? undefined })}
+            repeatOn={repeat.on}
+            onRepeat={repeat.setOn}
+            pass={repeat.pass}
+          />
+          <Button testID="pv-tools-close" kind="ghost" label={t('close')} onPress={() => setTools(false)} />
+        </Dialog>
+      ) : null}
       {details ? (
         <>
           <Txt size="sm" muted>{t('pv_hint')}</Txt>
@@ -481,7 +520,7 @@ function summary(s: EnhanceSettings, rate: number, t: ReturnType<typeof useApp>[
       s.perSection !== false ? t('per_section') : '',
       s.steadyNoise !== false ? t('steady_noise') : '',
       eqSummary(s, t),
-      s.lowPassHz ? `${t('low_pass')}: ${s.lowPassHz / 1000} kHz` : '',
+      hissFilterOf(s) === 'auto' ? '' : `${t('low_pass')}: ${t(hissFilterOf(s) === 'on' ? 'hiss_on' : 'hiss_off')}`,
       s.gainMode === 'target' ? `${t('target_lufs')}: ${s.targetLufs} LUFS` : `${t('manual_gain')}: ${formatDb(s.manualGainDb)} (${pct(s.manualGainDb)})`,
       `${t('limiter_ceiling')}: ${s.limiterCeilingDb} dBFS`,
       `${t('processing_rate')}: ${rate / 1000} kHz`,
@@ -496,7 +535,7 @@ function summary(s: EnhanceSettings, rate: number, t: ReturnType<typeof useApp>[
     `${t('pause_reduction')}: ${s.pauseReductionDb ? `${s.pauseReductionDb} dB` : '—'}`,
     `${t('level_speech')}: ${s.levelSpeech ? `≤ ${s.levelMaxBoostDb} dB` : '—'}`,
     eqSummary(s, t),
-    s.lowPassHz ? `${t('low_pass')}: ${s.lowPassHz / 1000} kHz` : '',
+    hissFilterOf(s) === 'auto' ? '' : `${t('low_pass')}: ${t(hissFilterOf(s) === 'on' ? 'hiss_on' : 'hiss_off')}`,
     s.gainMode === 'target' ? `${t('target_lufs')}: ${s.targetLufs} LUFS` : `${t('manual_gain')}: ${formatDb(s.manualGainDb)} (${pct(s.manualGainDb)})`,
     `${t('limiter_ceiling')}: ${s.limiterCeilingDb} dBFS`,
     `${t('processing_rate')}: ${rate / 1000} kHz`,
@@ -506,33 +545,47 @@ function summary(s: EnhanceSettings, rate: number, t: ReturnType<typeof useApp>[
 }
 
 /** Equaliser: a level per frequency group, on top of any preset (Smart included). */
-function EqualiserSection({ s, patch }: { s: EnhanceSettings; patch: (p: Partial<EnhanceSettings>) => void }) {
+function EqualiserSection({ s, patch, rate }: { s: EnhanceSettings; patch: (p: Partial<EnhanceSettings>) => void; rate: number }) {
   const { t } = useApp();
   const eq = EQ_BANDS.map((_, i) => s.eq?.[i] ?? 0);
+  const usable = eqBandsFor(rate);
   const flat = eq.every((g) => g === 0);
   const set = (i: number, v: number) => patch({ eq: eq.map((g, k) => (k === i ? v : g)) });
   const [open, setOpen] = useState(false);
+  const hiss = hissFilterOf(s);
+  const topKhz = EQ_BANDS[usable[usable.length - 1]] / 1000;
   return (
     <Section title={t('eq_title')}>
       <Txt size="sm" muted>{t('eq_hint')}</Txt>
       {!open && !flat ? <Txt size="sm">{eqSummary(s, t)}</Txt> : null}
       <Button testID="eq-open" compact kind="secondary" label={open ? t('eq_hide') : t('eq_adjust')} onPress={() => setOpen((o) => !o)} style={{ alignSelf: 'flex-start' }} />
-      {open ? EQ_BANDS.map((f, i) => (
-        <LabeledSlider
-          key={f}
-          compact
-          testID={`eq-${f}`}
-          label={f >= 1000 ? `${f / 1000} kHz` : `${f} Hz`}
-          value={eq[i]}
-          min={-EQ_MAX_DB}
-          max={EQ_MAX_DB}
-          step={1}
-          onChange={(v) => set(i, v)}
-          format={(v) => (v === 0 ? '0 dB' : formatDb(v, 0))}
-        />
-      )) : null}
+      {open ? usable.map((i) => {
+        const f = EQ_BANDS[i];
+        return (
+          <LabeledSlider
+            key={f}
+            compact
+            testID={`eq-${f}`}
+            label={f >= 1000 ? `${f / 1000} kHz` : `${f} Hz`}
+            value={eq[i]}
+            min={-EQ_MAX_DB}
+            max={EQ_MAX_DB}
+            step={1}
+            onChange={(v) => set(i, v)}
+            format={(v) => (v === 0 ? '0 dB' : formatDb(v, 0))}
+          />
+        );
+      }) : null}
+      {open && usable.length < EQ_BANDS.length ? <Txt size="xs" muted testID="eq-rate-note">{t('eq_rate_note', { khz: topKhz })}</Txt> : null}
       {open || !flat ? <Button testID="eq-flat" compact kind="secondary" label={t('eq_flat')} onPress={() => patch({ eq: undefined })} disabled={flat} style={{ alignSelf: 'flex-start' }} /> : null}
-      <Toggle testID="low-pass" label={t('low_pass')} hint={t('low_pass_hint')} value={(s.lowPassHz ?? 0) > 0} onChange={(v) => patch({ lowPassHz: v ? LOW_PASS_HZ : 0 })} />
+      <Choice
+        testID="hiss-filter"
+        label={t('low_pass')}
+        value={hiss}
+        onChange={(v) => patch({ hissFilter: v, lowPassHz: v === 'on' ? LOW_PASS_HZ : 0 })}
+        options={[{ value: 'auto' as const, label: t('hiss_auto') }, { value: 'on' as const, label: t('hiss_on') }, { value: 'off' as const, label: t('hiss_off') }]}
+      />
+      <Txt size="sm" muted>{t('low_pass_hint')}</Txt>
     </Section>
   );
 }

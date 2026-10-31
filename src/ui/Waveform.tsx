@@ -10,12 +10,14 @@ import { useApp } from '../state/AppContext';
  * Kept left-to-right in Arabic layout too: time runs left to right on media scrubbers.
  */
 export function Waveform({
-  peaks, duration, position, segments, bookmarks, onSeek, height = 72, selection, selectionMode = 'keep',
+  peaks, duration, position, segments, bookmarks, onSeek, height = 72, selection, selectionMode = 'keep', loop,
 }: {
   peaks: number[]; duration: number; position: number; segments: Segment[]; bookmarks: Bookmark[];
   onSeek: (t: number) => void; height?: number;
   /** Edit range: 'keep' dims everything outside it, 'cut' hatches the range itself. */
   selection?: { start: number; end: number }; selectionMode?: 'keep' | 'cut' | 'none';
+  /** A-B repeat part, tinted. */
+  loop?: { a: number; b: number } | null;
 }) {
   const { colors, t } = useApp();
   const [width, setWidth] = useState(0);
@@ -72,6 +74,9 @@ export function Waveform({
             <View key={`h${i}`} pointerEvents="none" style={{ position: 'absolute', left: x(v) - 2, width: 4, top: 0, bottom: 0, backgroundColor: colors.primary }} />
           ))
         : null}
+      {width > 0 && loop ? (
+        <View testID="wave-loop" pointerEvents="none" style={{ position: 'absolute', left: x(loop.a), width: Math.max(2, x(loop.b) - x(loop.a)), top: 0, bottom: 0, backgroundColor: colors.primary, opacity: 0.22, borderLeftWidth: 2, borderRightWidth: 2, borderColor: colors.primary }} />
+      ) : null}
       {width > 0 &&
         bookmarks.map((b) => (
           <View key={b.id} pointerEvents="none" style={{ position: 'absolute', left: x(b.time) - 1, top: 0, bottom: 0, width: 3, backgroundColor: colors.bookmark }} />

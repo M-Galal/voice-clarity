@@ -35,6 +35,11 @@ export interface EnhanceSettings {
   highPassHz: number;
   /** Voice-band low-pass in Hz (0 = off): removes hiss above the voice. */
   lowPassHz?: number;
+  /**
+   * The user's hiss cut choice: 'on' = lowPassHz at 7 kHz, 'off' = none, 'auto' (default) = Smart
+   * mode cuts when the speech above 7 kHz is weaker than the hiss (autoTune.ts); other modes: none.
+   */
+  hissFilter?: 'auto' | 'on' | 'off';
   /** Equaliser: dB per band of EQ_BANDS (voiceFilters.ts); missing = 0. */
   eq?: number[];
   /** Remove 50/60 Hz mains hum and harmonics when detected. */

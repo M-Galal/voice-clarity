@@ -18,6 +18,8 @@ import { STRETCH_MAX, STRETCH_MIN, StreamStretcher } from '../dsp/stretch';
 
 const BLOCK_SEC = 0.2;
 const AHEAD_SEC = 0.6;
+/** Playback starts once this much is queued; the rest of AHEAD_SEC is processed while it plays. */
+const START_SEC = 0.3;
 /** Audio fed to a new chain before the point it takes over (fills filters and noise estimate). */
 const PREROLL_SEC = 0.5;
 
@@ -58,6 +60,9 @@ export class LivePlayer {
   private specN = 0;
   private workMs = 0;
   private workSec = 0;
+  /** When play() was asked for (ms), for the start-up time in the log. */
+  private askedAt = 0;
+  private noiseMs = 0;
   mode: 'enhanced' | 'original' = 'enhanced';
   playing = false;
   ended = false;
@@ -182,7 +187,9 @@ export class LivePlayer {
       this.inputDone = false;
       this.rebuild = false;
       if (this.pendingSpeed !== null) { this.speed = this.pendingSpeed; this.pendingSpeed = null; }
+      this.askedAt = Date.now();
       await this.newChain(at - Math.round(PREROLL_SEC * sr), at);
+      this.noiseMs = Date.now() - this.askedAt;
       if (my !== this.gen) return;
       this.chainEnd = at;
       this.newStretcher(at);
@@ -318,22 +325,31 @@ export class LivePlayer {
         const t0 = Date.now();
         this.output(enhanced, original, start, final);
         this.workMs += Date.now() - t0;
+        if (this.outQueued >= START_SEC * sr) this.startNodes(my);
       }
-      if (my === this.gen && this.nodes && !this.started && this.outQueued > 0 && this.playing) {
-        const ctx = this.ctx!;
-        const t = ctx.currentTime + 0.02;
-        // explicit offset: in react-native-audio-api 0.13.6 the queue source's default offset (-1)
-        // fails its own non-negative check
-        this.nodes.enh.start(t, 0);
-        this.nodes.org.start(t, 0);
-        this.anchorOut = 0;
-        this.anchorTime = t;
-        this.started = true;
-      }
+      if (this.outQueued > 0) this.startNodes(my);
     } catch (e) {
       this.onError?.(e);
     } finally {
       this.filling = false;
+    }
+  }
+
+  /** Starts the queue sources once audio is queued (first fill after play()). */
+  private startNodes(my: number) {
+    if (my !== this.gen || !this.nodes || this.started || !this.playing || this.outQueued === 0) return;
+    const ctx = this.ctx!;
+    const t = ctx.currentTime + 0.02;
+    // explicit offset: in react-native-audio-api 0.13.6 the queue source's default offset (-1)
+    // fails its own non-negative check
+    this.nodes.enh.start(t, 0);
+    this.nodes.org.start(t, 0);
+    this.anchorOut = 0;
+    this.anchorTime = t;
+    this.started = true;
+    if (this.askedAt) {
+      console.log(`[VC] live: playing ${Date.now() - this.askedAt} ms after play (noise estimate and first read ${this.noiseMs} ms)`);
+      this.askedAt = 0;
     }
   }
 

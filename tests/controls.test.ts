@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { clampRate, clampSkip, formatSkip, parseSkip, shortSkip } from '../src/playback/controls';
 import { changeSpeed, MAX_SPEED, MIN_SPEED } from '../src/dsp/edit';
+import { formatTime, loopStep, loopValid, parseTime } from '../src/playback/loop';
 
 test('skip interval: 1 s to 1 h, parsing and formatting', () => {
   assert.equal(clampSkip(0), 1);
@@ -48,4 +49,39 @@ test('saved-file speed change also covers 0.1x-5x and keeps pitch', async () => 
     const f = ((n - 1) * sr) / (last - first);
     assert.ok(Math.abs(f - 220) < 4, `pitch @${speed}: ${f}`);
   }
+});
+
+test('jump-to times: m:ss, h:mm:ss, seconds, Arabic digits; nothing outside the recording', () => {
+  assert.equal(parseTime('90', 600), 90);
+  assert.equal(parseTime('1:30', 600), 90);
+  assert.equal(parseTime('01:30.5', 600), 90.5);
+  assert.equal(parseTime('1:02:03', 4000), 3723);
+  assert.equal(parseTime('١:٣٠', 600), 90);
+  assert.equal(parseTime('2,5', 600), 2.5);
+  assert.equal(parseTime('1:75', 600), null);
+  assert.equal(parseTime('11:00', 600), null);
+  assert.equal(parseTime('abc', 600), null);
+  assert.equal(parseTime('', 600), null);
+  assert.equal(formatTime(90), '1:30');
+  assert.equal(formatTime(90.5), '1:30.5');
+  assert.equal(formatTime(3723), '1:02:03');
+  assert.equal(parseTime(formatTime(75.3), 600), 75.3);
+});
+
+test('A-B repeat: back to A each time B is passed, for the set number of passes', () => {
+  const loop = { a: 10, b: 20, times: 3, gapSec: 0 };
+  assert.ok(loopValid(loop, 60));
+  assert.ok(!loopValid({ a: 10, b: 10.5 }, 60));
+  assert.ok(!loopValid({ a: 50, b: 70 }, 60));
+  let pass = 1;
+  let r = loopStep(19.9, 20.05, loop, pass); // first pass ends
+  assert.deepEqual(r, { seekTo: 10, pass: 2, done: false });
+  pass = r.pass;
+  r = loopStep(19.9, 20.1, loop, pass);
+  assert.equal(r.seekTo, 10); pass = r.pass; assert.equal(pass, 3);
+  r = loopStep(19.9, 20.1, loop, pass); // third pass ends: done, playback continues
+  assert.deepEqual(r, { seekTo: null, pass: 3, done: true });
+  assert.equal(loopStep(12, 13, loop, 1).seekTo, null); // inside the part
+  assert.equal(loopStep(5, 30, loop, 1).seekTo, null); // a jump past B is not the end of a pass
+  assert.equal(loopStep(19.5, 20.5, { ...loop, times: 0 }, 99).seekTo, 10); // until stopped
 });

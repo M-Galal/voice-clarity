@@ -7,6 +7,7 @@
  * - share of speech time that was detected as whispered / distant (whisper band only)
  * - level spread between loud and quiet speech windows (K-weighted, p90 − p10)
  * - low-frequency rumble: energy below 100 Hz vs 100 Hz–4 kHz in the pauses
+ * - hiss above 7 kHz: speech power there (above the hiss) vs the hiss in the pauses
  * - mains hum (detected separately by the pipeline) and clipping
  */
 import { applyChain, designBiquad } from './biquad';
@@ -26,7 +27,8 @@ export interface AutoReason {
     | 'auto_clarity_far'
     | 'auto_pauses'
     | 'auto_sections'
-    | 'auto_level_steady';
+    | 'auto_level_steady'
+    | 'auto_hiss';
   vars?: Record<string, string | number>;
 }
 
@@ -37,6 +39,41 @@ export interface AutoMeasures {
   rumbleDb: number;
   /** Level of the louder speech (80th percentile of ~1 s windows, K-weighted dBFS); reference for sections. */
   speechRefDb?: number;
+  /**
+   * Speech above HISS_CUT_HZ against the hiss there, dB: (speech-time power - pause power) / pause
+   * power, -30 when the speech adds nothing. Undefined when the sample rate leaves no such band or
+   * there are no pauses.
+   */
+  hissSnrDb?: number;
+}
+
+/** The hiss cut Smart mode turns on (ITU-T G.722 wideband speech: 50 Hz-7 kHz). */
+export const HISS_CUT_HZ = 7000;
+/**
+ * Smart mode cuts above HISS_CUT_HZ when the speech there is weaker than the hiss (below 0 dB):
+ * what is cut is then mostly hiss, and the speech in that band was already covered by it.
+ */
+export const HISS_CUT_BELOW_DB = 0;
+
+/**
+ * 8th-order Butterworth high-pass at HISS_CUT_HZ (four biquads), for the hiss measure: -41 dB at
+ * 4 kHz, so the much louder speech below does not leak into the band. null when the band does not exist.
+ */
+export function hissBandChain(sampleRate: number): ReturnType<typeof designBiquad>[] | null {
+  if (sampleRate * 0.45 < HISS_CUT_HZ + 1000) return null;
+  return [0.5098, 0.6013, 0.9, 2.5629].map((q) => designBiquad('highpass', sampleRate, HISS_CUT_HZ, q));
+}
+
+/** The user's hiss cut choice (settings saved before it existed: on if their low-pass was on). */
+export function hissFilterOf(s: { hissFilter?: 'auto' | 'on' | 'off'; lowPassHz?: number }): 'auto' | 'on' | 'off' {
+  return s.hissFilter ?? ((s.lowPassHz ?? 0) > 0 ? 'on' : 'auto');
+}
+
+/** hissSnrDb from the mean power above HISS_CUT_HZ in speech and in the pauses. */
+export function hissSnrFrom(speechPower: number, pausePower: number): number | undefined {
+  if (!(pausePower > 0) || !(speechPower > 0)) return undefined;
+  const extra = speechPower - pausePower;
+  return extra > 0 ? Math.max(-30, 10 * Math.log10(extra / pausePower)) : -30;
 }
 
 const r1 = (x: number) => Math.round(x * 10) / 10;
@@ -84,7 +121,9 @@ export function measureForAuto(
   const low = bandPower(mono, sampleRate, gaps, [designBiquad('lowpass', sampleRate, 100, 0.707), designBiquad('lowpass', sampleRate, 100, 0.707)]);
   const mid = bandPower(mono, sampleRate, gaps, [designBiquad('highpass', sampleRate, 100, 0.707), designBiquad('lowpass', sampleRate, Math.min(4000, sampleRate * 0.45), 0.707)]);
   const rumbleDb = low > 0 && mid > 0 ? 10 * Math.log10(low / mid) : -60;
-  return { snrDb, whisperShare: speechTime > 0 ? whisperTime / speechTime : 0, spreadDb, rumbleDb };
+  const hc = hissBandChain(sampleRate);
+  const hissSnrDb = hc ? hissSnrFrom(bandPower(mono, sampleRate, segments.map((x) => [x.start, x.end]), hc), bandPower(mono, sampleRate, gaps, hc)) : undefined;
+  return { snrDb, whisperShare: speechTime > 0 ? whisperTime / speechTime : 0, spreadDb, rumbleDb, hissSnrDb };
 }
 
 /** Chooses settings from the measurements. Loudness target and limiter ceiling stay as the user set them. */
@@ -121,6 +160,14 @@ export function chooseSettings(base: EnhanceSettings, m: AutoMeasures): { settin
   const pauseReductionDb = snr < 15 ? 8 : 4;
   reasons.push({ key: 'auto_pauses', vars: { db: pauseReductionDb } });
 
+  // hiss cut: the user's choice, or (auto) when the speech above 7 kHz is weaker than the hiss
+  const hissChoice = hissFilterOf(base);
+  let lowPassHz = hissChoice === 'on' ? HISS_CUT_HZ : 0;
+  if (hissChoice === 'auto' && m.hissSnrDb !== undefined && m.hissSnrDb < HISS_CUT_BELOW_DB) {
+    lowPassHz = HISS_CUT_HZ;
+    reasons.push({ key: 'auto_hiss', vars: { khz: HISS_CUT_HZ / 1000, snr: Math.round(m.hissSnrDb) } });
+  }
+
   return {
     settings: {
       ...base,
@@ -130,6 +177,7 @@ export function chooseSettings(base: EnhanceSettings, m: AutoMeasures): { settin
       noiseFloorDb,
       humRemoval: true,
       highPassHz,
+      lowPassHz,
       clarityDb,
       pauseReductionDb,
       levelSpeech,

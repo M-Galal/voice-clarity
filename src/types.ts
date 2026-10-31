@@ -1,3 +1,4 @@
+import type { LoopSpec } from './playback/loop';
 import type { EnhanceReport, EnhanceSettings } from './dsp/pipeline';
 import type { Segment } from './dsp/vad';
 import type { Transcript } from './transcript/format';
@@ -46,6 +47,8 @@ export interface Recording {
   lastPositionSec: number;
   lastPlayedSource: 'original' | 'enhanced';
   bookmarks: Bookmark[];
+  /** The part set for A-B repeat (player and live listening), original timeline. */
+  loop?: LoopSpec;
   /** Speech segments on the original timeline. */
   segments?: Segment[];
   waveform?: number[];
