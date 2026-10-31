@@ -1,0 +1,8 @@
+Anonymous analytics enabled. To opt out, set MAESTRO_CLI_NO_ANALYTICS environment variable to any value before running Maestro.
+
+
+Waiting for flows to complete...
+[Passed] main (8m 58s)
+
+1/1 Flow Passed in 8m 58s
+

@@ -1,0 +1,156 @@
+--------- beginning of main
+10-31 13:16:37.618 I/cmd     ( 9435): oneway function results will be dropped but finished with status OK and parcel size 4
+--------- beginning of system
+10-31 13:16:37.820 W/RuleEvaluation(  510): Integrity rule files are not available.
+10-31 13:16:37.820 I/PackageManager(  510): Integrity check passed for file:///data/app/vmdl602043173.tmp
+10-31 13:16:37.823 D/CompatibilityChangeReporter(  510): Compat change id reported: 135549675; UID 10139; state: ENABLED
+10-31 13:16:37.833 D/PackageManager(  510): Instant App installer not found with android.intent.action.INSTALL_INSTANT_APP_PACKAGE
+10-31 13:16:37.833 D/PackageManager(  510): Clear ephemeral installer activity
+10-31 13:16:37.836 V/BackupManagerService(  510): [UserID:0] restoreAtInstall pkg=dev.mobile.maestro token=a restoreSet=0
+10-31 13:16:37.836 V/BackupManagerService(  510): [UserID:0] Finishing install immediately
+10-31 13:16:37.838 E/installd(  420): Couldn't opendir /data/app/vmdl602043173.tmp: No such file or directory
+10-31 13:16:37.838 E/installd(  420): Failed to delete /data/app/vmdl602043173.tmp: No such file or directory
+10-31 13:16:37.839 I/cmd     ( 9438): oneway function results will be dropped but finished with status OK and parcel size 4
+10-31 13:16:37.842 I/MediaProvider( 1351): Invalidating LocalCallingIdentity cache for package dev.mobile.maestro. Reason: package android.intent.action.PACKAGE_ADDED
+10-31 13:16:37.845 W/BroadcastQueue(  510): Background execution not allowed: receiving Intent { act=android.intent.action.PACKAGE_ADDED dat=package:dev.mobile.maestro flg=0x4000010 (has extras) } to com.android.packageinstaller/.PackageInstalledReceiver
+10-31 13:16:37.849 V/AvrcpMediaPlayerList(  704): mPackageChangedBroadcastReceiver: action: android.intent.action.PACKAGE_ADDED
+10-31 13:16:37.850 D/AvrcpMediaPlayerList(  704): Name of package changed: dev.mobile.maestro
+10-31 13:16:37.850 I/Telecom (  510): DefaultDialerCache: Refreshing default dialer for user 0: now com.android.dialer: DDC.oR@AM0
+10-31 13:16:37.851 I/InputReader(  510): Reconfiguring input devices, changes=KEYBOARD_LAYOUTS | 
+10-31 13:16:37.852 W/BroadcastQueue(  510): Background execution not allowed: receiving Intent { act=android.intent.action.PACKAGE_ADDED dat=package:dev.mobile.maestro flg=0x4000010 (has extras) } to com.android.gallery3d/.app.PackagesMonitor
+10-31 13:16:37.852 V/BackupManagerConstants(  510): getFullBackupIntervalMilliseconds(...) returns 86400000
+10-31 13:16:37.852 V/BackupManagerConstants(  510): getFullBackupRequiredNetworkType(...) returns 2
+10-31 13:16:37.852 V/BackupManagerConstants(  510): getFullBackupRequireCharging(...) returns true
+10-31 13:16:37.858 D/CarrierSvcBindHelper( 1030): No carrier app for: 0
+10-31 13:16:37.860 I/RoleManagerService(  510): Granting default roles...
+10-31 13:16:37.862 D/CarrierConfigLoader( 1030): mHandler: 9 phoneId: 0
+10-31 13:16:37.867 I/PermissionControllerServiceImpl(  745): Updating user sensitive for uid 10139
+10-31 13:16:37.885 W/VoiceInteractionManager(  510): no available voice recognition services found for user 0
+10-31 13:16:37.902 I/cmd     ( 9447): oneway function results will be dropped but finished with status OK and parcel size 4
+10-31 13:16:37.923 I/cmd     ( 9452): oneway function results will be dropped but finished with status OK and parcel size 4
+10-31 13:16:37.957 W/PackageParsing(  510): No actions in intent-filter at /data/app/vmdl240703537.tmp/base.apk Binary XML file line #42
+10-31 13:16:37.957 W/PackageParsing(  510): No actions in intent-filter at /data/app/vmdl240703537.tmp/base.apk Binary XML file line #50
+10-31 13:16:37.957 W/PackageParsing(  510): No actions in intent-filter at /data/app/vmdl240703537.tmp/base.apk Binary XML file line #58
+10-31 13:16:37.959 W/RuleEvaluation(  510): Integrity rule files are not available.
+10-31 13:16:37.959 I/PackageManager(  510): Integrity check passed for file:///data/app/vmdl240703537.tmp
+10-31 13:16:37.960 W/PackageParsing(  510): No actions in intent-filter at /data/app/vmdl240703537.tmp/base.apk Binary XML file line #42
+10-31 13:16:37.960 W/PackageParsing(  510): No actions in intent-filter at /data/app/vmdl240703537.tmp/base.apk Binary XML file line #50
+10-31 13:16:37.960 W/PackageParsing(  510): No actions in intent-filter at /data/app/vmdl240703537.tmp/base.apk Binary XML file line #58
+10-31 13:16:37.962 D/CompatibilityChangeReporter(  510): Compat change id reported: 135549675; UID 10140; state: ENABLED
+10-31 13:16:37.973 D/PackageManager(  510): Instant App installer not found with android.intent.action.INSTALL_INSTANT_APP_PACKAGE
+10-31 13:16:37.973 D/PackageManager(  510): Clear ephemeral installer activity
+10-31 13:16:37.976 V/BackupManagerService(  510): [UserID:0] restoreAtInstall pkg=dev.mobile.maestro.test token=b restoreSet=0
+10-31 13:16:37.976 V/BackupManagerService(  510): [UserID:0] Finishing install immediately
+10-31 13:16:37.981 E/installd(  420): Couldn't opendir /data/app/vmdl240703537.tmp: No such file or directory
+10-31 13:16:37.981 E/installd(  420): Failed to delete /data/app/vmdl240703537.tmp: No such file or directory
+10-31 13:16:37.982 I/cmd     ( 9455): oneway function results will be dropped but finished with status OK and parcel size 4
+10-31 13:16:37.987 W/BroadcastQueue(  510): Background execution not allowed: receiving Intent { act=android.intent.action.PACKAGE_ADDED dat=package:dev.mobile.maestro.test flg=0x4000010 (has extras) } to com.android.packageinstaller/.PackageInstalledReceiver
+10-31 13:16:37.987 W/BroadcastQueue(  510): Background execution not allowed: receiving Intent { act=android.intent.action.PACKAGE_ADDED dat=package:dev.mobile.maestro.test flg=0x4000010 (has extras) } to com.android.gallery3d/.app.PackagesMonitor
+10-31 13:16:37.987 I/Telecom (  510): DefaultDialerCache: Refreshing default dialer for user 0: now com.android.dialer: DDC.oR@ANA
+10-31 13:16:37.989 V/AvrcpMediaPlayerList(  704): mPackageChangedBroadcastReceiver: action: android.intent.action.PACKAGE_ADDED
+10-31 13:16:37.989 D/AvrcpMediaPlayerList(  704): Name of package changed: dev.mobile.maestro.test
+10-31 13:16:37.993 I/MediaProvider( 1351): Invalidating LocalCallingIdentity cache for package dev.mobile.maestro.test. Reason: package android.intent.action.PACKAGE_ADDED
+10-31 13:16:37.993 I/PermissionControllerServiceImpl(  745): Updating user sensitive for uid 10140
+10-31 13:16:37.994 I/InputReader(  510): Reconfiguring input devices, changes=KEYBOARD_LAYOUTS | 
+10-31 13:16:37.997 V/BackupManagerConstants(  510): getFullBackupIntervalMilliseconds(...) returns 86400000
+10-31 13:16:37.997 V/BackupManagerConstants(  510): getFullBackupRequiredNetworkType(...) returns 2
+10-31 13:16:37.997 V/BackupManagerConstants(  510): getFullBackupRequireCharging(...) returns true
+10-31 13:16:38.003 D/CarrierSvcBindHelper( 1030): No carrier app for: 0
+10-31 13:16:38.003 W/d.process.acor( 2649): Reducing the number of considered missed Gc histogram windows from 118 to 100
+10-31 13:16:38.005 D/CarrierConfigLoader( 1030): mHandler: 9 phoneId: 0
+10-31 13:16:38.013 I/cmd     ( 9461): oneway function results will be dropped but finished with status OK and parcel size 4
+10-31 13:16:38.026 W/VoiceInteractionManager(  510): no available voice recognition services found for user 0
+10-31 13:16:38.085 D/AndroidRuntime( 9468): >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+10-31 13:16:38.087 E/libc    ( 9468): Access denied finding property "persist.device_config.runtime_native_boot.profilebootclasspath"
+10-31 13:16:38.087 E/libc    ( 9468): Access denied finding property "persist.device_config.runtime_native_boot.enable_apex_image"
+10-31 13:16:38.087 I/AndroidRuntime( 9468): Using default boot image
+10-31 13:16:38.087 E/libc    ( 9468): Access denied finding property "persist.device_config.runtime_native_boot.disable_lock_profiling"
+10-31 13:16:38.087 I/AndroidRuntime( 9468): Leaving lock profiling enabled
+10-31 13:16:38.087 E/libc    ( 9468): Access denied finding property "persist.device_config.runtime_native_boot.enable_generational_cc"
+10-31 13:16:38.088 I/app_process( 9468): Core platform API reporting enabled, enforcing=false
+10-31 13:16:38.084 W/app_process( 9468): type=1400 audit(0.0:500): avc: denied { read } for name="u:object_r:device_config_runtime_native_boot_prop:s0" dev="tmpfs" ino=8369 scontext=u:r:shell:s0 tcontext=u:object_r:device_config_runtime_native_boot_prop:s0 tclass=file permissive=0
+10-31 13:16:38.084 I/chatty  ( 9468): uid=2000(shell) main identical 2 lines
+10-31 13:16:38.084 W/app_process( 9468): type=1400 audit(0.0:503): avc: denied { read } for name="u:object_r:device_config_runtime_native_boot_prop:s0" dev="tmpfs" ino=8369 scontext=u:r:shell:s0 tcontext=u:object_r:device_config_runtime_native_boot_prop:s0 tclass=file permissive=0
+10-31 13:16:38.130 D/app_process( 9468): Time zone APEX ICU file found: /apex/com.android.tzdata/etc/icu/icu_tzdata.dat
+10-31 13:16:38.130 D/app_process( 9468): I18n APEX ICU file found: /apex/com.android.i18n/etc/icu/icudt66l.dat
+10-31 13:16:38.133 W/app_process( 9468): Unexpected CPU variant for X86 using defaults: x86_64
+10-31 13:16:38.133 I/app_process( 9468): The ClassLoaderContext is a special shared library.
+10-31 13:16:38.140 W/app_process( 9468): JNI RegisterNativeMethods: attempt to register 0 native methods for android.media.AudioAttributes
+10-31 13:16:38.143 D/AndroidRuntime( 9468): Calling main entry com.android.commands.am.Am
+10-31 13:16:38.145 I/ActivityManager(  510): Force stopping dev.mobile.maestro appid=10139 user=0: start instr
+10-31 13:16:38.146 D/CompatibilityChangeReporter(  510): Compat change id reported: 135634846; UID 10139; state: DISABLED
+10-31 13:16:38.147 D/CompatibilityChangeReporter(  510): Compat change id reported: 143937733; UID 10139; state: ENABLED
+10-31 13:16:38.152 D/Zygote  (  279): Forked child process 9480
+10-31 13:16:38.153 I/ActivityManager(  510): Start proc 9480:dev.mobile.maestro/u0a139 for added application dev.mobile.maestro
+10-31 13:16:38.156 I/.mobile.maestr( 9480): Late-enabling -Xcheck:jni
+10-31 13:16:38.165 I/.mobile.maestr( 9480): Unquickening 12 vdex files!
+10-31 13:16:38.166 W/.mobile.maestr( 9480): Unexpected CPU variant for X86 using defaults: x86_64
+10-31 13:16:38.168 I/adbd    (  384): jdwp connection from 9480
+10-31 13:16:38.183 I/.mobile.maestr( 9480): The ClassLoaderContext is a special shared library.
+10-31 13:16:38.183 I/chatty  ( 9480): uid=10139(dev.mobile.maestro) identical 1 line
+10-31 13:16:38.184 I/.mobile.maestr( 9480): The ClassLoaderContext is a special shared library.
+10-31 13:16:38.493 D/ApplicationLoaders( 9480): Returning zygote-cached class loader: /system/framework/android.test.base.jar
+10-31 13:16:38.493 D/ApplicationLoaders( 9480): Returning zygote-cached class loader: /system/framework/android.test.base.jar
+10-31 13:16:38.493 I/.mobile.maestr( 9480): The ClassLoaderContext is a special shared library.
+10-31 13:16:38.494 D/ApplicationLoaders( 9480): Returning zygote-cached class loader: /system/framework/android.test.base.jar
+10-31 13:16:38.494 D/ApplicationLoaders( 9480): Returning zygote-cached class loader: /system/framework/android.test.base.jar
+10-31 13:16:38.495 I/.mobile.maestr( 9480): The ClassLoaderContext is a special shared library.
+10-31 13:16:38.496 I/chatty  ( 9480): uid=10139(dev.mobile.maestro) identical 2 lines
+10-31 13:16:38.497 I/.mobile.maestr( 9480): The ClassLoaderContext is a special shared library.
+10-31 13:16:38.799 W/.mobile.maestr( 9480): Accessing hidden method Landroid/app/Instrumentation;->execStartActivity(Landroid/content/Context;Landroid/os/IBinder;Landroid/os/IBinder;Landroid/app/Activity;Landroid/content/Intent;ILandroid/os/Bundle;)Landroid/app/Instrumentation$ActivityResult; (greylist, linking, allowed)
+10-31 13:16:38.799 W/.mobile.maestr( 9480): Accessing hidden method Landroid/app/Instrumentation;->execStartActivity(Landroid/content/Context;Landroid/os/IBinder;Landroid/os/IBinder;Ljava/lang/String;Landroid/content/Intent;ILandroid/os/Bundle;)Landroid/app/Instrumentation$ActivityResult; (greylist, linking, allowed)
+10-31 13:16:38.802 D/NetworkSecurityConfig( 9480): No Network Security Config specified, using platform default
+10-31 13:16:38.803 D/NetworkSecurityConfig( 9480): No Network Security Config specified, using platform default
+10-31 13:16:38.803 I/AndroidJUnitRunner( 9480): newApplication android.app.Application
+10-31 13:16:38.804 I/AndroidJUnitRunner( 9480): onCreate Bundle[mParcelledData.dataSize=204]
+10-31 13:16:38.805 D/AndroidJUnitRunner( 9480): Use the raw file system for managing file I/O.
+10-31 13:16:38.809 V/TestEventClient( 9480): No service name argument was given (testDiscoveryService, testRunEventService or orchestratorService)
+10-31 13:16:38.810 D/AndroidJUnitRunner( 9480): onStart is called.
+10-31 13:16:38.821 I/TestRunner( 9480): run started: 1 tests
+10-31 13:16:38.822 I/TestRunner( 9480): started: grpcServer(dev.mobile.maestro.MaestroDriverService)
+10-31 13:16:38.826 I/UiDevice( 9480): Creating a new instance, old instance exists: false
+10-31 13:16:38.827 E/adbd    (  384): failed to connect to socket 'tcp:37629': Connection refused
+10-31 13:16:38.832 V/UiAutomation( 9480): Init UiAutomation@b62e33b[id=5, flags=0]
+10-31 13:16:38.833 D/UiDevice( 9480): Setting accessibility service flags: 65618
+10-31 13:16:38.838 I/System.out( 9480): Server running on port [ 37629 ]
+10-31 13:16:38.845 I/RoleManagerService(  510): Granting default roles...
+10-31 13:16:38.855 W/System.err( 9480): SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+10-31 13:16:38.855 W/System.err( 9480): SLF4J: Defaulting to no-operation (NOP) logger implementation
+10-31 13:16:38.855 W/System.err( 9480): SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+10-31 13:16:38.870 W/.mobile.maestr( 9480): Accessing hidden method Lsun/misc/VM;->maxDirectMemory()J (greylist, reflection, allowed)
+10-31 13:16:38.870 I/PlatformDependent( 9480): Your platform does not provide complete low-level API for accessing direct buffers reliably. Unless explicitly requested, heap buffer will always be preferred to avoid potential system instability.
+10-31 13:16:38.878 E/.mobile.maestr( 9480): No implementation found for int io.grpc.netty.shaded.io.netty.channel.epoll.Native.offsetofEpollData() (tried Java_io_grpc_netty_shaded_io_netty_channel_epoll_Native_offsetofEpollData and Java_io_grpc_netty_shaded_io_netty_channel_epoll_Native_offsetofEpollData__)
+10-31 13:16:38.888 D/Maestro ( 9480): Started listening to accessibility events
+10-31 13:16:38.888 I/Maestro ( 9480): injectInputEvent(event, sync, waitForAnimations) unavailable, using UiAutomator: java.lang.NoSuchMethodException: android.app.UiAutomation.injectInputEvent [class android.view.InputEvent, boolean, boolean]
+10-31 13:16:38.905 W/.mobile.maestr( 9480): Accessing hidden field Lsun/nio/ch/SelectorImpl;->selectedKeys:Ljava/util/Set; (greylist, reflection, allowed)
+10-31 13:16:38.905 W/.mobile.maestr( 9480): Accessing hidden field Lsun/nio/ch/SelectorImpl;->publicSelectedKeys:Ljava/util/Set; (greylist, reflection, allowed)
+10-31 13:16:38.922 W/MacAddressUtil( 9480): Failed to find a usable hardware address from the network interfaces; using random bytes: b0:ee:fa:e6:96:d1:4b:1e
+10-31 13:16:38.916 W/grpc-nio-boss-E( 9480): type=1400 audit(0.0:504): avc: denied { read } for name="somaxconn" dev="proc" ino=114124 scontext=u:r:untrusted_app:s0:c139,c256,c512,c768 tcontext=u:object_r:proc_net:s0 tclass=file permissive=0 app=dev.mobile.maestro
+10-31 13:16:39.334 D/Maestro ( 9480): Requesting view hierarchy
+10-31 13:16:39.337 W/QueryController( 9480): Could not detect idle state.
+10-31 13:16:39.338 W/QueryController( 9480): Could not detect idle state.
+10-31 13:16:39.370 I/Maestro ( 9480): Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@6c2a5; boundsInParent: Rect(0, 0 - 0, 24); boundsInScreen: Rect(160, 0 - 160, 24); packageName: com.android.systemui; className: android.widget.FrameLayout; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; viewIdResName: com.android.systemui:id/centered_icon_area; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]
+10-31 13:16:39.376 I/Maestro ( 9480): Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@b6121; boundsInParent: Rect(0, 0 - 276, 15); boundsInScreen: Rect(22, 604 - 298, 587); packageName: com.example.voiceclarity; className: android.widget.TextView; text: نص مكرر: ربما علِق النموذج في حلقة; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; viewIdResName: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_NEXT_AT_MOVEMENT_GRANULARITY - null, AccessibilityAction: ACTION_PREVIOUS_AT_MOVEMENT_GRANULARITY - null, AccessibilityAction: ACTION_SET_SELECTION - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]
+10-31 13:16:39.377 D/Maestro ( 9480): View hierarchy received in 43 ms
+10-31 13:16:39.511 D/goldfish-address-space(  299): claimShared: Ask to claim region [0x3fd754000 0x3fd81c000]
+10-31 13:16:39.515 I/hwservicemanager(  159): getTransport: Cannot find entry android.hardware.graphics.mapper@4.0::IMapper/default in either framework or device manifest.
+10-31 13:16:39.515 I/Gralloc4( 9468): mapper 4.x is not supported
+10-31 13:16:39.519 D/HostConnection( 9468): createUnique: call
+10-31 13:16:39.521 D/HostConnection( 9468): HostConnection::get() New Host Connection established 0x72b2df0a52d0, tid 9479
+10-31 13:16:39.521 D/goldfish-address-space( 9468): allocate: Ask for block of size 0x100
+10-31 13:16:39.521 D/goldfish-address-space( 9468): allocate: ioctl allocate returned offset 0x3fbffe000 size 0x2000
+10-31 13:16:39.530 D/HostConnection( 9468): HostComposition ext ANDROID_EMU_CHECKSUM_HELPER_v1 ANDROID_EMU_native_sync_v2 ANDROID_EMU_dma_v1 ANDROID_EMU_direct_mem ANDROID_EMU_host_composition_v1 ANDROID_EMU_host_composition_v2 ANDROID_EMU_vulkan ANDROID_EMU_deferred_vulkan_commands ANDROID_EMU_vulkan_null_optional_strings ANDROID_EMU_vulkan_create_resources_with_requirements ANDROID_EMU_YUV_Cache ANDROID_EMU_vulkan_ignored_handles ANDROID_EMU_has_shared_slots_host_memory_allocator ANDROID_EMU_vulkan_free_memory_sync ANDROID_EMU_vulkan_shader_float16_int8 ANDROID_EMU_vulkan_async_queue_submit ANDROID_EMU_sync_buffer_data ANDROID_EMU_vulkan_async_qsri ANDROID_EMU_read_color_buffer_dma ANDROID_EMU_hwc_color_transform GL_OES_EGL_image_external_essl3 GL_OES_vertex_array_object GL_KHR_texture_compression_astc_ldr ANDROID_EMU_host_side_tracing ANDROID_EMU_gles_max_version_3_0 
+10-31 13:16:39.537 D/libEGL  ( 9468): loaded /vendor/lib64/egl/libEGL_emulation.so
+10-31 13:16:39.538 D/libEGL  ( 9468): loaded /vendor/lib64/egl/libGLESv1_CM_emulation.so
+10-31 13:16:39.540 D/libEGL  ( 9468): loaded /vendor/lib64/egl/libGLESv2_emulation.so
+10-31 13:16:39.550 D/HostConnection( 9468): HostConnection::get() New Host Connection established 0x72b2df0a58d0, tid 9510
+10-31 13:16:39.553 D/HostConnection( 9468): HostComposition ext ANDROID_EMU_CHECKSUM_HELPER_v1 ANDROID_EMU_native_sync_v2 ANDROID_EMU_dma_v1 ANDROID_EMU_direct_mem ANDROID_EMU_host_composition_v1 ANDROID_EMU_host_composition_v2 ANDROID_EMU_vulkan ANDROID_EMU_deferred_vulkan_commands ANDROID_EMU_vulkan_null_optional_strings ANDROID_EMU_vulkan_create_resources_with_requirements ANDROID_EMU_YUV_Cache ANDROID_EMU_vulkan_ignored_handles ANDROID_EMU_has_shared_slots_host_memory_allocator ANDROID_EMU_vulkan_free_memory_sync ANDROID_EMU_vulkan_shader_float16_int8 ANDROID_EMU_vulkan_async_queue_submit ANDROID_EMU_sync_buffer_data ANDROID_EMU_vulkan_async_qsri ANDROID_EMU_read_color_buffer_dma ANDROID_EMU_hwc_color_transform GL_OES_EGL_image_external_essl3 GL_OES_vertex_array_object GL_KHR_texture_compression_astc_ldr ANDROID_EMU_host_side_tracing ANDROID_EMU_gles_max_version_3_0 
+10-31 13:16:39.554 I/hwservicemanager(  159): getTransport: Cannot find entry android.hardware.configstore@1.0::ISurfaceFlingerConfigs/default in either framework or device manifest.
+10-31 13:16:39.555 D/EGL_emulation( 9468): eglCreateContext: 0x72b2cf0b9110: maj 3 min 0 rcv 3
+10-31 13:16:39.556 D/EGL_emulation( 9468): eglMakeCurrent: 0x72b2cf0b9110: ver 3 0 (tinfo 0x72b26f0c9160) (first time)
+10-31 13:16:39.672 D/Maestro ( 9480): Requesting view hierarchy
+10-31 13:16:39.673 W/QueryController( 9480): Could not detect idle state.
+10-31 13:16:39.674 W/QueryController( 9480): Could not detect idle state.
+10-31 13:16:39.687 I/Maestro ( 9480): Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@6c2a5; boundsInParent: Rect(0, 0 - 0, 24); boundsInScreen: Rect(160, 0 - 160, 24); packageName: com.android.systemui; className: android.widget.FrameLayout; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; viewIdResName: com.android.systemui:id/centered_icon_area; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]
+10-31 13:16:39.691 I/Maestro ( 9480): Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@b6121; boundsInParent: Rect(0, 0 - 276, 15); boundsInScreen: Rect(22, 604 - 298, 587); packageName: com.example.voiceclarity; className: android.widget.TextView; text: نص مكرر: ربما علِق النموذج في حلقة; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; viewIdResName: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_NEXT_AT_MOVEMENT_GRANULARITY - null, AccessibilityAction: ACTION_PREVIOUS_AT_MOVEMENT_GRANULARITY - null, AccessibilityAction: ACTION_SET_SELECTION - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]
+10-31 13:16:39.692 D/Maestro ( 9480): View hierarchy received in 20 ms

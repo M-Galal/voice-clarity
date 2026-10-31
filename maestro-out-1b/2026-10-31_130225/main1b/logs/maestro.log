@@ -1,0 +1,366 @@
+13:02:31.239 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Define variables RUNNING
+13:02:31.242 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Define variables COMPLETED
+13:02:31.243 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Apply configuration RUNNING
+13:02:31.244 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Apply configuration COMPLETED
+13:02:31.244 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Launch app "com.example.voiceclarity" RUNNING
+13:02:31.684 [DEBUG] maestro.Maestro.setPermissionInternal: Failed to set permission android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK for app com.example.voiceclarity: shell command failed (exit -1): 
+Exception occurred while executing 'grant':
+java.lang.IllegalArgumentException: Unknown permission: android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK
+	at com.android.server.pm.permission.PermissionManagerService.grantRuntimePermissionInternal(PermissionManagerService.java:1451)
+	at com.android.server.pm.permission.PermissionManagerService.grantRuntimePermission(PermissionManagerService.java:1410)
+	at com.android.server.pm.PackageManagerShellCommand.runGrantRevokePermission(PackageManagerShellCommand.java:2287)
+	at com.android.server.pm.PackageManagerShellCommand.onCommand(PackageManagerShellCommand.java:249)
+	at android.os.BasicShellCommandHandler.exec(BasicShellCommandHandler.java:98)
+	at android.os.ShellCommand.exec(ShellCommand.java:44)
+	at com.android.server.pm.PackageManagerService.onShellCommand(PackageManagerService.java:21646)
+	at android.os.Binder.shellCommand(Binder.java:929)
+	at android.os.Binder.onTransact(Binder.java:813)
+	at android.content.pm.IPackageManager$Stub.onTransact(IPackageManager.java:4603)
+	at com.android.server.pm.PackageManagerService.onTransact(PackageManagerService.java:4305)
+	at android.os.Binder.execTransactInternal(Binder.java:1159)
+	at android.os.Binder.execTransact(Binder.java:1123)
+
+13:02:31.747 [ INFO] maestro.Maestro.launchApp$lambda$6: Launching app com.example.voiceclarity
+13:02:31.747 [ INFO] maestro.Maestro.launchApp$lambda$6: Stopping com.example.voiceclarity app during launch
+13:02:31.842 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Launch app "com.example.voiceclarity" COMPLETED
+13:02:31.843 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Assert that id: import is visible RUNNING
+13:02:32.818 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Assert that id: import is visible COMPLETED
+13:02:32.819 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Tap on id: rec-arabic_noisy RUNNING
+13:02:33.222 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={text=, accessibilityText=arabic_noisy. Duration 0:20. M4A. 254 KB. Ready. Enhanced copy, hintText=, ignoreBoundsFiltering=false, resource-id=rec-arabic_noisy, clickable=true, bounds=[12,195][308,250], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.Button, important-for-accessibility=true, error=}, children=[TreeNode(attributes={text=arabic_noisy, accessibilityText=, hintText=, ignoreBoundsFiltering=false, resource-id=, clickable=false, bounds=[21,202][299,223], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.TextView, important-for-accessibility=true, error=}, children=[], clickable=false, enabled=true, focused=false, checked=false, selected=false), TreeNode(attributes={text=0:20 · M4A · 254 KB · Ready · Enhanced copy, accessibilityText=, hintText=, ignoreBoundsFiltering=false, resource-id=, clickable=false, bounds=[21,225][299,243], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.TextView, important-for-accessibility=true, error=}, children=[], clickable=false, enabled=true, focused=false, checked=false, selected=false)], clickable=true, enabled=true, focused=false, checked=false, selected=false), bounds=Bounds(x=12, y=195, width=296, height=55))
+13:02:34.381 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tap aimed via settled hierarchy
+13:02:34.385 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Tapping at (160, 222) using hierarchy based logic for wait
+13:02:35.752 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Something has changed in the UI judging by view hierarchy. Proceed.
+13:02:35.752 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Tap on id: rec-arabic_noisy COMPLETED
+13:02:35.753 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Assert that id: source-enhanced is visible RUNNING
+13:02:36.091 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Assert that id: source-enhanced is visible COMPLETED
+13:02:36.092 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Scrolling DOWN until id: transcript is visible with speed 40, visibility percentage 100%, timeout 20000 ms, with centering disabled RUNNING
+13:02:36.973 [ WARN] maestro.orchestra.Orchestra.scrollUntilVisible: Error: maestro.MaestroException$ElementNotFound: Element not found: Id matching regex: transcript
+13:02:37.010 [ INFO] maestro.Maestro.swipeFromCenter: Swiping UP from center
+13:02:40.052 [ WARN] maestro.orchestra.Orchestra.scrollUntilVisible: Error: maestro.MaestroException$ElementNotFound: Element not found: Id matching regex: transcript
+13:02:40.060 [ INFO] maestro.Maestro.swipeFromCenter: Swiping UP from center
+13:02:42.625 [ WARN] maestro.orchestra.Orchestra.scrollUntilVisible: Error: maestro.MaestroException$ElementNotFound: Element not found: Id matching regex: transcript
+13:02:42.669 [ INFO] maestro.Maestro.swipeFromCenter: Swiping UP from center
+13:02:44.608 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Scrolling try count: 0, DeviceWidth: 320, DeviceWidth: 640
+13:02:44.609 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Element bounds: Bounds(x=12, y=397, width=123, height=36)
+13:02:44.610 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Visibility Percent: 1.0
+13:02:44.627 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Command centerElement: ScrollUntilVisibleCommand(selector=ElementSelector(textRegex=null, idRegex=transcript, size=null, below=null, above=null, leftOf=null, rightOf=null, containsChild=null, containsDescendants=null, traits=null, index=null, enabled=null, optional=false, selected=null, checked=null, focused=null, childOf=null, css=null), direction=DOWN, scrollDuration=601, visibilityPercentage=100, timeout=20000, waitToSettleTimeoutMs=null, centerElement=false, originalSpeedValue=40, label=null, optional=false).centerElement
+13:02:44.627 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: visibilityPercentageNormalized: 1.0
+13:02:44.628 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Scrolling DOWN until id: transcript is visible with speed 40, visibility percentage 100%, timeout 20000 ms, with centering disabled COMPLETED
+13:02:44.628 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Tap on id: transcript RUNNING
+13:02:44.694 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={text=, accessibilityText=Transcript, hintText=, ignoreBoundsFiltering=false, resource-id=transcript, clickable=true, bounds=[12,397][135,433], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.Button, important-for-accessibility=true, error=}, children=[TreeNode(attributes={text=📝, accessibilityText=, hintText=, ignoreBoundsFiltering=false, resource-id=, clickable=false, bounds=[25,403][47,426], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.TextView, important-for-accessibility=true, error=}, children=[], clickable=false, enabled=true, focused=false, checked=false, selected=false), TreeNode(attributes={text=Transcript, accessibilityText=, hintText=, ignoreBoundsFiltering=false, resource-id=, clickable=false, bounds=[53,404][122,425], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.TextView, important-for-accessibility=true, error=}, children=[], clickable=false, enabled=true, focused=false, checked=false, selected=false)], clickable=true, enabled=true, focused=false, checked=false, selected=false), bounds=Bounds(x=12, y=397, width=123, height=36))
+13:02:45.931 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tap aimed via settled hierarchy
+13:02:45.932 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Tapping at (73, 415) using hierarchy based logic for wait
+13:02:46.878 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Something has changed in the UI judging by view hierarchy. Proceed.
+13:02:46.878 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Tap on id: transcript COMPLETED
+13:02:46.878 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Assert that id: lang-ar is visible RUNNING
+13:02:46.940 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Assert that id: lang-ar is visible COMPLETED
+13:02:46.940 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Tap on id: lang-ar RUNNING
+13:02:47.003 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={text=, accessibilityText=Arabic, hintText=, ignoreBoundsFiltering=false, resource-id=lang-ar, clickable=true, bounds=[163,176][217,208], enabled=true, focused=false, checked=true, scrollable=false, selected=false, class=android.widget.RadioButton, important-for-accessibility=true, error=}, children=[TreeNode(attributes={text=Arabic, accessibilityText=, hintText=, ignoreBoundsFiltering=false, resource-id=, clickable=false, bounds=[171,183][209,201], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.TextView, important-for-accessibility=true, error=}, children=[], clickable=false, enabled=true, focused=false, checked=false, selected=false)], clickable=true, enabled=true, focused=false, checked=true, selected=false), bounds=Bounds(x=163, y=176, width=54, height=32))
+13:02:48.222 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tap aimed via settled hierarchy
+13:02:48.223 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Tapping at (190, 192) using hierarchy based logic for wait
+13:02:48.517 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Tap on id: lang-ar COMPLETED
+13:02:48.518 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Tap on id: model-base RUNNING
+13:02:48.619 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={text=, accessibilityText=Base (148 MB): fastest, least accurate, hintText=, ignoreBoundsFiltering=false, resource-id=model-base, clickable=true, bounds=[25,406][263,438], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.RadioButton, important-for-accessibility=true, error=}, children=[TreeNode(attributes={text=Base (148 MB): fastest, least accurate, accessibilityText=, hintText=, ignoreBoundsFiltering=false, resource-id=, clickable=false, bounds=[33,413][255,431], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.TextView, important-for-accessibility=true, error=}, children=[], clickable=false, enabled=true, focused=false, checked=false, selected=false)], clickable=true, enabled=true, focused=false, checked=false, selected=false), bounds=Bounds(x=25, y=406, width=238, height=32))
+13:02:49.761 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tap aimed via settled hierarchy
+13:02:49.761 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Tapping at (144, 422) using hierarchy based logic for wait
+13:02:50.564 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Something has changed in the UI judging by view hierarchy. Proceed.
+13:02:50.564 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Tap on id: model-base COMPLETED
+13:02:50.565 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Take screenshot 16_transcript_setup RUNNING
+13:02:50.567 [ INFO] maestro.Maestro.takeScreenshot: Taking screenshot
+13:02:50.568 [TRACE] maestro.utils.ScreenshotUtils.takeScreenshot: Taking screenshot to output sink
+13:02:50.812 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Take screenshot 16_transcript_setup COMPLETED
+13:02:50.813 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Scrolling DOWN until ".*(Download \(148 MB\)|On device).*" is visible with speed 40, visibility percentage 100%, timeout 20000 ms, with centering disabled RUNNING
+13:02:50.929 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Scrolling try count: 0, DeviceWidth: 320, DeviceWidth: 640
+13:02:50.930 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Element bounds: Bounds(x=93, y=563, width=133, height=21)
+13:02:50.930 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Visibility Percent: 1.0
+13:02:50.930 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Command centerElement: ScrollUntilVisibleCommand(selector=ElementSelector(textRegex=.*(Download \(148 MB\)|On device).*, idRegex=null, size=null, below=null, above=null, leftOf=null, rightOf=null, containsChild=null, containsDescendants=null, traits=null, index=null, enabled=null, optional=false, selected=null, checked=null, focused=null, childOf=null, css=null), direction=DOWN, scrollDuration=601, visibilityPercentage=100, timeout=20000, waitToSettleTimeoutMs=null, centerElement=false, originalSpeedValue=40, label=null, optional=false).centerElement
+13:02:50.930 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: visibilityPercentageNormalized: 1.0
+13:02:50.931 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Scrolling DOWN until ".*(Download \(148 MB\)|On device).*" is visible with speed 40, visibility percentage 100%, timeout 20000 ms, with centering disabled COMPLETED
+13:02:50.931 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Run flow when id: download-model is visible RUNNING
+13:02:51.020 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Tap on id: download-model RUNNING
+13:02:51.081 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={text=, accessibilityText=Download (148 MB), hintText=, ignoreBoundsFiltering=false, resource-id=download-model, clickable=true, bounds=[25,556][295,592], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.Button, important-for-accessibility=true, error=}, children=[TreeNode(attributes={text=Download (148 MB), accessibilityText=, hintText=, ignoreBoundsFiltering=false, resource-id=, clickable=false, bounds=[93,563][226,584], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.TextView, important-for-accessibility=true, error=}, children=[], clickable=false, enabled=true, focused=false, checked=false, selected=false)], clickable=true, enabled=true, focused=false, checked=false, selected=false), bounds=Bounds(x=25, y=556, width=270, height=36))
+13:02:52.257 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tap aimed via settled hierarchy
+13:02:52.258 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Tapping at (160, 574) using hierarchy based logic for wait
+13:02:58.099 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Something has changed in the UI judging by view hierarchy. Proceed.
+13:02:58.100 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Tap on id: download-model COMPLETED
+13:02:58.100 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Run flow when id: download-model is visible COMPLETED
+13:02:58.100 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Assert that ".*On device.*" is visible RUNNING
+13:02:58.167 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Assert that ".*On device.*" is visible COMPLETED
+13:02:58.168 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Scrolling DOWN until id: start-transcribe is visible with speed 40, visibility percentage 100%, timeout 20000 ms, with centering disabled RUNNING
+13:02:58.865 [ WARN] maestro.orchestra.Orchestra.scrollUntilVisible: Error: maestro.MaestroException$ElementNotFound: Element not found: Id matching regex: start-transcribe
+13:02:58.904 [ INFO] maestro.Maestro.swipeFromCenter: Swiping UP from center
+13:03:00.695 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Scrolling try count: 0, DeviceWidth: 320, DeviceWidth: 640
+13:03:00.696 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Element bounds: Bounds(x=12, y=599, width=296, height=36)
+13:03:00.696 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Visibility Percent: 1.0
+13:03:00.696 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Command centerElement: ScrollUntilVisibleCommand(selector=ElementSelector(textRegex=null, idRegex=start-transcribe, size=null, below=null, above=null, leftOf=null, rightOf=null, containsChild=null, containsDescendants=null, traits=null, index=null, enabled=null, optional=false, selected=null, checked=null, focused=null, childOf=null, css=null), direction=DOWN, scrollDuration=601, visibilityPercentage=100, timeout=20000, waitToSettleTimeoutMs=null, centerElement=false, originalSpeedValue=40, label=null, optional=false).centerElement
+13:03:00.696 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: visibilityPercentageNormalized: 1.0
+13:03:00.696 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Scrolling DOWN until id: start-transcribe is visible with speed 40, visibility percentage 100%, timeout 20000 ms, with centering disabled COMPLETED
+13:03:00.697 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Tap on id: start-transcribe RUNNING
+13:03:00.752 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={text=, accessibilityText=Transcribe, hintText=, ignoreBoundsFiltering=false, resource-id=start-transcribe, clickable=true, bounds=[12,599][308,635], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.Button, important-for-accessibility=true, error=}, children=[TreeNode(attributes={text=📝, accessibilityText=, hintText=, ignoreBoundsFiltering=false, resource-id=, clickable=false, bounds=[110,605][132,628], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.TextView, important-for-accessibility=true, error=}, children=[], clickable=false, enabled=true, focused=false, checked=false, selected=false), TreeNode(attributes={text=Transcribe, accessibilityText=, hintText=, ignoreBoundsFiltering=false, resource-id=, clickable=false, bounds=[138,606][210,627], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.TextView, important-for-accessibility=true, error=}, children=[], clickable=false, enabled=true, focused=false, checked=false, selected=false)], clickable=true, enabled=true, focused=false, checked=false, selected=false), bounds=Bounds(x=12, y=599, width=296, height=36))
+13:03:02.195 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tap aimed via settled hierarchy
+13:03:02.196 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Tapping at (160, 617) using hierarchy based logic for wait
+13:03:03.035 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Something has changed in the UI judging by view hierarchy. Proceed.
+13:03:03.036 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Tap on id: start-transcribe COMPLETED
+13:03:03.036 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Take screenshot 17_transcribing RUNNING
+13:03:03.037 [ INFO] maestro.Maestro.takeScreenshot: Taking screenshot
+13:03:03.037 [TRACE] maestro.utils.ScreenshotUtils.takeScreenshot: Taking screenshot to output sink
+13:03:03.102 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Take screenshot 17_transcribing COMPLETED
+13:03:03.103 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Assert that id: (live-s0|seg-s0) is visible RUNNING
+13:03:43.643 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Assert that id: (live-s0|seg-s0) is visible COMPLETED
+13:03:43.643 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Take screenshot 17b_live_text RUNNING
+13:03:43.644 [ INFO] maestro.Maestro.takeScreenshot: Taking screenshot
+13:03:43.645 [TRACE] maestro.utils.ScreenshotUtils.takeScreenshot: Taking screenshot to output sink
+13:03:43.664 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Take screenshot 17b_live_text COMPLETED
+13:03:43.665 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Assert that id: seg-s0 is visible RUNNING
+13:03:43.800 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Assert that id: seg-s0 is visible COMPLETED
+13:03:43.801 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Take screenshot 18_transcript RUNNING
+13:03:43.801 [ INFO] maestro.Maestro.takeScreenshot: Taking screenshot
+13:03:43.802 [TRACE] maestro.utils.ScreenshotUtils.takeScreenshot: Taking screenshot to output sink
+13:03:43.861 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Take screenshot 18_transcript COMPLETED
+13:03:43.861 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Tap on id: seg-s0 RUNNING
+13:03:43.955 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={text=, accessibilityText=0:01. السلام ليك موحن تقلى. ها تسيو تنبي بكتبك تسافا تساوط. رحنت تقلى تقلى وطفك بكتسي بلوة ألقامية., hintText=, ignoreBoundsFiltering=false, resource-id=seg-s0, clickable=true, bounds=[12,208][308,327], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.Button, important-for-accessibility=true, error=}, children=[TreeNode(attributes={text=0:01 – 0:19, accessibilityText=, hintText=, ignoreBoundsFiltering=false, resource-id=, clickable=false, bounds=[21,217][77,232], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.TextView, important-for-accessibility=true, error=}, children=[], clickable=false, enabled=true, focused=false, checked=false, selected=false), TreeNode(attributes={text=السلام ليك موحن تقلى. ها تسيو تنبي بكتبك تسافا تساوط. رحنت تقلى تقلى وطفك بكتسي بلوة ألقامية., accessibilityText=, hintText=, ignoreBoundsFiltering=false, resource-id=, clickable=true, bounds=[21,234][299,318], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.TextView, important-for-accessibility=true, error=}, children=[], clickable=true, enabled=true, focused=false, checked=false, selected=false)], clickable=true, enabled=true, focused=false, checked=false, selected=false), bounds=Bounds(x=12, y=208, width=296, height=119))
+13:03:45.123 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tap aimed via settled hierarchy
+13:03:45.124 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Tapping at (160, 267) using hierarchy based logic for wait
+13:03:46.060 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Something has changed in the UI judging by view hierarchy. Proceed.
+13:03:46.060 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Tap on id: seg-s0 COMPLETED
+13:03:46.060 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Tap on id: search RUNNING
+13:03:46.153 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={text=, accessibilityText=Search transcript, hintText=Search transcript, ignoreBoundsFiltering=false, resource-id=search, clickable=true, bounds=[12,128][308,172], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.EditText, important-for-accessibility=true, error=}, children=[], clickable=true, enabled=true, focused=false, checked=false, selected=false), bounds=Bounds(x=12, y=128, width=296, height=44))
+13:03:47.914 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tap aimed via settled hierarchy
+13:03:47.914 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Tapping at (160, 150) using hierarchy based logic for wait
+13:03:49.506 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Something has changed in the UI judging by view hierarchy. Proceed.
+13:03:49.507 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Tap on id: search COMPLETED
+13:03:49.507 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Input text x RUNNING
+13:03:49.508 [ INFO] maestro.Maestro.inputText: Inputting text: x
+13:03:50.370 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Input text x COMPLETED
+13:03:50.371 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Take screenshot 19_search RUNNING
+13:03:50.371 [ INFO] maestro.Maestro.takeScreenshot: Taking screenshot
+13:03:50.371 [TRACE] maestro.utils.ScreenshotUtils.takeScreenshot: Taking screenshot to output sink
+13:03:50.431 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Take screenshot 19_search COMPLETED
+13:03:50.431 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Erase 5 characters RUNNING
+13:03:50.433 [ INFO] maestro.Maestro.eraseText$lambda$53: Erasing 5 characters
+13:03:51.346 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Erase 5 characters COMPLETED
+13:03:51.347 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Press back RUNNING
+13:03:51.347 [ INFO] maestro.Maestro.backPress: Pressing back
+13:03:52.321 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Press back COMPLETED
+13:03:52.321 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Press back RUNNING
+13:03:52.321 [ INFO] maestro.Maestro.backPress: Pressing back
+13:03:53.748 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Press back COMPLETED
+13:03:53.748 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Scrolling DOWN until id: export is visible with speed 40, visibility percentage 100%, timeout 20000 ms, with centering disabled RUNNING
+13:03:54.758 [ WARN] maestro.orchestra.Orchestra.scrollUntilVisible: Error: maestro.MaestroException$ElementNotFound: Element not found: Id matching regex: export
+13:03:54.796 [ INFO] maestro.Maestro.swipeFromCenter: Swiping UP from center
+13:03:57.696 [ WARN] maestro.orchestra.Orchestra.scrollUntilVisible: Error: maestro.MaestroException$ElementNotFound: Element not found: Id matching regex: export
+13:03:57.699 [ INFO] maestro.Maestro.swipeFromCenter: Swiping UP from center
+13:04:00.178 [ WARN] maestro.orchestra.Orchestra.scrollUntilVisible: Error: maestro.MaestroException$ElementNotFound: Element not found: Id matching regex: export
+13:04:00.220 [ INFO] maestro.Maestro.swipeFromCenter: Swiping UP from center
+13:04:02.080 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Scrolling try count: 0, DeviceWidth: 320, DeviceWidth: 640
+13:04:02.081 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Element bounds: Bounds(x=223, y=385, width=85, height=36)
+13:04:02.081 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Visibility Percent: 1.0
+13:04:02.081 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Command centerElement: ScrollUntilVisibleCommand(selector=ElementSelector(textRegex=null, idRegex=export, size=null, below=null, above=null, leftOf=null, rightOf=null, containsChild=null, containsDescendants=null, traits=null, index=null, enabled=null, optional=false, selected=null, checked=null, focused=null, childOf=null, css=null), direction=DOWN, scrollDuration=601, visibilityPercentage=100, timeout=20000, waitToSettleTimeoutMs=null, centerElement=false, originalSpeedValue=40, label=null, optional=false).centerElement
+13:04:02.081 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: visibilityPercentageNormalized: 1.0
+13:04:02.082 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Scrolling DOWN until id: export is visible with speed 40, visibility percentage 100%, timeout 20000 ms, with centering disabled COMPLETED
+13:04:02.082 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Tap on id: export RUNNING
+13:04:02.166 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={text=, accessibilityText=Export, hintText=, ignoreBoundsFiltering=false, resource-id=export, clickable=true, bounds=[223,385][308,421], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.Button, important-for-accessibility=true, error=}, children=[TreeNode(attributes={text=⇪︎, accessibilityText=, hintText=, ignoreBoundsFiltering=false, resource-id=, clickable=false, bounds=[236,391][245,414], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.TextView, important-for-accessibility=true, error=}, children=[], clickable=false, enabled=true, focused=false, checked=false, selected=false), TreeNode(attributes={text=Export, accessibilityText=, hintText=, ignoreBoundsFiltering=false, resource-id=, clickable=false, bounds=[251,392][295,413], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.TextView, important-for-accessibility=true, error=}, children=[], clickable=false, enabled=true, focused=false, checked=false, selected=false)], clickable=true, enabled=true, focused=false, checked=false, selected=false), bounds=Bounds(x=223, y=385, width=85, height=36))
+13:04:03.442 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tap aimed via settled hierarchy
+13:04:03.443 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Tapping at (265, 403) using hierarchy based logic for wait
+13:04:04.708 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Something has changed in the UI judging by view hierarchy. Proceed.
+13:04:04.708 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Tap on id: export COMPLETED
+13:04:04.708 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Take screenshot 20_export_sheet RUNNING
+13:04:04.709 [ INFO] maestro.Maestro.takeScreenshot: Taking screenshot
+13:04:04.709 [TRACE] maestro.utils.ScreenshotUtils.takeScreenshot: Taking screenshot to output sink
+13:04:04.767 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Take screenshot 20_export_sheet COMPLETED
+13:04:04.768 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Tap on "Close" RUNNING
+13:04:04.861 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={text=Close, accessibilityText=, hintText=, ignoreBoundsFiltering=false, resource-id=, clickable=false, bounds=[141,599][179,620], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.TextView, important-for-accessibility=true, error=}, children=[], clickable=false, enabled=true, focused=false, checked=false, selected=false), bounds=Bounds(x=141, y=599, width=38, height=21))
+13:04:06.031 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tap aimed via settled hierarchy
+13:04:06.032 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Tapping at (160, 609) using hierarchy based logic for wait
+13:04:06.872 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Something has changed in the UI judging by view hierarchy. Proceed.
+13:04:06.872 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Tap on "Close" COMPLETED
+13:04:06.872 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Scrolling DOWN until id: edit-audio is visible with speed 40, visibility percentage 100%, timeout 20000 ms, with centering disabled RUNNING
+13:04:06.949 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Scrolling try count: 0, DeviceWidth: 320, DeviceWidth: 640
+13:04:06.949 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Element bounds: Bounds(x=141, y=385, width=76, height=36)
+13:04:06.949 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Visibility Percent: 1.0
+13:04:06.950 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Command centerElement: ScrollUntilVisibleCommand(selector=ElementSelector(textRegex=null, idRegex=edit-audio, size=null, below=null, above=null, leftOf=null, rightOf=null, containsChild=null, containsDescendants=null, traits=null, index=null, enabled=null, optional=false, selected=null, checked=null, focused=null, childOf=null, css=null), direction=DOWN, scrollDuration=601, visibilityPercentage=100, timeout=20000, waitToSettleTimeoutMs=null, centerElement=false, originalSpeedValue=40, label=null, optional=false).centerElement
+13:04:06.950 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: visibilityPercentageNormalized: 1.0
+13:04:06.950 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Scrolling DOWN until id: edit-audio is visible with speed 40, visibility percentage 100%, timeout 20000 ms, with centering disabled COMPLETED
+13:04:06.950 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Tap on id: edit-audio RUNNING
+13:04:07.069 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={text=, accessibilityText=Edit, hintText=, ignoreBoundsFiltering=false, resource-id=edit-audio, clickable=true, bounds=[141,385][217,421], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.Button, important-for-accessibility=true, error=}, children=[TreeNode(attributes={text=✂︎, accessibilityText=, hintText=, ignoreBoundsFiltering=false, resource-id=, clickable=false, bounds=[154,391][172,414], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.TextView, important-for-accessibility=true, error=}, children=[], clickable=false, enabled=true, focused=false, checked=false, selected=false), TreeNode(attributes={text=Edit, accessibilityText=, hintText=, ignoreBoundsFiltering=false, resource-id=, clickable=false, bounds=[178,392][204,413], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.TextView, important-for-accessibility=true, error=}, children=[], clickable=false, enabled=true, focused=false, checked=false, selected=false)], clickable=true, enabled=true, focused=false, checked=false, selected=false), bounds=Bounds(x=141, y=385, width=76, height=36))
+13:04:08.301 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tap aimed via settled hierarchy
+13:04:08.302 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Tapping at (179, 403) using hierarchy based logic for wait
+13:04:09.823 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Something has changed in the UI judging by view hierarchy. Proceed.
+13:04:09.823 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Tap on id: edit-audio COMPLETED
+13:04:09.823 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Assert that id: trim-mode-keep is visible RUNNING
+13:04:10.062 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Assert that id: trim-mode-keep is visible COMPLETED
+13:04:10.062 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Tap on id: edit-fwd-10 RUNNING
+13:04:10.619 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={text=, accessibilityText=Forward 10 s, hintText=, ignoreBoundsFiltering=false, resource-id=edit-fwd-10, clickable=true, bounds=[192,243][232,283], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.Button, important-for-accessibility=true, error=}, children=[TreeNode(attributes={text=+10s, accessibilityText=, hintText=, ignoreBoundsFiltering=false, resource-id=, clickable=false, bounds=[199,255][224,270], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.TextView, important-for-accessibility=true, error=}, children=[], clickable=false, enabled=true, focused=false, checked=false, selected=false)], clickable=true, enabled=true, focused=false, checked=false, selected=false), bounds=Bounds(x=192, y=243, width=40, height=40))
+13:04:11.976 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tap aimed via settled hierarchy
+13:04:11.977 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Tapping at (212, 263) using hierarchy based logic for wait
+13:04:12.989 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Something has changed in the UI judging by view hierarchy. Proceed.
+13:04:12.989 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Tap on id: edit-fwd-10 COMPLETED
+13:04:12.989 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Assert that "0:10.0 / .*" is visible RUNNING
+13:04:13.248 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Assert that "0:10.0 / .*" is visible COMPLETED
+13:04:13.249 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Scrolling DOWN until id: play-selection is visible with speed 40, visibility percentage 100%, timeout 20000 ms, with centering disabled RUNNING
+13:04:13.462 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Scrolling try count: 0, DeviceWidth: 320, DeviceWidth: 640
+13:04:13.463 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Element bounds: Bounds(x=25, y=581, width=270, height=36)
+13:04:13.463 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Visibility Percent: 1.0
+13:04:13.463 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Command centerElement: ScrollUntilVisibleCommand(selector=ElementSelector(textRegex=null, idRegex=play-selection, size=null, below=null, above=null, leftOf=null, rightOf=null, containsChild=null, containsDescendants=null, traits=null, index=null, enabled=null, optional=false, selected=null, checked=null, focused=null, childOf=null, css=null), direction=DOWN, scrollDuration=601, visibilityPercentage=100, timeout=20000, waitToSettleTimeoutMs=null, centerElement=false, originalSpeedValue=40, label=null, optional=false).centerElement
+13:04:13.463 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: visibilityPercentageNormalized: 1.0
+13:04:13.463 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Scrolling DOWN until id: play-selection is visible with speed 40, visibility percentage 100%, timeout 20000 ms, with centering disabled COMPLETED
+13:04:13.463 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Tap on id: set-end RUNNING
+13:04:13.705 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={text=, accessibilityText=End at playhead, hintText=, ignoreBoundsFiltering=false, resource-id=set-end, clickable=true, bounds=[25,537][148,573], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.Button, important-for-accessibility=true, error=}, children=[TreeNode(attributes={text=End at playhead, accessibilityText=, hintText=, ignoreBoundsFiltering=false, resource-id=, clickable=false, bounds=[33,544][140,565], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.TextView, important-for-accessibility=true, error=}, children=[], clickable=false, enabled=true, focused=false, checked=false, selected=false)], clickable=true, enabled=true, focused=false, checked=false, selected=false), bounds=Bounds(x=25, y=537, width=123, height=36))
+13:04:15.059 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tap aimed via settled hierarchy
+13:04:15.060 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Tapping at (86, 555) using hierarchy based logic for wait
+13:04:16.289 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Something has changed in the UI judging by view hierarchy. Proceed.
+13:04:16.290 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Tap on id: set-end COMPLETED
+13:04:16.290 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Assert that "0:10.0", id: sel-end-value is visible RUNNING
+13:04:16.499 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Assert that "0:10.0", id: sel-end-value is visible COMPLETED
+13:04:16.499 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Tap on id: start-plus RUNNING
+13:04:16.745 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={text=, accessibilityText=+0.1 s, hintText=, ignoreBoundsFiltering=false, resource-id=start-plus, clickable=true, bounds=[227,470][287,506], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.Button, important-for-accessibility=true, error=}, children=[TreeNode(attributes={text=+0.1 s, accessibilityText=, hintText=, ignoreBoundsFiltering=false, resource-id=, clickable=false, bounds=[236,477][278,498], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.TextView, important-for-accessibility=true, error=}, children=[], clickable=false, enabled=true, focused=false, checked=false, selected=false)], clickable=true, enabled=true, focused=false, checked=false, selected=false), bounds=Bounds(x=227, y=470, width=60, height=36))
+13:04:18.063 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tap aimed via settled hierarchy
+13:04:18.064 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Tapping at (257, 488) using hierarchy based logic for wait
+13:04:19.293 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Something has changed in the UI judging by view hierarchy. Proceed.
+13:04:19.293 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Tap on id: start-plus COMPLETED
+13:04:19.294 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Tap on id: start-plus RUNNING
+13:04:19.535 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={text=, accessibilityText=+0.1 s, hintText=, ignoreBoundsFiltering=false, resource-id=start-plus, clickable=true, bounds=[227,470][287,506], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.Button, important-for-accessibility=true, error=}, children=[TreeNode(attributes={text=+0.1 s, accessibilityText=, hintText=, ignoreBoundsFiltering=false, resource-id=, clickable=false, bounds=[236,477][278,498], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.TextView, important-for-accessibility=true, error=}, children=[], clickable=false, enabled=true, focused=false, checked=false, selected=false)], clickable=true, enabled=true, focused=false, checked=false, selected=false), bounds=Bounds(x=227, y=470, width=60, height=36))
+13:04:20.893 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tap aimed via settled hierarchy
+13:04:20.895 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Tapping at (257, 488) using hierarchy based logic for wait
+13:04:22.205 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Something has changed in the UI judging by view hierarchy. Proceed.
+13:04:22.206 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Tap on id: start-plus COMPLETED
+13:04:22.206 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Tap on id: start-plus RUNNING
+13:04:22.454 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={text=, accessibilityText=+0.1 s, hintText=, ignoreBoundsFiltering=false, resource-id=start-plus, clickable=true, bounds=[227,470][287,506], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.Button, important-for-accessibility=true, error=}, children=[TreeNode(attributes={text=+0.1 s, accessibilityText=, hintText=, ignoreBoundsFiltering=false, resource-id=, clickable=false, bounds=[236,477][278,498], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.TextView, important-for-accessibility=true, error=}, children=[], clickable=false, enabled=true, focused=false, checked=false, selected=false)], clickable=true, enabled=true, focused=false, checked=false, selected=false), bounds=Bounds(x=227, y=470, width=60, height=36))
+13:04:23.812 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tap aimed via settled hierarchy
+13:04:23.813 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Tapping at (257, 488) using hierarchy based logic for wait
+13:04:24.997 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Something has changed in the UI judging by view hierarchy. Proceed.
+13:04:24.997 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Tap on id: start-plus COMPLETED
+13:04:24.997 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Tap on id: start-plus RUNNING
+13:04:25.240 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={text=, accessibilityText=+0.1 s, hintText=, ignoreBoundsFiltering=false, resource-id=start-plus, clickable=true, bounds=[227,470][287,506], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.Button, important-for-accessibility=true, error=}, children=[TreeNode(attributes={text=+0.1 s, accessibilityText=, hintText=, ignoreBoundsFiltering=false, resource-id=, clickable=false, bounds=[236,477][278,498], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.TextView, important-for-accessibility=true, error=}, children=[], clickable=false, enabled=true, focused=false, checked=false, selected=false)], clickable=true, enabled=true, focused=false, checked=false, selected=false), bounds=Bounds(x=227, y=470, width=60, height=36))
+13:04:26.596 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tap aimed via settled hierarchy
+13:04:26.598 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Tapping at (257, 488) using hierarchy based logic for wait
+13:04:27.577 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Something has changed in the UI judging by view hierarchy. Proceed.
+13:04:27.578 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Tap on id: start-plus COMPLETED
+13:04:27.578 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Tap on id: start-plus RUNNING
+13:04:27.824 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={text=, accessibilityText=+0.1 s, hintText=, ignoreBoundsFiltering=false, resource-id=start-plus, clickable=true, bounds=[227,470][287,506], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.Button, important-for-accessibility=true, error=}, children=[TreeNode(attributes={text=+0.1 s, accessibilityText=, hintText=, ignoreBoundsFiltering=false, resource-id=, clickable=false, bounds=[236,477][278,498], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.TextView, important-for-accessibility=true, error=}, children=[], clickable=false, enabled=true, focused=false, checked=false, selected=false)], clickable=true, enabled=true, focused=false, checked=false, selected=false), bounds=Bounds(x=227, y=470, width=60, height=36))
+13:04:29.141 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tap aimed via settled hierarchy
+13:04:29.142 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Tapping at (257, 488) using hierarchy based logic for wait
+13:04:30.048 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Something has changed in the UI judging by view hierarchy. Proceed.
+13:04:30.048 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Tap on id: start-plus COMPLETED
+13:04:30.048 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Assert that "0:00.5", id: sel-start-value is visible RUNNING
+13:04:30.297 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Assert that "0:00.5", id: sel-start-value is visible COMPLETED
+13:04:30.297 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Scrolling DOWN until id: edit-speed-1.5 is visible with speed 40, visibility percentage 100%, timeout 20000 ms, with centering disabled RUNNING
+13:04:31.269 [ WARN] maestro.orchestra.Orchestra.scrollUntilVisible: Error: maestro.MaestroException$ElementNotFound: Element not found: Id matching regex: edit-speed-1.5
+13:04:31.308 [ INFO] maestro.Maestro.swipeFromCenter: Swiping UP from center
+13:04:33.279 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Scrolling try count: 0, DeviceWidth: 320, DeviceWidth: 640
+13:04:33.279 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Element bounds: Bounds(x=236, y=544, width=46, height=36)
+13:04:33.279 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Visibility Percent: 1.0
+13:04:33.280 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Command centerElement: ScrollUntilVisibleCommand(selector=ElementSelector(textRegex=null, idRegex=edit-speed-1.5, size=null, below=null, above=null, leftOf=null, rightOf=null, containsChild=null, containsDescendants=null, traits=null, index=null, enabled=null, optional=false, selected=null, checked=null, focused=null, childOf=null, css=null), direction=DOWN, scrollDuration=601, visibilityPercentage=100, timeout=20000, waitToSettleTimeoutMs=null, centerElement=false, originalSpeedValue=40, label=null, optional=false).centerElement
+13:04:33.280 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: visibilityPercentageNormalized: 1.0
+13:04:33.280 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Scrolling DOWN until id: edit-speed-1.5 is visible with speed 40, visibility percentage 100%, timeout 20000 ms, with centering disabled COMPLETED
+13:04:33.280 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Tap on id: edit-speed-1.5 RUNNING
+13:04:33.385 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={text=, accessibilityText=1.5×, hintText=, ignoreBoundsFiltering=false, resource-id=edit-speed-1.5, clickable=true, bounds=[236,544][282,580], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.Button, important-for-accessibility=true, error=}, children=[TreeNode(attributes={text=1.5×, accessibilityText=, hintText=, ignoreBoundsFiltering=false, resource-id=, clickable=false, bounds=[244,551][274,572], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.TextView, important-for-accessibility=true, error=}, children=[], clickable=false, enabled=true, focused=false, checked=false, selected=false)], clickable=true, enabled=true, focused=false, checked=false, selected=false), bounds=Bounds(x=236, y=544, width=46, height=36))
+13:04:34.609 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tap aimed via settled hierarchy
+13:04:34.610 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Tapping at (259, 562) using hierarchy based logic for wait
+13:04:35.728 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Something has changed in the UI judging by view hierarchy. Proceed.
+13:04:35.729 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Tap on id: edit-speed-1.5 COMPLETED
+13:04:35.729 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Scrolling DOWN until id: edit-save-as is visible with speed 40, visibility percentage 100%, timeout 20000 ms, with centering disabled RUNNING
+13:04:36.460 [ WARN] maestro.orchestra.Orchestra.scrollUntilVisible: Error: maestro.MaestroException$ElementNotFound: Element not found: Id matching regex: edit-save-as
+13:04:36.502 [ INFO] maestro.Maestro.swipeFromCenter: Swiping UP from center
+13:04:38.032 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Scrolling try count: 0, DeviceWidth: 320, DeviceWidth: 640
+13:04:38.033 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Element bounds: Bounds(x=163, y=579, width=132, height=36)
+13:04:38.033 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Visibility Percent: 1.0
+13:04:38.033 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Command centerElement: ScrollUntilVisibleCommand(selector=ElementSelector(textRegex=null, idRegex=edit-save-as, size=null, below=null, above=null, leftOf=null, rightOf=null, containsChild=null, containsDescendants=null, traits=null, index=null, enabled=null, optional=false, selected=null, checked=null, focused=null, childOf=null, css=null), direction=DOWN, scrollDuration=601, visibilityPercentage=100, timeout=20000, waitToSettleTimeoutMs=null, centerElement=false, originalSpeedValue=40, label=null, optional=false).centerElement
+13:04:38.033 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: visibilityPercentageNormalized: 1.0
+13:04:38.033 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Scrolling DOWN until id: edit-save-as is visible with speed 40, visibility percentage 100%, timeout 20000 ms, with centering disabled COMPLETED
+13:04:38.033 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Assert that "New length: 0:06.*" is visible RUNNING
+13:04:38.136 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Assert that "New length: 0:06.*" is visible COMPLETED
+13:04:38.136 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Assert that "Saved as M4A, the same type as the original." is visible RUNNING
+13:04:38.238 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Assert that "Saved as M4A, the same type as the original." is visible COMPLETED
+13:04:38.238 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Take screenshot 30_edit_setup RUNNING
+13:04:38.238 [ INFO] maestro.Maestro.takeScreenshot: Taking screenshot
+13:04:38.239 [TRACE] maestro.utils.ScreenshotUtils.takeScreenshot: Taking screenshot to output sink
+13:04:38.298 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Take screenshot 30_edit_setup COMPLETED
+13:04:38.298 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Scrolling DOWN until id: edit-preview is visible with speed 40, visibility percentage 100%, timeout 20000 ms, with centering disabled RUNNING
+13:04:38.404 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Scrolling try count: 0, DeviceWidth: 320, DeviceWidth: 640
+13:04:38.405 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Element bounds: Bounds(x=25, y=535, width=270, height=36)
+13:04:38.405 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Visibility Percent: 1.0
+13:04:38.405 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Command centerElement: ScrollUntilVisibleCommand(selector=ElementSelector(textRegex=null, idRegex=edit-preview, size=null, below=null, above=null, leftOf=null, rightOf=null, containsChild=null, containsDescendants=null, traits=null, index=null, enabled=null, optional=false, selected=null, checked=null, focused=null, childOf=null, css=null), direction=DOWN, scrollDuration=601, visibilityPercentage=100, timeout=20000, waitToSettleTimeoutMs=null, centerElement=false, originalSpeedValue=40, label=null, optional=false).centerElement
+13:04:38.405 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: visibilityPercentageNormalized: 1.0
+13:04:38.405 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Scrolling DOWN until id: edit-preview is visible with speed 40, visibility percentage 100%, timeout 20000 ms, with centering disabled COMPLETED
+13:04:38.405 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Tap on id: edit-preview RUNNING
+13:04:38.511 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={text=, accessibilityText=Preview, hintText=, ignoreBoundsFiltering=false, resource-id=edit-preview, clickable=true, bounds=[25,535][295,571], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.Button, important-for-accessibility=true, error=}, children=[TreeNode(attributes={text=▶︎, accessibilityText=, hintText=, ignoreBoundsFiltering=false, resource-id=, clickable=false, bounds=[121,541][138,564], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.TextView, important-for-accessibility=true, error=}, children=[], clickable=false, enabled=true, focused=false, checked=false, selected=false), TreeNode(attributes={text=Preview, accessibilityText=, hintText=, ignoreBoundsFiltering=false, resource-id=, clickable=false, bounds=[144,542][198,563], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.TextView, important-for-accessibility=true, error=}, children=[], clickable=false, enabled=true, focused=false, checked=false, selected=false)], clickable=true, enabled=true, focused=false, checked=false, selected=false), bounds=Bounds(x=25, y=535, width=270, height=36))
+13:04:39.738 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tap aimed via settled hierarchy
+13:04:39.739 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Tapping at (160, 553) using hierarchy based logic for wait
+13:04:42.041 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Something has changed in the UI judging by view hierarchy. Proceed.
+13:04:42.042 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Tap on id: edit-preview COMPLETED
+13:04:42.042 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Scrolling DOWN until id: edit-save-as is visible with speed 40, visibility percentage 100%, timeout 180000 ms, with centering disabled RUNNING
+13:04:43.243 [ WARN] maestro.orchestra.Orchestra.scrollUntilVisible: Error: maestro.MaestroException$ElementNotFound: Element not found: Id matching regex: edit-save-as
+13:04:43.247 [ INFO] maestro.Maestro.swipeFromCenter: Swiping UP from center
+13:04:46.241 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Scrolling try count: 0, DeviceWidth: 320, DeviceWidth: 640
+13:04:46.241 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Element bounds: Bounds(x=163, y=579, width=132, height=36)
+13:04:46.241 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Visibility Percent: 1.0
+13:04:46.241 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Command centerElement: ScrollUntilVisibleCommand(selector=ElementSelector(textRegex=null, idRegex=edit-save-as, size=null, below=null, above=null, leftOf=null, rightOf=null, containsChild=null, containsDescendants=null, traits=null, index=null, enabled=null, optional=false, selected=null, checked=null, focused=null, childOf=null, css=null), direction=DOWN, scrollDuration=601, visibilityPercentage=100, timeout=180000, waitToSettleTimeoutMs=null, centerElement=false, originalSpeedValue=40, label=null, optional=false).centerElement
+13:04:46.241 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: visibilityPercentageNormalized: 1.0
+13:04:46.241 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Scrolling DOWN until id: edit-save-as is visible with speed 40, visibility percentage 100%, timeout 180000 ms, with centering disabled COMPLETED
+13:04:46.242 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Scrolling UP until id: edit-listen-preview is visible with speed 40, visibility percentage 100%, timeout 20000 ms, with centering disabled RUNNING
+13:04:47.784 [ WARN] maestro.orchestra.Orchestra.scrollUntilVisible: Error: maestro.MaestroException$ElementNotFound: Element not found: Id matching regex: edit-listen-preview
+13:04:47.787 [ INFO] maestro.Maestro.swipeFromCenter: Swiping DOWN from center
+13:04:50.281 [ WARN] maestro.orchestra.Orchestra.scrollUntilVisible: Error: maestro.MaestroException$ElementNotFound: Element not found: Id matching regex: edit-listen-preview
+13:04:50.324 [ INFO] maestro.Maestro.swipeFromCenter: Swiping DOWN from center
+13:04:52.008 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Scrolling try count: 0, DeviceWidth: 320, DeviceWidth: 640
+13:04:52.008 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Element bounds: Bounds(x=76, y=173, width=63, height=32)
+13:04:52.008 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Visibility Percent: 1.0
+13:04:52.009 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Command centerElement: ScrollUntilVisibleCommand(selector=ElementSelector(textRegex=null, idRegex=edit-listen-preview, size=null, below=null, above=null, leftOf=null, rightOf=null, containsChild=null, containsDescendants=null, traits=null, index=null, enabled=null, optional=false, selected=null, checked=null, focused=null, childOf=null, css=null), direction=UP, scrollDuration=601, visibilityPercentage=100, timeout=20000, waitToSettleTimeoutMs=null, centerElement=false, originalSpeedValue=40, label=null, optional=false).centerElement
+13:04:52.009 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: visibilityPercentageNormalized: 1.0
+13:04:52.009 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Scrolling UP until id: edit-listen-preview is visible with speed 40, visibility percentage 100%, timeout 20000 ms, with centering disabled COMPLETED
+13:04:52.009 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Take screenshot 31_edit_preview RUNNING
+13:04:52.009 [ INFO] maestro.Maestro.takeScreenshot: Taking screenshot
+13:04:52.010 [TRACE] maestro.utils.ScreenshotUtils.takeScreenshot: Taking screenshot to output sink
+13:04:52.065 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Take screenshot 31_edit_preview COMPLETED
+13:04:52.065 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Scrolling DOWN until id: edit-save-as is visible with speed 40, visibility percentage 100%, timeout 20000 ms, with centering disabled RUNNING
+13:04:52.771 [ WARN] maestro.orchestra.Orchestra.scrollUntilVisible: Error: maestro.MaestroException$ElementNotFound: Element not found: Id matching regex: edit-save-as
+13:04:52.812 [ INFO] maestro.Maestro.swipeFromCenter: Swiping UP from center
+13:04:55.239 [ WARN] maestro.orchestra.Orchestra.scrollUntilVisible: Error: maestro.MaestroException$ElementNotFound: Element not found: Id matching regex: edit-save-as
+13:04:55.282 [ INFO] maestro.Maestro.swipeFromCenter: Swiping UP from center
+13:04:56.900 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Scrolling try count: 0, DeviceWidth: 320, DeviceWidth: 640
+13:04:56.900 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Element bounds: Bounds(x=163, y=579, width=132, height=36)
+13:04:56.900 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Visibility Percent: 1.0
+13:04:56.900 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Command centerElement: ScrollUntilVisibleCommand(selector=ElementSelector(textRegex=null, idRegex=edit-save-as, size=null, below=null, above=null, leftOf=null, rightOf=null, containsChild=null, containsDescendants=null, traits=null, index=null, enabled=null, optional=false, selected=null, checked=null, focused=null, childOf=null, css=null), direction=DOWN, scrollDuration=601, visibilityPercentage=100, timeout=20000, waitToSettleTimeoutMs=null, centerElement=false, originalSpeedValue=40, label=null, optional=false).centerElement
+13:04:56.900 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: visibilityPercentageNormalized: 1.0
+13:04:56.900 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Scrolling DOWN until id: edit-save-as is visible with speed 40, visibility percentage 100%, timeout 20000 ms, with centering disabled COMPLETED
+13:04:56.901 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Scrolling DOWN until id: edit-save-as is visible with speed 40, visibility percentage 100%, timeout 20000 ms, with centering disabled RUNNING
+13:04:57.005 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Scrolling try count: 0, DeviceWidth: 320, DeviceWidth: 640
+13:04:57.005 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Element bounds: Bounds(x=163, y=579, width=132, height=36)
+13:04:57.005 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Visibility Percent: 1.0
+13:04:57.005 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Command centerElement: ScrollUntilVisibleCommand(selector=ElementSelector(textRegex=null, idRegex=edit-save-as, size=null, below=null, above=null, leftOf=null, rightOf=null, containsChild=null, containsDescendants=null, traits=null, index=null, enabled=null, optional=false, selected=null, checked=null, focused=null, childOf=null, css=null), direction=DOWN, scrollDuration=601, visibilityPercentage=100, timeout=20000, waitToSettleTimeoutMs=null, centerElement=false, originalSpeedValue=40, label=null, optional=false).centerElement
+13:04:57.006 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: visibilityPercentageNormalized: 1.0
+13:04:57.006 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Scrolling DOWN until id: edit-save-as is visible with speed 40, visibility percentage 100%, timeout 20000 ms, with centering disabled COMPLETED
+13:04:57.006 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Tap on id: edit-save-as RUNNING
+13:04:57.107 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={text=, accessibilityText=Save as…, hintText=, ignoreBoundsFiltering=false, resource-id=edit-save-as, clickable=true, bounds=[163,579][295,615], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.Button, important-for-accessibility=true, error=}, children=[TreeNode(attributes={text=Save as…, accessibilityText=, hintText=, ignoreBoundsFiltering=false, resource-id=, clickable=false, bounds=[197,586][260,607], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.TextView, important-for-accessibility=true, error=}, children=[], clickable=false, enabled=true, focused=false, checked=false, selected=false)], clickable=true, enabled=true, focused=false, checked=false, selected=false), bounds=Bounds(x=163, y=579, width=132, height=36))
+13:04:58.323 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tap aimed via settled hierarchy
+13:04:58.324 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Tapping at (229, 597) using hierarchy based logic for wait
+13:04:59.392 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Something has changed in the UI judging by view hierarchy. Proceed.
+13:04:59.392 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Tap on id: edit-save-as COMPLETED
+13:04:59.392 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Assert that "arabic_noisy-v1" is visible RUNNING
+13:04:59.406 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Assert that "arabic_noisy-v1" is visible COMPLETED
+13:04:59.406 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Take screenshot 31b_save_as_default_name RUNNING
+13:04:59.407 [ INFO] maestro.Maestro.takeScreenshot: Taking screenshot
+13:04:59.407 [TRACE] maestro.utils.ScreenshotUtils.takeScreenshot: Taking screenshot to output sink
+13:04:59.467 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Take screenshot 31b_save_as_default_name COMPLETED
+13:04:59.467 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Tap on id: save-as-confirm RUNNING
+13:04:59.568 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={text=, accessibilityText=Save, hintText=, ignoreBoundsFiltering=false, resource-id=save-as-confirm, clickable=true, bounds=[164,340][291,376], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.Button, important-for-accessibility=true, error=}, children=[TreeNode(attributes={text=Save, accessibilityText=, hintText=, ignoreBoundsFiltering=false, resource-id=, clickable=false, bounds=[211,347][244,368], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.TextView, important-for-accessibility=true, error=}, children=[], clickable=false, enabled=true, focused=false, checked=false, selected=false)], clickable=true, enabled=true, focused=false, checked=false, selected=false), bounds=Bounds(x=164, y=340, width=127, height=36))
+13:05:00.797 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tap aimed via settled hierarchy
+13:05:00.798 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Tapping at (227, 358) using hierarchy based logic for wait
+13:05:01.856 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Something has changed in the UI judging by view hierarchy. Proceed.
+13:05:01.856 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Tap on id: save-as-confirm COMPLETED
+13:05:01.856 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Assert that "arabic_noisy-v1" is visible RUNNING
+13:05:02.630 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Assert that "arabic_noisy-v1" is visible COMPLETED
+13:05:02.630 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Assert that ".*[1-9] speech sections.*" is visible RUNNING
+13:05:03.478 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Assert that ".*[1-9] speech sections.*" is visible COMPLETED
+13:05:03.478 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Assert that ".*0:06.*" is visible RUNNING
+13:05:03.767 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Assert that ".*0:06.*" is visible COMPLETED
+13:05:03.767 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Assert that "M4A" is visible RUNNING
+13:05:04.304 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Assert that "M4A" is visible COMPLETED
+13:05:04.304 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Take screenshot 32_saved_as_player RUNNING
+13:05:04.305 [ INFO] maestro.Maestro.takeScreenshot: Taking screenshot
+13:05:04.305 [TRACE] maestro.utils.ScreenshotUtils.takeScreenshot: Taking screenshot to output sink
+13:05:04.354 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Take screenshot 32_saved_as_player COMPLETED
+13:05:04.354 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Press back RUNNING
+13:05:04.354 [ INFO] maestro.Maestro.backPress: Pressing back
+13:05:05.833 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Press back COMPLETED
