@@ -154,10 +154,11 @@ appId: com.example.voiceclarity
     element:
       id: "rep-progress"
 # the 2 s part has been played again at least once
+# (the tap can wait for the moving playhead to settle, so many passes may be done by now)
 - extendedWaitUntil:
     visible:
       id: "rep-progress"
-      text: "Pass [2-9]"
+      text: "Pass ([2-9]|[1-9][0-9]+)"
     timeout: 20000
 - takeScreenshot: 08c_repeating
 - tapOn:
@@ -295,7 +296,7 @@ appId: com.example.voiceclarity
 - extendedWaitUntil:
     visible:
       id: "pv-rep-status"
-      text: ".*0:02-0:04.*Pass [2-9].*"
+      text: ".*0:02-0:04.*Pass ([2-9]|[1-9][0-9]+).*"
     timeout: 25000
 - takeScreenshot: 10b3_live_repeat
 - tapOn:
