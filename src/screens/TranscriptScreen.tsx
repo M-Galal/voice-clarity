@@ -85,8 +85,8 @@ function TranscriptView({ rec }: { rec: Recording }) {
       {running !== null ? (
         <RunningView progress={running} live={live} waiting={waiting} onCancel={() => { stopWait.current = true; void job.current?.stop(); }} />
       ) : showSetup ? (
-        <KeyboardAwareScrollView contentContainerStyle={{ padding: space.lg, gap: space.lg }}>
-            <View style={{ gap: space.lg }}>
+        <KeyboardAwareScrollView contentContainerStyle={{ padding: space.lg, gap: space.md }}>
+            <View style={{ gap: space.md }}>
               <Txt size="sm" muted>{t('processing_local')}</Txt>
               <Section title={t('transcript_language')}>
                 <Choice testID="lang" value={tr.language} onChange={(v) => updateSettings({ transcription: { ...tr, language: v } })} options={LANGS.map((l) => ({ value: l, label: t(`lang_${l}` as 'lang_ar') }))} />

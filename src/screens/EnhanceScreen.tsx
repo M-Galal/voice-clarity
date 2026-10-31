@@ -136,7 +136,7 @@ function Enhance({ rec, auto }: { rec: Recording; auto?: boolean }) {
         <Review rec={rec} result={phase.result} previewUri={phase.previewUri} onKeep={keep} onDiscard={discard} />
       ) : (
         <>
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: space.lg, gap: space.lg }}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: space.lg, gap: space.md }}>
           <Txt size="sm" muted>{t('processing_local')}</Txt>
           {auto ? (
             <Section title={t('automation')}>
@@ -481,7 +481,8 @@ function LivePanel({ rec, pv, settings, rate, smart, sections }: { rec: Recordin
             prefix="pv-"
             duration={rec.durationSec}
             position={() => player?.position() ?? status.position}
-            onJump={(sec) => { onTimeline(sec); setTools(false); }}
+            jumpAt={rec.jumpSec ?? null}
+            onJump={(sec) => { onTimeline(sec); app.updateRecording(rec.id, { jumpSec: sec }); setTools(false); }}
             loop={loop}
             onLoop={(l) => app.updateRecording(rec.id, { loop: l ?? undefined })}
             repeatOn={repeat.on}
@@ -647,7 +648,7 @@ function Running({ phase, durationSec, onCancel }: { phase: { progress: number; 
   useKeepAwake();
   const stageKey = (`stage_${phase.stage}` as const) as 'stage_decode' | 'stage_process' | 'stage_write' | 'stage_done';
   return (
-    <View style={{ padding: space.lg, gap: space.lg }}>
+    <View style={{ padding: space.lg, gap: space.md }}>
       <ProgressBar value={phase.progress} label={t(stageKey)} />
       {durationSec > 45 * 60 ? <Warning text={t('long_file_warning')} /> : null}
       <Txt size="sm" muted>{t('processing_local')}</Txt>
@@ -688,7 +689,7 @@ function Review({ rec, result, previewUri, onKeep, onDiscard }: { rec: Recording
   const lv = (v: number, u: 'LUFS' | 'dBFS' | 'dBTP') => formatLevel(v, u);
   return (
     <View style={{ flex: 1 }}>
-    <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.lg }}>
+    <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md }}>
       <Txt size="lg" bold>{t('review')}</Txt>
       {r.warnings.length ? (
         <View style={{ gap: space.sm }}>

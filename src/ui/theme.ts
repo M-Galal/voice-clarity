@@ -80,8 +80,8 @@ export const radius = 10;
 /**
  * Visible height of buttons, chips, switches and list rows. It is below the 48 dp touch-target
  * guideline (Material; Apple: 44 pt), so controls add HIT_SLOP around themselves: the area that
- * reacts to touch stays about 48 dp.
+ * reacts to touch stays 48 dp (32 + 8 + 8).
  */
-export const TOUCH = 36;
-export const HIT_SLOP = { top: 6, bottom: 6, left: 4, right: 4 };
+export const TOUCH = 32;
+export const HIT_SLOP = { top: 8, bottom: 8, left: 4, right: 4 };
 

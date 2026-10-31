@@ -24,7 +24,7 @@ export function SettingsScreen() {
   return (
     <View style={{ flex: 1 }}>
       <Header title={t('settings')} onBack={goBack} />
-      <KeyboardAwareScrollView contentContainerStyle={{ paddingHorizontal: space.lg, paddingTop: space.lg, paddingBottom: space.xl, gap: space.lg }}>
+      <KeyboardAwareScrollView contentContainerStyle={{ paddingHorizontal: space.lg, paddingTop: space.lg, paddingBottom: space.xl, gap: space.md }}>
         <Section title={t('privacy')}>
           <Txt>{t('privacy_text')}</Txt>
         </Section>

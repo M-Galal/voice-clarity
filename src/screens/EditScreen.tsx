@@ -203,7 +203,7 @@ function Editor({ rec }: { rec: Recording }) {
   return (
     <View style={{ flex: 1 }}>
       <Header title={`${t('edit_title')} · ${rec.name}`} onBack={() => { token.current.cancelled = true; player.pause(); goBack(); }} />
-      <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.lg }}>
+      <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md }}>
         {rec.enhanced ? (
           <Choice testID="edit-source" label={t('edit_source')} value={source} onChange={switchSource}
             options={[{ value: 'original', label: t('original') }, { value: 'enhanced', label: t('enhanced') }]} />

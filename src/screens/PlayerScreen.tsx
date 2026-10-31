@@ -6,7 +6,7 @@ import { audioUri, shareAudio, shareTranscript } from '../services/processing';
 import { formatBytes, useApp } from '../state/AppContext';
 import { clock } from '../transcript/format';
 import type { Bookmark, Recording } from '../types';
-import { Button, Card, Choice, Dialog, Header, IconButton, KeyValue, LabeledSlider, Row, Section, Toggle, Txt } from '../ui/components';
+import { Button, Card, Choice, Dialog, Header, IconButton, LabeledSlider, Row, Section, Toggle, Txt } from '../ui/components';
 import { clampRate, formatSkip, RATE_MAX, RATE_MIN, shortSkip } from '../playback/controls';
 import { radius, space, TOUCH } from '../ui/theme';
 import { Waveform } from '../ui/Waveform';
@@ -214,12 +214,11 @@ function Player({ rec, queueIndex, autoplay }: { rec: Recording; queueIndex?: nu
     return (
       <View style={{ flex: 1 }}>
         <Header title={rec.name} onBack={goBack} right={<IconButton testID="delete-recording" icon="🗑" label={t('delete_recording')} onPress={confirmDelete} />} />
-        <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.lg }}>
+        <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md }}>
           <Card>
-            <KeyValue k={t('duration')} v={clock(rec.durationSec)} />
-            <KeyValue k={t('format')} v={rec.format} />
-            <KeyValue k={t('size')} v={formatBytes(rec.sizeBytes)} />
-            <KeyValue k={t('status')} v={statusText(rec, t)} />
+            <Txt size="sm" testID="rec-info">
+              {`${clock(rec.durationSec)} · ${rec.format} · ${formatBytes(rec.sizeBytes)} · ${statusText(rec, t)}`}
+            </Txt>
             {rec.external ? <Txt testID="in-folder" size="sm" muted>{t('in_folder')}</Txt> : null}
             {rec.status === 'error' && rec.error && rec.error !== 'interrupted' ? (
               <Txt size="sm" testID="error-detail" style={{ color: colors.danger }}>{`${t('err_decode')} (${rec.error})`}</Txt>
@@ -275,25 +274,31 @@ function Player({ rec, queueIndex, autoplay }: { rec: Recording; queueIndex?: nu
           </Row>
 
           {notice ? <Txt testID="bookmark-notice" style={{ textAlign: 'center', color: colors.ok }}>{notice}</Txt> : null}
-          <LabeledSlider
-            testID="speed-slider"
-            label={t('speed')}
-            value={settings.playbackRate}
-            min={RATE_MIN}
-            max={RATE_MAX}
-            step={0.05}
-            onLive={(v) => player.setPlaybackRate(clampRate(v), 'medium')}
-            onChange={setRate}
-            format={(v) => `${v.toFixed(2)}×`}
-            hint={t('speed_hint')}
-          />
-          <Button testID="speed-reset" compact kind="secondary" label={t('speed_normal')} onPress={() => setRate(1)} disabled={settings.playbackRate === 1} style={{ alignSelf: 'flex-start' }} />
+          <Row>
+            <View style={{ flex: 1 }}>
+              <LabeledSlider
+                compact
+                testID="speed-slider"
+                label={t('speed')}
+                value={settings.playbackRate}
+                min={RATE_MIN}
+                max={RATE_MAX}
+                step={0.05}
+                onLive={(v) => player.setPlaybackRate(clampRate(v), 'medium')}
+                onChange={setRate}
+                format={(v) => `${v.toFixed(2)}×`}
+                hint={t('speed_hint')}
+              />
+            </View>
+            <Button testID="speed-reset" compact kind="secondary" label="1×" onPress={() => setRate(1)} disabled={settings.playbackRate === 1} />
+          </Row>
           <Toggle testID="skip-silence" label={t('skip_silence')} value={settings.skipSilence} onChange={(v) => updateSettings({ skipSilence: v })} hint={`${t('silence_gap')} ${settings.skipSilenceMinGapSec} s`} />
           <Card>
             <PlaybackTools
               duration={duration}
               position={here}
-              onJump={seek}
+              jumpAt={rec.jumpSec ?? null}
+              onJump={(sec) => { seek(sec); updateRecording(rec.id, { jumpSec: sec }); }}
               loop={loopShown ? loop : null}
               onLoop={(l) => updateRecording(rec.id, { loop: l ?? undefined })}
               repeatOn={repeat.on}

@@ -120,6 +120,10 @@ appId: com.example.voiceclarity
     element:
       id: "rep-a"
     centerElement: true
+# the time jumped to stays in the field (kept with the recording)
+- assertVisible:
+    id: "jump-input"
+    text: "0:05"
 - tapOn:
     id: "rep-a"
 - inputText: "0:02"
@@ -255,8 +259,13 @@ appId: com.example.voiceclarity
 # jump and A-B repeat from the live panel (the part set in the player is kept with the recording)
 - tapOn:
     id: "pv-tools"
+# the time jumped to in the player is there in live listening of the same file
+- assertVisible:
+    id: "pv-jump-input"
+    text: "0:05"
 - tapOn:
     id: "pv-jump-input"
+- eraseText: 10
 - inputText: "0:03"
 - pressKey: Enter
 - assertVisible:

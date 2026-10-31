@@ -49,6 +49,8 @@ export interface Recording {
   bookmarks: Bookmark[];
   /** The part set for A-B repeat (player and live listening), original timeline. */
   loop?: LoopSpec;
+  /** The last time typed in Jump to (player and live listening), seconds. */
+  jumpSec?: number;
   /** Speech segments on the original timeline. */
   segments?: Segment[];
   waveform?: number[];

@@ -118,7 +118,7 @@ export function IconButton({ icon, label, onPress, big, disabled, testID }: { ic
 export function Card({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
   const { colors } = useApp();
   return (
-    <View style={[{ backgroundColor: colors.surface, borderRadius: radius, padding: space.lg, gap: space.md, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border }, style]}>
+    <View style={[{ backgroundColor: colors.surface, borderRadius: radius, paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border }, style]}>
       {children}
     </View>
   );
@@ -143,7 +143,7 @@ export function Toggle({ label, value, onChange, hint, disabled, testID }: { lab
     >
       <View style={{ flex: 1 }}>
         <Txt>{label}</Txt>
-        {hint ? <Txt size="sm" muted>{hint}</Txt> : null}
+        {hint ? <Txt size="xs" muted>{hint}</Txt> : null}
       </View>
       <Switch value={value} onValueChange={onChange} disabled={disabled} trackColor={{ true: colors.primary, false: colors.border }} accessibilityElementsHidden importantForAccessibility="no" />
     </Pressable>
@@ -152,13 +152,13 @@ export function Toggle({ label, value, onChange, hint, disabled, testID }: { lab
 
 /** Segmented choice. */
 export function Choice<T extends string | number>({
-  options, value, onChange, label, testID,
-}: { options: { value: T; label: string }[]; value: T; onChange: (v: T) => void; label?: string; testID?: string }) {
+  options, value, onChange, label, testID, inline,
+}: { options: { value: T; label: string }[]; value: T; onChange: (v: T) => void; label?: string; testID?: string; /** Label beside the options instead of above. */ inline?: boolean }) {
   const { colors, fs } = useApp();
   return (
-    <View accessibilityRole="radiogroup" accessibilityLabel={label} style={{ gap: space.xs }}>
+    <View accessibilityRole="radiogroup" accessibilityLabel={label} style={inline ? { flexDirection: 'row', alignItems: 'center', gap: space.sm } : { gap: space.xs }}>
       {label ? <Txt size="sm" muted>{label}</Txt> : null}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.xs }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.xs, flex: inline ? 1 : undefined }}>
         {options.map((o) => {
           const on = o.value === value;
           return (
@@ -245,7 +245,7 @@ export function LabeledSlider({
         <Txt bold testID={testID ? `${testID}-value` : undefined}>{format(shown)}</Txt>
       </Row>
       {slider}
-      {hint ? <Txt size="sm" muted>{hint}</Txt> : null}
+      {hint ? <Txt size="xs" muted>{hint}</Txt> : null}
     </View>
   );
 }
