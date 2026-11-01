@@ -157,7 +157,7 @@ appId: com.example.voiceclarity
 - takeScreenshot: 33_replace_confirm
 - tapOn: "Replace"
 - extendedWaitUntil:
-    visible: "M4A"
+    visible: ".* · M4A · .*"
     timeout: 120000
 - extendedWaitUntil:
     visible: ".*[1-9] speech sections.*"
@@ -292,7 +292,7 @@ appId: com.example.voiceclarity
 - takeScreenshot: 56_folder_save_confirm
 - tapOn: "Replace"
 - extendedWaitUntil:
-    visible: "M4A"
+    visible: ".* · M4A · .*"
     timeout: 120000
 - extendedWaitUntil:
     visible: ".*[1-9] speech sections.*"

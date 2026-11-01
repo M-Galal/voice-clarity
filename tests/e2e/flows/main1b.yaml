@@ -160,6 +160,6 @@ appId: com.example.voiceclarity
     visible: ".*[1-9] speech sections.*"
     timeout: 120000
 - assertVisible: ".*0:06.*"
-- assertVisible: "M4A"
+- assertVisible: ".* · M4A · .*"
 - takeScreenshot: 32_saved_as_player
 - back
