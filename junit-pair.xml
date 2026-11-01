@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="test" tests="1" failures="0" time="36.55" timestamp="2026-11-01T02:41:07">
+    <testcase id="asr-pair" name="asr-pair" classname="asr-pair" file="tests/e2e/flows/asr-pair.yaml" time="36.534" timestamp="2026-11-01T02:41:07" status="SUCCESS"/>
+  </testsuite>
+</testsuites>

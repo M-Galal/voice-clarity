@@ -1,0 +1,11 @@
+11-01 02:32:54.684 I/ActivityManager(  510): Killing 2415:dev.mobile.maestro/u0a131 (adj 0): stop dev.mobile.maestro due to deletePackageX
+11-01 02:33:01.188 I/ActivityManager(  510): Killing 2563:com.example.voiceclarity/u0a130 (adj 0): stop com.example.voiceclarity due to from pid 3299
+11-01 02:35:04.714 I/ActivityManager(  510): Killing 3223:dev.mobile.maestro/u0a133 (adj 0): stop dev.mobile.maestro due to deletePackageX
+11-01 02:35:11.270 I/ActivityManager(  510): Killing 3316:com.example.voiceclarity/u0a130 (adj 0): stop com.example.voiceclarity due to from pid 4049
+11-01 02:40:56.795 I/ActivityManager(  510): Killing 4064:com.example.voiceclarity/u0a130 (adj 0): stop com.example.voiceclarity due to from pid 5608
+11-01 02:41:01.184 I/ActivityManager(  510): Killing 3973:dev.mobile.maestro/u0a135 (adj 0): stop dev.mobile.maestro due to deletePackageX
+11-01 02:41:07.495 I/ActivityManager(  510): Killing 5675:com.example.voiceclarity/u0a130 (adj 0): stop com.example.voiceclarity due to from pid 5896
+11-01 02:41:43.635 I/ActivityManager(  510): Killing 5820:dev.mobile.maestro/u0a137 (adj 0): stop dev.mobile.maestro due to deletePackageX
+11-01 02:44:54.109 I/ActivityManager(  510): Killing 9018:dev.mobile.maestro/u0a139 (adj 0): stop dev.mobile.maestro due to deletePackageX
+11-01 02:44:59.971 I/ActivityManager(  510): Killing 5911:com.example.voiceclarity/u0a130 (adj 0): stop com.example.voiceclarity due to clear data
+11-01 02:49:57.523 I/ActivityManager(  510): Killing 9132:dev.mobile.maestro/u0a141 (adj 0): stop dev.mobile.maestro due to deletePackageX

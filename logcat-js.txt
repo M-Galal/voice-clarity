@@ -1,0 +1,104 @@
+11-01 02:23:56.346 I/ReactNativeJS( 2563): Running "main"
+11-01 02:24:10.711 I/ReactNativeJS( 2563): [VC] memory-decoded 20.7s @16000 in 239 ms
+11-01 02:24:10.921 I/ReactNativeJS( 2563): [VC] analyse M4A 20.7s: 3 speech sections (0 whispered), VAD 139 ms
+11-01 02:24:13.561 I/ReactNativeJS( 2563): [VC] player loaded M4A in 451 ms
+11-01 02:29:02.534 I/ReactNativeJS( 2563): [VC] memory-decoded 20.7s @24000 in 186 ms
+11-01 02:29:04.404 I/ReactNativeJS( 2563): [VC] smart analysis 20.7s: snr 20.6 dB, whispers 0%, spread 3.3 dB, rumble 1.3 dB, hum 50 in 1752 ms
+11-01 02:29:14.854 I/ReactNativeJS( 2563): [VC] live: playing 194 ms after play (noise estimate and first read 149 ms)
+11-01 02:29:24.262 I/ReactNativeJS( 2563): [VC] live: 9.0 % of real time spent processing (923 ms for 10.2 s @24000, speed 1x), at 9.4 s
+11-01 02:29:34.456 I/ReactNativeJS( 2563): [VC] live: 10.1 % of real time spent processing (1029 ms for 10.2 s @24000, speed 1x), at 19.6 s
+11-01 02:29:58.389 I/ReactNativeJS( 2563): [VC] live: new settings from 3.00 s (heard 0.00 s after the change)
+11-01 02:29:58.567 I/ReactNativeJS( 2563): [VC] live: playing 330 ms after play (noise estimate and first read 152 ms)
+11-01 02:30:10.013 I/ReactNativeJS( 2563): [VC] live: playing 226 ms after play (noise estimate and first read 129 ms)
+11-01 02:30:11.289 I/ReactNativeJS( 2563): [VC] live: playing 179 ms after play (noise estimate and first read 104 ms)
+11-01 02:30:13.740 I/ReactNativeJS( 2563): [VC] live: playing 229 ms after play (noise estimate and first read 151 ms)
+11-01 02:30:15.684 I/ReactNativeJS( 2563): [VC] live: 8.8 % of real time spent processing (893 ms for 10.1 s @24000, speed 1x), at 3.9 s
+11-01 02:30:16.088 I/ReactNativeJS( 2563): [VC] live: playing 179 ms after play (noise estimate and first read 102 ms)
+11-01 02:30:18.495 I/ReactNativeJS( 2563): [VC] live: playing 182 ms after play (noise estimate and first read 105 ms)
+11-01 02:30:20.920 I/ReactNativeJS( 2563): [VC] live: playing 210 ms after play (noise estimate and first read 124 ms)
+11-01 02:30:23.268 I/ReactNativeJS( 2563): [VC] live: 8.9 % of real time spent processing (904 ms for 10.2 s @24000, speed 1x), at 2.0 s
+11-01 02:30:23.333 I/ReactNativeJS( 2563): [VC] live: playing 222 ms after play (noise estimate and first read 110 ms)
+11-01 02:30:25.691 I/ReactNativeJS( 2563): [VC] live: playing 181 ms after play (noise estimate and first read 104 ms)
+11-01 02:30:28.094 I/ReactNativeJS( 2563): [VC] live: playing 181 ms after play (noise estimate and first read 106 ms)
+11-01 02:30:30.528 I/ReactNativeJS( 2563): [VC] live: playing 218 ms after play (noise estimate and first read 141 ms)
+11-01 02:30:30.541 I/ReactNativeJS( 2563): [VC] live: 9.2 % of real time spent processing (942 ms for 10.2 s @24000, speed 1x), at 2.0 s
+11-01 02:30:32.921 I/ReactNativeJS( 2563): [VC] live: playing 207 ms after play (noise estimate and first read 121 ms)
+11-01 02:30:40.046 I/ReactNativeJS( 2563): [VC] live: 9.2 % of real time spent processing (938 ms for 10.2 s @24000, speed 1x), at 9.1 s
+11-01 02:30:50.068 I/ReactNativeJS( 2563): [VC] live: 9.1 % of real time spent processing (933 ms for 10.2 s @24000, speed 1x), at 19.1 s
+11-01 02:31:10.835 I/ReactNativeJS( 2563): [VC] live: playing 198 ms after play (noise estimate and first read 124 ms)
+11-01 02:31:19.153 I/ReactNativeJS( 2563): [VC] live: 9.3 % of real time spent processing (934 ms for 10.0 s @24000, speed 1x), at 8.3 s
+11-01 02:31:29.162 I/ReactNativeJS( 2563): [VC] live: 9.3 % of real time spent processing (945 ms for 10.2 s @24000, speed 1x), at 18.3 s
+11-01 02:32:30.006 I/ReactNativeJS( 2563): [VC] enhance 20.7s @24000: 4133 ms, gain 3.8 dB, speech -17.7 LUFS, TP -1.05, hum 50, warnings heavy_limiting
+11-01 02:32:46.575 I/ReactNativeJS( 2563): [VC] player loaded M4A in 44 ms
+11-01 02:33:01.462 I/ReactNativeJS( 3316): Running "main"
+11-01 02:33:03.973 I/ReactNativeJS( 3316): [VC] player loaded M4A in 159 ms
+11-01 02:33:25.048 I/ReactNativeJS( 3316): [VC] memory-decoded 20.7s @16000 in 76 ms
+11-01 02:33:56.637 I/ReactNativeJS( 3316): [VC] asr chunk 1/1: 16.0 s, level -20.4 dBFS, gain +0.4 dB: السلام ليك موحن تقلى. ها تسيو تنبي بكتبك تسافا تساوط. رحنت تقلى تقلى وطفك بكتسي بلوة ألقامية.
+11-01 02:33:56.657 I/ReactNativeJS( 3316): [VC] transcribe 20.7s model=base lang=ar: 1 chunks, 16s of speech, 31401 ms, detected=ar, segments=1, silence phrases removed=0, paired chunks=0
+11-01 02:34:06.221 I/ReactNativeJS( 3316): [VC] player loaded M4A in 213 ms
+11-01 02:34:44.847 I/ReactNativeJS( 3316): [VC] edit keep 0.50-10.00 x1.5: 20.7s -> 6.3s in 591 ms
+11-01 02:35:00.866 I/ReactNativeJS( 3316): [VC] encoded m4a 98 kb/s in 1166 ms: 80724 bytes
+11-01 02:35:00.968 I/ReactNativeJS( 3316): [VC] memory-decoded 6.3s @16000 in 100 ms
+11-01 02:35:01.110 I/ReactNativeJS( 3316): [VC] analyse M4A 6.3s: 2 speech sections (0 whispered), VAD 105 ms
+11-01 02:35:01.110 I/ReactNativeJS( 3316): [VC] player loaded M4A in 228 ms
+11-01 02:35:02.921 I/ReactNativeJS( 3316): [VC] player loaded M4A in 208 ms
+11-01 02:35:11.578 I/ReactNativeJS( 4064): Running "main"
+11-01 02:35:40.583 I/ReactNativeJS( 4064): [VC] memory-decoded 19.1s @16000 in 88 ms
+11-01 02:35:40.788 I/ReactNativeJS( 4064): [VC] analyse M4A 19.1s: 4 speech sections (2 whispered), VAD 139 ms
+11-01 02:35:43.468 I/ReactNativeJS( 4064): [VC] player loaded M4A in 415 ms
+11-01 02:35:49.214 I/ReactNativeJS( 4064): [VC] memory-decoded 19.1s @24000 in 145 ms
+11-01 02:35:50.422 I/ReactNativeJS( 4064): [VC] smart analysis 19.1s: snr 13.8 dB, whispers 51%, spread 16.8 dB, rumble -2.0 dB, hum null in 1113 ms
+11-01 02:36:21.709 I/ReactNativeJS( 4064): [VC] enhance 19.1s @24000: 3586 ms, gain 2.2 dB, speech -16.8 LUFS, TP -1.05, hum null, warnings none
+11-01 02:36:29.733 I/ReactNativeJS( 4064): [VC] player loaded M4A in 36 ms
+11-01 02:36:41.926 I/ReactNativeJS( 4064): [VC] memory-decoded 19.1s @16000 in 86 ms
+11-01 02:37:04.125 I/ReactNativeJS( 4064): [VC] asr chunk 1/1: 12.4 s, level -29.2 dBFS, gain +9.2 dB: أسلام لك موكحن طالع.
+11-01 02:37:04.125 I/ReactNativeJS( 4064): [VC] transcribe: text ended at 3.0 s of a 12.4 s chunk; sending the rest again
+11-01 02:37:48.022 I/ReactNativeJS( 4064): [VC] transcribe 19.1s model=base lang=ar: 1 chunks, 12s of speech, 65895 ms, detected=ar, segments=2, silence phrases removed=0, paired chunks=0
+11-01 02:37:48.395 I/ReactNativeJS( 4064): [VC] player loaded M4A in 85 ms
+11-01 02:38:01.093 I/ReactNativeJS( 4064): [VC] memory-decoded 5.5s @16000 in 70 ms
+11-01 02:38:01.153 I/ReactNativeJS( 4064): [VC] analyse MP3 5.5s: 1 speech sections (0 whispered), VAD 35 ms
+11-01 02:38:03.698 I/ReactNativeJS( 4064): [VC] player loaded MP3 in 102 ms
+11-01 02:38:23.126 I/ReactNativeJS( 4064): [VC] edit none 0.00-5.54 x1.25: 5.5s -> 4.4s in 545 ms
+11-01 02:38:24.057 I/ReactNativeJS( 4064): [VC] encoded m4a 128 kb/s in 930 ms: 73889 bytes
+11-01 02:38:24.165 I/ReactNativeJS( 4064): [VC] memory-decoded 4.4s @16000 in 105 ms
+11-01 02:38:24.258 I/ReactNativeJS( 4064): [VC] player loaded M4A in 183 ms
+11-01 02:38:24.269 I/ReactNativeJS( 4064): [VC] analyse M4A 4.4s: 1 speech sections (0 whispered), VAD 54 ms
+11-01 02:38:37.542 W/ReactNativeJS( 4064): [VC] stream decode failed: Call to function 'VoiceEncoder.decodeToPcm' has been rejected.
+11-01 02:38:37.542 W/ReactNativeJS( 4064): → Caused by: java.io.IOException: Failed to instantiate extractor.
+11-01 02:38:37.544 W/ReactNativeJS( 4064): [VC] analyse failed for M4A: Failed to open file with FFmpeg decoder: FFmpegDecoder::openFile failed: avformat_open_input failed: Invalid data found when processing input (-1094995529)
+11-01 02:39:28.706 I/ReactNativeJS( 4064): [VC] memory-decoded 20.7s @16000 in 290 ms
+11-01 02:39:28.848 I/ReactNativeJS( 4064): [VC] player loaded M4A (folder) in 411 ms
+11-01 02:39:29.066 I/ReactNativeJS( 4064): [VC] analyse M4A 20.7s: 3 speech sections (0 whispered), VAD 273 ms
+11-01 02:39:47.734 I/ReactNativeJS( 4064): [VC] memory-decoded 5.5s @16000 in 129 ms
+11-01 02:39:47.805 I/ReactNativeJS( 4064): [VC] player loaded MP3 (folder) in 192 ms
+11-01 02:39:47.820 I/ReactNativeJS( 4064): [VC] analyse MP3 5.5s: 1 speech sections (0 whispered), VAD 57 ms
+11-01 02:40:12.825 I/ReactNativeJS( 4064): [VC] edit keep 0.00-5.54 x1.25: 5.5s -> 4.4s in 480 ms
+11-01 02:40:13.657 I/ReactNativeJS( 4064): [VC] encoded m4a 128 kb/s in 831 ms: 73889 bytes
+11-01 02:40:13.839 I/ReactNativeJS( 4064): [VC] memory-decoded 4.4s @16000 in 134 ms
+11-01 02:40:13.982 I/ReactNativeJS( 4064): [VC] player loaded M4A (folder) in 270 ms
+11-01 02:40:13.986 I/ReactNativeJS( 4064): [VC] analyse M4A 4.4s: 1 speech sections (0 whispered), VAD 46 ms
+11-01 02:40:33.702 I/ReactNativeJS( 4064): [VC] player loaded M4A in 73 ms
+11-01 02:40:57.446 I/ReactNativeJS( 5675): Running "main"
+11-01 02:41:00.276 I/ReactNativeJS( 5675): [VC] player loaded M4A (folder) in 385 ms
+11-01 02:41:07.769 I/ReactNativeJS( 5911): Running "main"
+11-01 02:41:18.599 I/ReactNativeJS( 5911): [VC] memory-decoded 90.0s @16000 in 264 ms
+11-01 02:41:19.510 I/ReactNativeJS( 5911): [VC] analyse WAV 90.0s: 19 speech sections (10 whispered), VAD 588 ms
+11-01 02:41:20.715 I/ReactNativeJS( 5911): [VC] player loaded WAV in 57 ms
+11-01 02:41:42.251 I/ReactNativeJS( 5911): [VC] memory-decoded 90.0s @16000 in 228 ms
+11-01 02:43:07.452 I/ReactNativeJS( 5911): [VC] asr chunk 1/3 (pair): 24.4 s, level -31.0 dBFS, gain +11.0 dB: أسلام لك موكحن طالع | أسلام لك موكحن طالع | إنتحاليك جبار | أسلام لك موكحن طالع | أسلام لك موكحن طالع | إنتحاليك جبار
+11-01 02:43:07.452 I/ReactNativeJS( 5911): [VC] asr chunk 2/3 (pair): 25.4 s, level -31.5 dBFS, gain +11.5 dB: أسلام لكم برحن طالع | إنتحا لك جبار | أسلام لكم برحن طالع | إنتحا لك جبار
+11-01 02:43:24.613 I/ReactNativeJS( 5911): [VC] asr chunk 3/3: 10.2 s, level -31.3 dBFS, gain +11.3 dB: أسلام لك مرة ألا
+11-01 02:43:24.614 I/ReactNativeJS( 5911): [VC] transcribe: text ended at 3.0 s of a 10.2 s chunk; sending the rest again
+11-01 02:44:25.754 I/ReactNativeJS( 5911): [VC] transcribe 90.0s model=base lang=ar: 3 chunks, 60s of speech, 162897 ms, detected=ar, segments=12, silence phrases removed=0, paired chunks=2
+11-01 02:45:00.764 I/ReactNativeJS( 9233): Running "main"
+11-01 02:45:34.544 I/ReactNativeJS( 9233): [VC] player loaded WAV in 80 ms
+11-01 02:45:38.416 I/VoiceClarity( 9233): decode c2.android.raw.decoder: 6079 ms total, codec wait 2428 ms, resample 1 ms, write 276 ms, 1172 buffers, 16000 Hz x1 -> 16000 Hz
+11-01 02:45:38.419 I/ReactNativeJS( 9233): [VC] stream-decoded 1200.0s @16000 (source 16000 Hz, 1 ch) in 6144 ms
+11-01 02:45:46.403 I/ReactNativeJS( 9233): [VC] analyse WAV 1200.0s: 252 speech sections (126 whispered), VAD 7984 ms
+11-01 02:45:53.325 I/VoiceClarity( 9233): decode 16 ranges (c2.android.raw.decoder): 1977 ms, 5120000 frames, 16000 Hz -> 16000 Hz
+11-01 02:45:53.345 I/ReactNativeJS( 9233): [VC] range-decoded 16 parts, 320.0s @16000 in 2046 ms
+11-01 02:46:00.876 I/ReactNativeJS( 9233): [VC] smart analysis 1200.0s (16 parts, 320s): snr 13.4 dB, whispers 51%, spread 17.0 dB, rumble -2.3 dB, hum null in 9578 ms
+11-01 02:46:34.174 I/VoiceClarity( 9233): decode c2.android.raw.decoder: 8684 ms total, codec wait 2044 ms, resample 3318 ms, write 307 ms, 1172 buffers, 16000 Hz x1 -> 24000 Hz
+11-01 02:46:34.177 I/ReactNativeJS( 9233): [VC] stream-decoded 1200.0s @24000 (source 16000 Hz, 1 ch) in 8717 ms
+11-01 02:49:52.384 I/ReactNativeJS( 9233): [VC] enhance 1200.0s @24000: 206925 ms, gain 10.1 dB, speech -16.6 LUFS, TP -1.01, hum null, warnings heavy_limiting
+11-01 02:49:54.791 I/ReactNativeJS( 9233): [VC] player loaded WAV in 94 ms

@@ -1,0 +1,12 @@
+02:44:53.171 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Define variables RUNNING
+02:44:53.175 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Define variables COMPLETED
+02:44:53.175 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Apply configuration RUNNING
+02:44:53.176 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Apply configuration COMPLETED
+02:44:53.176 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Assert that id: seg-s0 is visible RUNNING
+02:44:53.448 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Assert that id: seg-s0 is visible COMPLETED
+02:44:53.449 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Take screenshot 82_asr_pair_transcript RUNNING
+02:44:53.451 [ INFO] maestro.Maestro.takeScreenshot: Taking screenshot
+02:44:53.452 [TRACE] maestro.utils.ScreenshotUtils.takeScreenshot: Taking screenshot to output sink
+02:44:53.600 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Take screenshot 82_asr_pair_transcript COMPLETED
+02:44:53.601 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Assert that id: asr-took is visible RUNNING
+02:44:53.641 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Assert that id: asr-took is visible COMPLETED
