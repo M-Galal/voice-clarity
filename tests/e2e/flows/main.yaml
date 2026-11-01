@@ -381,9 +381,11 @@ appId: com.example.voiceclarity
       id: "eq-open"
 - tapOn:
     id: "eq-open"
+# (the hiss bands at 8 and 10 kHz follow; bring the 3 kHz band itself to the middle)
 - scrollUntilVisible:
     element:
-      id: "eq-flat"
+      id: "eq-3000-track"
+    centerElement: true
 - swipe:
     from:
       id: "eq-3000-track"
