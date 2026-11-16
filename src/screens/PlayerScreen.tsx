@@ -138,7 +138,8 @@ function Player({ rec, queueIndex, autoplay }: { rec: Recording; queueIndex?: nu
     const toggle = () => {
       if (status.playing) { setPausedAt(null); player.pause(); }
       else {
-        if (status.didJustFinish || position >= duration - 0.3) seek(0);
+        // after the end, play again from the time last jumped to in this file (else from the start)
+        if (status.didJustFinish || position >= duration - 0.3) seek(rec.jumpSec !== undefined && rec.jumpSec < duration - 0.5 ? rec.jumpSec : 0);
         setPausedAt(null);
         player.setActiveForLockScreen(true, { title: rec.name, artist: t('app_name') }, { showSeekBackward: true, showSeekForward: true });
         player.play();

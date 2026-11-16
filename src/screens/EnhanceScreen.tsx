@@ -324,7 +324,8 @@ function LivePanel({ rec, pv, settings, rate, smart, sections }: { rec: Recordin
   const { t, colors } = app;
   const [player, setPlayer] = useState<LivePlayer | null>(null);
   const [prep, setPrep] = useState<number | null>(0);
-  const [status, setStatus] = useState({ playing: false, position: bestPreviewStart(rec.segments ?? [], rec.durationSec, 15) });
+  // starts at the time last jumped to in this file (kept with the recording), else at the first clear speech
+  const [status, setStatus] = useState({ playing: false, position: rec.jumpSec !== undefined && rec.jumpSec < rec.durationSec - 0.5 ? rec.jumpSec : bestPreviewStart(rec.segments ?? [], rec.durationSec, 15) });
   const [which, setWhich] = useState<'original' | 'enhanced'>('enhanced');
   const [spec, setSpec] = useState<{ original: Spectrum; enhanced: Spectrum } | null>(null);
   const [gainDb, setGainDb] = useState(0);
@@ -366,6 +367,7 @@ function LivePanel({ rec, pv, settings, rate, smart, sections }: { rec: Recordin
       humHz: smart.humHz,
       sections: settings.strength === 'auto' ? sections : null,
       speechRefDb: smart.measures.speechRefDb,
+      boostRefDb: smart.measures.boostRefDb,
       inputSpeechLufs: smart.input.speechLufs,
       humHarmonics: smart.humHarmonics,
       windows: smart.windows,
@@ -397,7 +399,7 @@ function LivePanel({ rec, pv, settings, rate, smart, sections }: { rec: Recordin
   const toggle = () => {
     if (!player) return;
     if (player.playing) void player.pause();
-    else void player.play(player.ended ? 0 : status.position);
+    else void player.play(player.ended ? (rec.jumpSec ?? 0) : status.position);
   };
   const onTimeline = (time: number) => {
     setStatus((x) => ({ ...x, position: time }));

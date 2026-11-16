@@ -4,6 +4,7 @@ import { applyChain } from '../src/dsp/biquad';
 import { EQ_BANDS, eqBandsFor, eqChain, LOW_PASS_HZ, lowPassChain } from '../src/dsp/voiceFilters';
 import { chooseSettings, HISS_CUT_BELOW_DB, HISS_CUT_HZ, measureForAuto } from '../src/dsp/autoTune';
 import { settingsForPreset } from '../src/dsp/pipeline';
+import { levelSpeech } from '../src/dsp/dynamics';
 
 const sr = 48000;
 const tone = (f: number) => Float32Array.from({ length: sr }, (_, i) => Math.sin((2 * Math.PI * f * i) / sr));
@@ -84,4 +85,31 @@ test('hiss measure: speech that stops at 4 kHz under white hiss reads below 0 dB
   assert.ok(dull.hissSnrDb !== undefined && dull.hissSnrDb < HISS_CUT_BELOW_DB, `dull ${dull.hissSnrDb}`);
   assert.ok(bright.hissSnrDb !== undefined && bright.hissSnrDb > 10, `bright ${bright.hissSnrDb}`);
   assert.equal(measureForAuto(make(false).slice(0, 16000 * dur), 16000, segs, 20, new Float32Array(16000 * dur)).hissSnrDb, undefined);
+});
+
+test('Smart low cut at 300 Hz when the voice below it is under the noise; level spread measured above 300 Hz', () => {
+  const base = settingsForPreset('auto');
+  const m = { snrDb: 6, whisperShare: 0, spreadDb: 5, rumbleDb: 8 };
+  const noisy = chooseSettings(base, { ...m, lowBandSnrDb: 1 });
+  assert.equal(noisy.settings.highPassHz, 300);
+  assert.ok(noisy.reasons.some((r) => r.key === 'auto_lowcut'));
+  assert.equal(chooseSettings(base, { ...m, lowBandSnrDb: 8 }).settings.highPassHz, 120); // the rumble rule as before
+  // quiet words hidden by low noise in the 1 s levels: the spread above 300 Hz sets the largest boost
+  assert.equal(chooseSettings(base, { ...m, fineSpreadDb: 19 }).settings.levelMaxBoostDb, 25);
+  assert.equal(chooseSettings(base, m).settings.levelMaxBoostDb, 11);
+});
+
+test('leveller: a quiet word right before louder speech in the same stretch is raised (0.4 s windows)', () => {
+  const sr2 = 16000;
+  const x = new Float32Array(sr2 * 3);
+  for (let i = 0; i < x.length; i++) {
+    const t = i / sr2;
+    const amp = t >= 1.0 && t < 1.4 ? 0.01 : t >= 1.4 && t < 2.4 ? 0.2 : 0; // quiet word, then loud speech
+    x[i] = amp * Math.sin(2 * Math.PI * 500 * t);
+  }
+  const r = levelSpeech(x, sr2, [{ start: 1.0, end: 2.4 }], { maxBoostDb: 24 });
+  const rms = (v: Float32Array, a: number, b: number) => Math.sqrt(v.slice(Math.round(a * sr2), Math.round(b * sr2)).reduce((p, q) => p + q * q, 0) / ((b - a) * sr2));
+  const before = 20 * Math.log10(rms(x, 1.5, 2.3) / rms(x, 1.1, 1.3));
+  const after = 20 * Math.log10(rms(r.output, 1.5, 2.3) / rms(r.output, 1.1, 1.3));
+  assert.ok(before > 25 && after < 4, `quiet word ${before.toFixed(1)} dB below before, ${after.toFixed(1)} dB after`);
 });

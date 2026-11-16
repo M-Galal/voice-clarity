@@ -11,6 +11,8 @@
  * - mains hum (detected separately by the pipeline) and clipping
  */
 import { applyChain, designBiquad } from './biquad';
+import { LEVEL_WIN_SEC } from './dynamics';
+import { kWeightingCoeffs } from './loudness';
 import type { EnhanceSettings } from './pipeline';
 import type { Segment } from './vad';
 
@@ -28,7 +30,8 @@ export interface AutoReason {
     | 'auto_pauses'
     | 'auto_sections'
     | 'auto_level_steady'
-    | 'auto_hiss';
+    | 'auto_hiss'
+    | 'auto_lowcut';
   vars?: Record<string, string | number>;
 }
 
@@ -45,6 +48,48 @@ export interface AutoMeasures {
    * there are no pauses.
    */
   hissSnrDb?: number;
+  /** The voice at 100-300 Hz against the noise there (as hissSnrDb), dB; undefined without pauses. */
+  lowBandSnrDb?: number;
+  /**
+   * Level spread (p90 - p10) and reference (p80) of the leveller's 0.4 s speech windows, measured
+   * above 300 Hz (K-weighted) so that low noise does not hide how quiet a word is.
+   */
+  fineSpreadDb?: number;
+  boostRefDb?: number;
+}
+
+/** Low edge of the telephone band (ITU-T G.711/G.712 narrowband speech: 300-3400 Hz). */
+export const LOW_CUT_NOISY_HZ = 300;
+/**
+ * Smart mode cuts below LOW_CUT_NOISY_HZ when the voice at 100-300 Hz is less than this far above
+ * the noise there: that band then adds noise (which also covers the frequencies above it), not
+ * speech. Measured: 2.0 dB on a phone recording with heavy low noise, 7.9 to 16.9 dB on the app's
+ * noisy test recordings.
+ */
+export const LOW_CUT_BELOW_DB = 3;
+
+/** 100-300 Hz band (4th-order Butterworth each side) for the low-band measure. */
+export function lowBandChain(sampleRate: number): ReturnType<typeof designBiquad>[] {
+  return [0.5412, 1.3066].flatMap((q) => [designBiquad('highpass', sampleRate, 100, q), designBiquad('lowpass', sampleRate, LOW_CUT_NOISY_HZ, q)]);
+}
+
+/** High-pass at the telephone band's low edge, for speech levels that low noise does not decide. */
+export function voiceBandChain(sampleRate: number): ReturnType<typeof designBiquad>[] {
+  return [designBiquad('highpass', sampleRate, LOW_CUT_NOISY_HZ, 0.5412), designBiquad('highpass', sampleRate, LOW_CUT_NOISY_HZ, 1.3066)];
+}
+
+/** Spread (p90 - p10) and reference (p80) of the leveller windows' levels. */
+export function fineStats(levelsDb: number[]): { spreadDb: number; refDb: number | undefined } {
+  const l = [...levelsDb].sort((p, q) => p - q);
+  const pick = (p: number) => l[Math.min(l.length - 1, Math.floor(p * l.length))];
+  return l.length >= 2 ? { spreadDb: pick(0.9) - pick(0.1), refDb: pick(0.8) } : { spreadDb: 0, refDb: l[0] };
+}
+
+/** Speech against noise in a band, dB, from the mean power in speech and in the pauses; undefined without pauses. */
+export function bandSnrFrom(speechPower: number, pausePower: number): number | undefined {
+  if (!(pausePower > 0) || !(speechPower > 0)) return undefined;
+  const extra = speechPower - pausePower;
+  return extra > 0 ? Math.max(-30, 10 * Math.log10(extra / pausePower)) : -30;
 }
 
 /** The hiss cut Smart mode turns on (ITU-T G.722 wideband speech: 50 Hz-7 kHz). */
@@ -121,9 +166,25 @@ export function measureForAuto(
   const low = bandPower(mono, sampleRate, gaps, [designBiquad('lowpass', sampleRate, 100, 0.707), designBiquad('lowpass', sampleRate, 100, 0.707)]);
   const mid = bandPower(mono, sampleRate, gaps, [designBiquad('highpass', sampleRate, 100, 0.707), designBiquad('lowpass', sampleRate, Math.min(4000, sampleRate * 0.45), 0.707)]);
   const rumbleDb = low > 0 && mid > 0 ? 10 * Math.log10(low / mid) : -60;
+  const lowBandSnrDb = bandSnrFrom(bandPower(mono, sampleRate, segments.map((x) => [x.start, x.end]), lowBandChain(sampleRate)), bandPower(mono, sampleRate, gaps, lowBandChain(sampleRate)));
   const hc = hissBandChain(sampleRate);
   const hissSnrDb = hc ? hissSnrFrom(bandPower(mono, sampleRate, segments.map((x) => [x.start, x.end]), hc), bandPower(mono, sampleRate, gaps, hc)) : undefined;
-  return { snrDb, whisperShare: speechTime > 0 ? whisperTime / speechTime : 0, spreadDb, rumbleDb, hissSnrDb };
+  // the leveller's windows, above 300 Hz (as measureFile in stream.ts)
+  const vb = applyChain(applyChain(mono, voiceBandChain(sampleRate)), kWeightingCoeffs(sampleRate));
+  const fineLevels: number[] = [];
+  for (const g of segments) {
+    const a0 = Math.round(g.start * sampleRate), b0 = Math.min(vb.length, Math.round(g.end * sampleRate));
+    const n = Math.max(1, Math.round((b0 - a0) / (LEVEL_WIN_SEC * sampleRate)));
+    const step = (b0 - a0) / n;
+    for (let k = 0; k < n; k++) {
+      const a = Math.round(a0 + k * step), b = Math.round(a0 + (k + 1) * step);
+      let acc = 0;
+      for (let i = a; i < b; i++) acc += vb[i] * vb[i];
+      fineLevels.push(10 * Math.log10(acc / Math.max(1, b - a) + 1e-12));
+    }
+  }
+  const fine = fineStats(fineLevels);
+  return { snrDb, whisperShare: speechTime > 0 ? whisperTime / speechTime : 0, spreadDb, rumbleDb, hissSnrDb, lowBandSnrDb, fineSpreadDb: fine.spreadDb, boostRefDb: fine.refDb };
 }
 
 /** Chooses settings from the measurements. Loudness target and limiter ceiling stay as the user set them. */
@@ -144,14 +205,16 @@ export function chooseSettings(base: EnhanceSettings, m: AutoMeasures): { settin
     reasons.push({ key: 'auto_whisper_protect', vars: { pct: Math.round(m.whisperShare * 100) } });
   }
 
-  const levelSpeech = hasWhisper || m.spreadDb > 4;
-  const levelMaxBoostDb = Math.round(Math.min(30, Math.max(8, m.spreadDb + 6)));
+  const spread = Math.max(m.spreadDb, m.fineSpreadDb ?? 0);
+  const levelSpeech = hasWhisper || spread > 4;
+  const levelMaxBoostDb = Math.round(Math.min(30, Math.max(8, spread + 6)));
   reasons.push(levelSpeech
-    ? { key: 'auto_level_on', vars: { spread: r1(m.spreadDb), boost: levelMaxBoostDb } }
-    : { key: 'auto_level_off', vars: { spread: r1(m.spreadDb) } });
+    ? { key: 'auto_level_on', vars: { spread: r1(spread), boost: levelMaxBoostDb } }
+    : { key: 'auto_level_off', vars: { spread: r1(spread) } });
 
   let highPassHz = 80;
-  if (m.rumbleDb > 6) { highPassHz = 120; reasons.push({ key: 'auto_rumble', vars: { hz: highPassHz } }); }
+  if (m.lowBandSnrDb !== undefined && m.lowBandSnrDb < LOW_CUT_BELOW_DB) { highPassHz = LOW_CUT_NOISY_HZ; reasons.push({ key: 'auto_lowcut', vars: { hz: highPassHz, snr: Math.round(m.lowBandSnrDb) } }); }
+  else if (m.rumbleDb > 6) { highPassHz = 120; reasons.push({ key: 'auto_rumble', vars: { hz: highPassHz } }); }
   else if (m.rumbleDb > 0) { highPassHz = 100; reasons.push({ key: 'auto_rumble', vars: { hz: highPassHz } }); }
 
   const clarityDb = hasWhisper || m.spreadDb > 10 ? 4 : 3;
@@ -203,6 +266,9 @@ export interface SectionWindow {
   snrDb: number;
   whisper: boolean;
 }
+
+/** A speech window of the leveller with its K-weighted level (dBFS), seconds. */
+export interface BoostWindow { start: number; end: number; levelDb: number }
 
 /** Settings chosen for one section of the recording. */
 export interface SectionSetting {
@@ -315,7 +381,7 @@ export const BOOST_FLOOR_LIMIT_DB = -40;
  * or below its original level. Settings may ask for deeper reduction; never shallower.
  */
 export function boostFloorPlan(
-  windows: SectionWindow[],
+  windows: BoostWindow[],
   refDb: number | undefined,
   settings: { levelSpeech: boolean; levelMaxBoostDb: number },
   gainDb: number,

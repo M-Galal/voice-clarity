@@ -197,6 +197,7 @@ function TranscriptBody({ rec, onRedo }: { rec: Recording; onRedo: () => void })
     <View style={{ flex: 1 }}>
       <View style={{ padding: space.lg, gap: space.sm }}>
         <Txt size="sm" muted testID={transcript.elapsedMs ? 'asr-took' : undefined}>{t('detected_language', { lang: langName(transcript.language) })} · {t('transcript_from', { src: t(src), model: transcript.model })}{transcript.elapsedMs ? ` · ${t('asr_took', { time: fmtTook(transcript.elapsedMs) })}` : ''}</Txt>
+        <Button testID="tr-again" compact kind="secondary" label={t('transcribe_again')} onPress={onRedo} style={{ alignSelf: 'flex-start' }} />
         {flagged ? <Warning text={`${t('uncertain')}: ${flagged}`} /> : null}
         {transcript.removedSilencePhrases ? (
           <Txt size="sm" muted testID="removed-silence">{t(transcript.segments.length ? 'silence_phrases_removed' : 'silence_phrases_only', { n: transcript.removedSilencePhrases })}</Txt>

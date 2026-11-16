@@ -21,12 +21,13 @@
  */
 import { BiquadChainState, designBiquad, type BiquadCoeffs } from './biquad';
 import { eqChain, lowPassChain } from './voiceFilters';
-import { boostFloorPlan, chooseSettings, countSections, hissBandChain, hissSnrFrom, planSections, type AutoMeasures, type AutoReason, type SectionSetting, type SectionWindow } from './autoTune';
+import { boostFloorPlan, chooseSettings, bandSnrFrom, countSections, fineStats, hissBandChain, hissSnrFrom, lowBandChain, planSections, voiceBandChain, type AutoMeasures, type AutoReason, type BoostWindow, type SectionSetting, type SectionWindow } from './autoTune';
 import { CancelledError, tsnrGain, DD_ALPHA, DD_SMOOTHING, detectHum, frameSizeFor, humHarmonics, humNotches, type Progress } from './denoise';
 import { RealFFT } from './fft';
 import { KLoudnessMeter, kWeightingCoeffs, loudnessFromBlocks, TruePeakMeter, type BlockPower } from './loudness';
 import { MAX_GAIN_DB, type EnhanceReport, type EnhanceSettings, type LevelReport, type WarningCode } from './pipeline';
 import { clamp, dbToGain } from './units';
+import { LEVEL_WIN_SEC } from './dynamics';
 import { detectSpeechFromAnalysis, estimateSnrDb, FrameAnalyzer, type Segment } from './vad';
 
 export interface SampleSource {
@@ -770,6 +771,8 @@ interface FileMeasures {
   measures?: AutoMeasures;
   /** ~1 s speech windows for per-section settings (only with the measurements). */
   windows?: SectionWindow[];
+  /** The leveller's speech windows with their level, for the boost-following noise floor. */
+  boostWindows?: BoostWindow[];
 }
 
 /** Passes 1-2 of the enhancement: speech, input levels, Smart-mode measures, audio for hum detection. */
@@ -818,11 +821,19 @@ async function measureFile(src: SampleSource, vad: EnhanceSettings['vad'], wantA
   const gapRanges = gaps.map(([a, b]) => ({ a: Math.round(a * sr), b: Math.min(len, Math.round(b * sr)) }));
   const spreadWins = speechWindows(segments, sr, len, 1);
   const spreadE = new RangeEnergy(spreadWins);
+  // the leveller's own (shorter) windows, for the noise floor that follows the planned boost
+  const fineWins = speechWindows(segments, sr, len, LEVEL_WIN_SEC);
+  const fineE = new RangeEnergy(fineWins);
+  const fineHp = new BiquadChainState(voiceBandChain(sr));
+  const fineK = new BiquadChainState(kWeightingCoeffs(sr));
   const kw = new BiquadChainState(kWeightingCoeffs(sr));
   const lowF = new BiquadChainState([designBiquad('lowpass', sr, 100, 0.707), designBiquad('lowpass', sr, 100, 0.707)]);
   const midF = new BiquadChainState([designBiquad('highpass', sr, 100, 0.707), designBiquad('lowpass', sr, Math.min(4000, sr * 0.45), 0.707)]);
   const lowE = new RangeEnergy(gapRanges);
   const midE = new RangeEnergy(gapRanges);
+  const lowBandF = new BiquadChainState(lowBandChain(sr));
+  const lowBandSpeechE = new RangeEnergy(segments.map((g) => ({ a: Math.round(g.start * sr), b: Math.min(len, Math.round(g.end * sr)) })));
+  const lowBandGapE = new RangeEnergy(gapRanges);
   const hissChain = hissBandChain(sr);
   const hissF = hissChain ? new BiquadChainState(hissChain) : null;
   const speechRanges = segments.map((g) => ({ a: Math.round(g.start * sr), b: Math.min(len, Math.round(g.end * sr)) }));
@@ -836,14 +847,21 @@ async function measureFile(src: SampleSource, vad: EnhanceSettings['vad'], wantA
     });
     if (wantAuto) {
       spreadE.push(kw.process(x), start);
+      fineE.push(fineK.process(fineHp.process(x)), start);
       lowE.push(lowF.process(x), start);
       midE.push(midF.process(x), start);
       if (hissF) { const h = hissF.process(x); hissSpeechE.push(h, start); hissGapE.push(h, start); }
+      const lb = lowBandF.process(x);
+      lowBandSpeechE.push(lb, start);
+      lowBandGapE.push(lb, start);
     }
   }, (f) => half(0.6, 1, f));
   let measures: AutoMeasures | undefined;
   let windows: SectionWindow[] | undefined;
+  let boostWindows: BoostWindow[] | undefined;
   if (wantAuto) {
+    boostWindows = fineWins.map((w, i) => ({ start: w.a / sr, end: w.b / sr, levelDb: 10 * Math.log10(fineE.sums[i] / Math.max(1, w.b - w.a) + 1e-12) }));
+    const fine = fineStats(boostWindows.map((w) => w.levelDb));
     const winDb = spreadWins.map((w, i) => 10 * Math.log10(spreadE.sums[i] / Math.max(1, w.b - w.a) + 1e-12));
     windows = sectionWindows(spreadWins, winDb, analysis, segments, sr, durationSec);
     const levels = [...winDb].sort((p, q) => p - q);
@@ -860,6 +878,9 @@ async function measureFile(src: SampleSource, vad: EnhanceSettings['vad'], wantA
       spreadDb: levels.length >= 2 ? pick(0.9) - pick(0.1) : 0,
       rumbleDb: low > 0 && mid > 0 ? 10 * Math.log10(low / mid) : -60,
       speechRefDb: levels.length ? pick(0.8) : undefined,
+      fineSpreadDb: fine.spreadDb,
+      boostRefDb: fine.refDb,
+      lowBandSnrDb: bandSnrFrom(lowBandSpeechE.sums.reduce((a, b) => a + b, 0) / Math.max(1, n(speechRanges)), lowBandGapE.sums.reduce((a, b) => a + b, 0) / Math.max(1, gapN)),
       hissSnrDb: hissF ? hissSnrFrom(hissSpeechE.sums.reduce((a, b) => a + b, 0) / Math.max(1, n(speechRanges)), hissGapE.sums.reduce((a, b) => a + b, 0) / Math.max(1, gapN)) : undefined,
     };
   }
@@ -867,7 +888,7 @@ async function measureFile(src: SampleSource, vad: EnhanceSettings['vad'], wantA
   const joined = new Float32Array(total);
   let off = 0;
   for (const h of humAudio) { joined.set(h, off); off += h.length; }
-  return { segments, analysis, snrDb, input, clip, humAudio: joined, measures, windows };
+  return { segments, analysis, snrDb, input, clip, humAudio: joined, measures, windows, boostWindows };
 }
 
 /** Pauses within this distance (s) of a window are its local noise. */
@@ -954,7 +975,7 @@ export function predictedGainDb(settings: EnhanceSettings, inputSpeechLufs: numb
 export function noiseControl(
   settings: EnhanceSettings,
   sections: SectionSetting[] | null,
-  windows: SectionWindow[],
+  windows: BoostWindow[],
   refDb: number | undefined,
   gainDb: number,
 ): { over: Curve; floorDb: Curve; extraDb?: Curve } | null {
@@ -998,8 +1019,8 @@ export interface SmartAnalysis {
   sampled?: { parts: number; seconds: number };
   /** Per-section settings (Smart mode per section), times in seconds of the analysed audio. */
   sections: SectionSetting[] | null;
-  /** ~1 s speech windows (level, noise), for the boost-following noise floor of live listening. */
-  windows: SectionWindow[];
+  /** The leveller's speech windows (level), for the boost-following noise floor of live listening. */
+  windows: BoostWindow[];
   /** Hum harmonics to notch (when hum was found). */
   humHarmonics: number[];
 }
@@ -1016,7 +1037,7 @@ export async function analyseForSmart(src: SampleSource, requested: EnhanceSetti
   const chosen = smartChoice(own, fm);
   const humHz = chosen.settings.humRemoval && fm.humAudio.length >= src.sampleRate ? detectHum(fm.humAudio, src.sampleRate, []) : null;
   const humHarm = humHz ? humHarmonics(fm.humAudio, src.sampleRate, [], humHz) : [];
-  return { measures: fm.measures!, settings: chosen.settings, reasons: chosen.reasons, humHz, segments: fm.segments, input: fm.input, sections: chosen.sections, windows: fm.windows ?? [], humHarmonics: humHarm };
+  return { measures: fm.measures!, settings: chosen.settings, reasons: chosen.reasons, humHz, segments: fm.segments, input: fm.input, sections: chosen.sections, windows: fm.boostWindows ?? [], humHarmonics: humHarm };
 }
 
 export interface StreamEnhanceResult {
@@ -1104,7 +1125,7 @@ export async function enhanceStream(
     const trackA = temp(sr, 'float');
     tracks.push(trackA);
     const pre = new BiquadChainState(chain);
-    const control = noiseControl(settings, sections, fm.windows ?? [], (requested.autoMeasures ?? fm.measures)?.speechRefDb, predictedGainDb(settings, input.speechLufs));
+    const control = noiseControl(settings, sections, fm.boostWindows ?? [], (requested.autoMeasures ?? fm.measures)?.boostRefDb ?? (requested.autoMeasures ?? fm.measures)?.speechRefDb, predictedGainDb(settings, input.speechLufs));
     let residualSink: ((c: number, r: number) => void) | null = null;
     const dn = noiseProfile
       ? new StreamingDenoiser(
@@ -1115,7 +1136,7 @@ export async function enhanceStream(
       )
       : null;
     if (dn) stages.push('noise-suppression');
-    if (dn && settings.noiseFollowsBoost !== false && fm.windows?.length) stages.push('noise-follows-boost');
+    if (dn && settings.noiseFollowsBoost !== false && fm.boostWindows?.length) stages.push('noise-follows-boost');
     // per section: the full-boost filter is mixed with the dry signal (exact gain at the centre frequency)
     const clarityCurve = sections && sr > 8000 ? new SectionCurve(sections, (x) => x.clarityDb) : null;
     const clarityMax = clarityCurve ? CLARITY_MAX_DB : clamp(settings.clarityDb, 0, 8);
@@ -1133,7 +1154,7 @@ export async function enhanceStream(
     if (settings.pauseReductionDb > 0) stages.push('pause-reduction');
     const gapGain = dbToGain(-gapDb);
     const useLevel = settings.levelSpeech && segments.length > 0;
-    const levelWins = useLevel ? speechWindows(segments, sr, len, 1) : [];
+    const levelWins = useLevel ? speechWindows(segments, sr, len, LEVEL_WIN_SEC) : [];
     const levelE = new RangeEnergy(levelWins);
     // Smart mode: the noise left in each window after noise reduction (frames by centre)
     const steady = useLevel && !!dn && settings.steadyNoise === true;

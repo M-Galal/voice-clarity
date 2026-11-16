@@ -14,7 +14,7 @@
  * limiter are the same code as the file pipeline.
  */
 import { BiquadChainState, designBiquad, type BiquadCoeffs } from './biquad';
-import type { SectionSetting, SectionWindow } from './autoTune';
+import type { BoostWindow, SectionSetting } from './autoTune';
 import { DD_SMOOTHING, frameSizeFor, humNotches } from './denoise';
 import { eqChain, lowPassChain } from './voiceFilters';
 import { kWeightingCoeffs } from './loudness';
@@ -34,12 +34,14 @@ export interface LiveContext {
   sections: SectionSetting[] | null;
   /** Level of the louder speech (K-weighted dBFS) the leveller raises quiet speech towards. */
   speechRefDb?: number;
+  /** Reference level of the leveller windows (above 300 Hz), for the boost-following noise floor. */
+  boostRefDb?: number;
   /** Speech loudness of the original, LUFS: the starting point for the loudness gain. */
   inputSpeechLufs?: number;
   /** Hum harmonics to notch (default: the first four). */
   humHarmonics?: number[];
-  /** ~1 s speech windows (recording timeline), for the boost-following noise floor. */
-  windows?: SectionWindow[];
+  /** The leveller's speech windows (recording timeline), for the boost-following noise floor. */
+  windows?: BoostWindow[];
 }
 
 const BIG = Number.MAX_SAFE_INTEGER;
@@ -281,7 +283,7 @@ export class LiveChain {
       ? new StreamingDenoiser(
         sr, this.segs, Float32Array.from(noiseProfile),
         { overSubtraction: clamp(settings.noiseAmount, 0.5, 3), floorDb: clamp(settings.noiseFloorDb, -40, -3), smoothing: DD_SMOOTHING, rule: 'wiener-dd' }, BIG,
-        noiseControl(settings, sections, shift(ctx.windows ?? [], startSec), ctx.speechRefDb, predictedGainDb(settings, ctx.inputSpeechLufs ?? NaN)),
+        noiseControl(settings, sections, shift(ctx.windows ?? [], startSec), ctx.boostRefDb ?? ctx.speechRefDb, predictedGainDb(settings, ctx.inputSpeechLufs ?? NaN)),
         settings.steadyNoise === true ? (c, r) => residualSink?.(c, r) : null,
       )
       : null;

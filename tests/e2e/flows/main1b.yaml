@@ -60,6 +60,21 @@ appId: com.example.voiceclarity
       id: "seg-s0"
     timeout: 1200000
 - takeScreenshot: 18_transcript
+# transcribe again with another language: the button opens the language and model choice
+- tapOn:
+    id: "tr-again"
+- extendedWaitUntil:
+    visible:
+      id: "lang-tr"
+    timeout: 15000
+- takeScreenshot: 18b_transcribe_again
+- scrollUntilVisible:
+    element: "Cancel"
+- tapOn: "Cancel"
+- extendedWaitUntil:
+    visible:
+      id: "seg-s0"
+    timeout: 15000
 - tapOn:
     id: "seg-s0"
 - tapOn:

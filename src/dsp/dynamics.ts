@@ -128,6 +128,15 @@ export interface LevelerResult {
 }
 
 /**
+ * Length of the speech windows the leveller works on, seconds. 1 s windows gave one gain to a quiet
+ * word and the louder speech next to it; measured on a 41 s phone recording with a quiet far
+ * voice (one word at 19.1-19.5 s, the next speaker from 20.0 s): with 1 s windows the word stayed
+ * 13 dB below the louder speech at 300-700 Hz and 19 dB at 1.2-2 kHz, with 0.4 s windows 2.5 and
+ * 4.6 dB. Gains still change over about 80 ms.
+ */
+export const LEVEL_WIN_SEC = 0.4;
+
+/**
  * Speech leveller: raises quiet speech (whispers, distant talkers) towards the level of the
  * louder speech in the same file. Speech is measured in ~1 s windows on a K-weighted copy
  * (BS.1770 weighting, which counts the 1.5–7 kHz whisper region more than the low end);
@@ -141,7 +150,7 @@ export function levelSpeech(
   opts: LevelerOptions,
   weighted?: Float32Array,
 ): LevelerResult {
-  const win = opts.windowSec ?? 1.0;
+  const win = opts.windowSec ?? LEVEL_WIN_SEC;
   const refP = opts.refPercentile ?? 0.8;
   const w = weighted ?? input;
   const windows: { a: number; b: number; db: number }[] = [];
