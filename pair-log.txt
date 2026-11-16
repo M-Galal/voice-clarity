@@ -1,0 +1,1 @@
+11-16 13:14:09.640 I/ReactNativeJS( 6466): [VC] transcribe 90.0s model=base lang=ar: 3 chunks, 60s of speech, 149470 ms, detected=ar, segments=12, silence phrases removed=0, paired chunks=2
